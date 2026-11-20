@@ -19,6 +19,8 @@ classifiers = [
 ]
 dependencies = [
     "av>=19,<20",
+    "platformdirs>=4,<5",
+    "tomli-w>=1,<2",
 ]
 
 [project.urls]
