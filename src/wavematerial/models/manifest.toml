@@ -1,0 +1,94 @@
+# SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0
+#
+# The speech models WaveMaterial downloads on first run. Every source URL is pinned to an
+# exact version and checked against its sha256; every installed file is checked against its
+# own size and sha256. The About page credits each model from the fields below.
+#
+# Each model installs into <models folder>/<id>/. A model is either one file (`archive`
+# absent, a single entry in `files`) or an archive, from which only the listed files are
+# extracted (paths relative to `archive_root`).
+
+schema_version = 1
+
+[[model]]
+id = "qwen3-asr-1.7b-q8_0"
+name = "Qwen3-ASR 1.7B (Q8_0 GGUF)"
+role = "Text"
+licence = "Apache-2.0"
+creator = "Qwen Team, Alibaba Cloud"
+model_card = "https://huggingface.co/Qwen/Qwen3-ASR-1.7B"
+changes = "Converted to GGUF and quantised to Q8_0 by handy-computer."
+url = "https://huggingface.co/handy-computer/Qwen3-ASR-1.7B-gguf/resolve/0e0a596e3959c3f3f2ab7d443a5b6f0f4a4bba6f/Qwen3-ASR-1.7B-Q8_0.gguf"
+size = 2185030624
+sha256 = "9a0d81792dfea2d5f278b8a63deb3ea6e02139ce42c2301f32ea19c4f77526b7"
+files = [
+    { path = "Qwen3-ASR-1.7B-Q8_0.gguf", size = 2185030624, sha256 = "9a0d81792dfea2d5f278b8a63deb3ea6e02139ce42c2301f32ea19c4f77526b7" },
+]
+
+[[model]]
+id = "parakeet-tdt-0.6b-v3-int8"
+name = "Parakeet TDT 0.6B v3 (int8)"
+role = "Word timings"
+licence = "CC-BY-4.0"
+creator = "NVIDIA"
+model_card = "https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3"
+changes = "Exported to ONNX and quantised to int8 by the sherpa-onnx project."
+url = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2"
+size = 487211443
+sha256 = "1495e91b59d7fc53ddca91f3431758ec99f8fa253fdb0e1e851be0f72b14b0f9"
+archive = "tar.bz2"
+archive_root = "sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8"
+files = [
+    { path = "encoder.int8.onnx", size = 652282294, sha256 = "1afbe69c1ffdabee94755f42e4daf1d93549131a3da11356bda84fcef0f2c479" },
+    { path = "decoder.int8.onnx", size = 11845274, sha256 = "0222a86147299d4dee90edf95b6d13827edb42ad8b7c9cf0b2582f030937c0b5" },
+    { path = "joiner.int8.onnx", size = 6355277, sha256 = "cbd02f3696e9944970111fb439d9c3fd365a80374565f13f2b9c7007d253fc98" },
+    { path = "tokens.txt", size = 93939, sha256 = "d58544679ea4bc6ac563d1f545eb7d474bd6cfa467f0a6e2c1dc1c7d37e3c35d" },
+]
+
+[[model]]
+id = "silero-vad"
+name = "Silero VAD"
+role = "Speech chunks"
+licence = "MIT"
+creator = "Silero Team"
+model_card = "https://github.com/snakers4/silero-vad"
+changes = "ONNX file as redistributed by the sherpa-onnx project."
+url = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx"
+size = 643854
+sha256 = "9e2449e1087496d8d4caba907f23e0bd3f78d91fa552479bb9c23ac09cbb1fd6"
+files = [
+    { path = "silero_vad.onnx", size = 643854, sha256 = "9e2449e1087496d8d4caba907f23e0bd3f78d91fa552479bb9c23ac09cbb1fd6" },
+]
+
+[[model]]
+id = "pyannote-segmentation-3.0"
+name = "pyannote segmentation 3.0"
+role = "Diarisation: who speaks when"
+licence = "MIT"
+creator = "CNRS (pyannote.audio)"
+model_card = "https://huggingface.co/pyannote/segmentation-3.0"
+changes = "Exported to ONNX by the sherpa-onnx project."
+url = "https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-segmentation-models/sherpa-onnx-pyannote-segmentation-3-0.tar.bz2"
+size = 6958444
+sha256 = "24615ee884c897d9d2ba09bb4d30da6bb1b15e685065962db5b02e76e4996488"
+archive = "tar.bz2"
+archive_root = "sherpa-onnx-pyannote-segmentation-3-0"
+files = [
+    { path = "model.onnx", size = 5992913, sha256 = "220ad67ca923bef2fa91f2390c786097bf305bceb5e261d4af67b38e938e1079" },
+    { path = "LICENSE", size = 1061, sha256 = "14d7016ad68e7394d6e6b78d96cc2ae431c905287b89674cfdf021e79e62b8ba" },
+]
+
+[[model]]
+id = "titanet-small"
+name = "TitaNet small"
+role = "Diarisation: voice embeddings"
+licence = "CC-BY-4.0"
+creator = "NVIDIA"
+model_card = "https://catalog.ngc.nvidia.com/orgs/nvidia/teams/nemo/models/titanet_small"
+changes = "Exported to ONNX by the sherpa-onnx project."
+url = "https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/nemo_en_titanet_small.onnx"
+size = 40257283
+sha256 = "ad4a1802485d8b34c722d2a9d04249662f2ece5d28a7a039063ca22f515a789e"
+files = [
+    { path = "nemo_en_titanet_small.onnx", size = 40257283, sha256 = "ad4a1802485d8b34c722d2a9d04249662f2ece5d28a7a039063ca22f515a789e" },
+]
