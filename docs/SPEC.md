@@ -1,0 +1,152 @@
+# WaveMaterial 1.0: specification
+
+The decisions that bind 1.0.0. Anything not listed here is open; propose it in an issue
+before building it. Visual design: [`design/DESIGN.md`](../design/DESIGN.md).
+
+## Product
+
+- A fully local desktop app that turns audio and video files, one or a batch, into
+  speaker-attributed **English** transcripts, with an editor to correct them.
+- Linux and Windows. Vulkan GPU first (integrated GPUs included), CPU as a fallback.
+- Speed budget: processing time ≤ 0.9 × audio length on the reference machine.
+- Offline after first run. The only network calls are the model downloads and the update
+  check. No telemetry, no accounts.
+- **Not in 1.0.0:** other languages, CUDA, macOS, a light theme, live transcription,
+  translation or summarisation, automatic self-update, importing models from files,
+  editable timings, and output-formatting work (cue splitting, paragraphing, headers).
+
+## Engine
+
+| Step | Component | Runtime |
+|---|---|---|
+| Decode | ffmpeg → 16 kHz mono float32, in memory (no temp WAV) | ffmpeg |
+| Speech chunks | Silero VAD; chunks ≤ 20 s, split at pauses | sherpa-onnx |
+| Word timings | Parakeet TDT 0.6B v3 int8 (its text is discarded) | sherpa-onnx |
+| Text | Qwen3-ASR-1.7B Q8_0 GGUF, per chunk, language forced to English | transcribe.cpp |
+| Align | Matching words take Parakeet's timing; differing spans are interpolated | Python |
+| Diarise | pyannote segmentation-3.0 + TitaNet-small + fast clustering (window shift 0.5, threshold 1.0, 2–3 speakers by default) | sherpa-onnx |
+| Merge | Each word goes to the speaker it overlaps most; speakers numbered `SPEAKER_00`… in order of appearance | Python |
+
+- Only one model is loaded at a time.
+- **Key terms:** each job may carry a list of names and jargon that is passed to Qwen as
+  vocabulary, with a default list in Settings. It is a best-effort hint, untested.
+
+## Devices
+
+- The startup preflight takes **≤ 2 s**. It only detects devices: no benchmarking and no
+  network.
+- Order: a real **Vulkan** device, then the **CPU**. Software rasterisers (llvmpipe,
+  lavapipe, SwiftShader) count as no GPU. Under WSL, the translated Dozen device is not
+  preferred.
+- The CPU uses physical cores − 1 threads, minimum 1.
+- If a job fails on the GPU (backend error or out of memory), it is rerun on the CPU from
+  its last saved stage, and the GPU is remembered as unreliable until the user resets it.
+- Settings can override the choice: auto, a specific Vulkan device, or CPU, plus a thread
+  count.
+
+## Jobs
+
+- One job per media file, and jobs run one at a time. States: `queued → running → done |
+  failed | cancelled`. Naming speakers and editing are actions on a done job.
+- Each stage saves its result to the job's folder: `chunks.json`, `timings.json`,
+  `text.jsonl` (one line per chunk), `diarization.json`, then `artifact.json`. After a
+  crash, a job that was `running` goes back to `queued` and resumes from its last saved
+  stage.
+- Jobs are stored in SQLite (WAL mode). Heavy work runs in one worker subprocess per job,
+  never in the web server. Progress comes back as JSON lines over a pipe.
+- Controls: Pause (finish the current job, then stop the queue), Stop (cancel and keep the
+  saved stages), Resume, Retry (from the last good stage), reorder, and Delete.
+- On resume, the source file's fingerprint is checked; a changed or missing source fails
+  with a clear message.
+- Only one instance of the app runs at a time.
+
+## Transcripts
+
+- `artifact.json` is the model output and is **never modified** after it is written. It
+  holds the schema version, language, duration, speakers, engine metadata, and turns with
+  word timings.
+- User edits and speaker names are saved as a separate current revision. Every output is
+  rendered from that revision, and the original can always be restored.
+- Outputs: `json`, `txt`, `srt`, and `vtt` are always produced; `docx` and `pdf` are made
+  on export. Plain formatting: `SPEAKER: text` per turn, one subtitle cue per turn.
+- **Editor:** fix words; change a turn's speaker; name, merge, and split speakers; split
+  and join turns; find and replace; undo and redo; rename the recording. Selecting any
+  words plays exactly that audio, with Loop, 0.75× speed, and a Replace field. Clicking a
+  timestamp plays from there, and Follow highlights the spoken word. Edits autosave.
+  There are no review flags.
+
+## Data and settings
+
+Paths come from `platformdirs`. Nothing is written inside the install folder.
+
+| What | Linux | Windows |
+|---|---|---|
+| Settings (`config.toml`) | `~/.config/wavematerial/` | `%APPDATA%\wavematerial\` |
+| Jobs (`jobs.db`, one folder per job) | `~/.local/share/wavematerial/` | `%LOCALAPPDATA%\wavematerial\` |
+| Models (~2.9 GB) | `~/.local/share/wavematerial/models/` | `%LOCALAPPDATA%\wavematerial\models\` |
+| Logs | `~/.local/state/wavematerial/logs/` | `%LOCALAPPDATA%\wavematerial\logs\` |
+| Downloads in progress | `~/.cache/wavematerial/` | `%LOCALAPPDATA%\wavematerial\cache\` |
+
+- Flatpak uses the same layout under `~/.var/app/<app-id>/`. It gets read-only access to
+  the home folder, plus the file-chooser portal for saving.
+- Settings are TOML. The models folder can be moved in Settings. Outputs stay in the job's
+  folder; Export copies them out.
+- Uninstalling keeps jobs and models. The Windows uninstaller asks whether to delete them.
+
+## Models
+
+- A manifest shipped with the app lists each model's URL (pinned to an exact version),
+  size, sha256, licence, and attribution. The About page is generated from it.
+- Models are downloaded from upstream only (Hugging Face and sherpa-onnx releases) over
+  plain HTTPS: no mirroring and no token.
+- Downloads resume after an interruption, are retried, and are sha256-verified before they
+  are used. Each launch checks file sizes only; a full check is in Settings.
+- Model updates come with app updates.
+
+| Model | Role | Licence |
+|---|---|---|
+| Qwen3-ASR-1.7B Q8_0 GGUF | text | Apache-2.0 |
+| Parakeet TDT 0.6B v3 int8 | word timings | CC-BY-4.0 |
+| Silero VAD | speech chunks | MIT |
+| pyannote segmentation-3.0 (ONNX) | diarisation | MIT |
+| TitaNet-small | speaker embeddings | CC-BY-4.0 |
+
+## Updates
+
+- The app checks GitHub releases at most once a day, plus a "Check now" button. The check
+  can be turned off in Settings.
+- If a newer version exists, the app links to its release page. Installing is manual.
+- Offline or failed checks are silent.
+
+## UI
+
+- A pywebview window over Flask on waitress, bound to `127.0.0.1` on a random port, with a
+  per-launch token on every request. "Open in browser" is the fallback when the system web
+  view is missing.
+- Server-rendered HTML with htmx; live updates come from polling small fragments. All
+  front-end assets are vendored, so nothing is fetched at run time.
+- Pico.css v2 plus our own stylesheet. Dark only. Fullscreen 1920 × 1080 by default (F11
+  toggles); the minimum window is 960 × 720.
+
+## Licence
+
+- **GPL-2.0-only WITH Universal-FOSS-exception-1.0.** Never GPLv3, never "or later".
+- The exception allows combining with OSI-approved or FSF-free software (such as
+  Apache-2.0 sherpa-onnx), but not with proprietary code.
+- Contributions are accepted under the same licence and exception.
+- Model weights are downloaded at run time, never shipped. CC-BY models are credited on
+  the About page.
+
+## Distribution
+
+- Python 3.11. Installers bundle the app, a Python runtime, and the native libraries;
+  models are not bundled.
+- Formats: `.deb`, Flatpak, a Windows `.exe` installer, and a Linux `.tar.gz` with no
+  compatibility guarantees.
+
+## Support claims
+
+- WaveMaterial is tested on one machine (Ryzen 5 7535HS, Radeon 660M, 14 GB RAM, Linux) and
+  one recording. Everything else is "untested, should work", and the README says so.
+- Requirements are stated as measured: peak 3.4 GB RAM on the CPU path; about 1.2 GB plus
+  2.2 GB of shared GPU memory on Vulkan; 2.9 GB of models on disk.
