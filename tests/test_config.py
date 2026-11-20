@@ -5,7 +5,7 @@ from wavematerial.config import Settings, load_settings, save_settings
 def test_bad_values_fall_back_without_losing_good_ones(tmp_path):
     path = tmp_path / "config.toml"
     path.write_text(
-        'device = "vulkan:1"\n'
+        'device = "vulkan:0000:05:00.0"\n'
         "threads = -4\n"
         'max_speakers = "three"\n'
         'key_terms = ["Tranquility", "  ", " CAPCOM "]\n'
@@ -14,7 +14,7 @@ def test_bad_values_fall_back_without_losing_good_ones(tmp_path):
         encoding="utf-8",
     )
     s = load_settings(path)
-    assert s.device == "vulkan:1"
+    assert s.device == "vulkan:0000:05:00.0"
     assert s.threads == Settings.threads
     assert s.max_speakers == Settings.max_speakers
     assert s.key_terms == ["Tranquility", "CAPCOM"]

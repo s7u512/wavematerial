@@ -73,14 +73,14 @@ class Paths:
         return Path(settings.models_dir) if settings.models_dir else self.default_models_dir
 
 
-_DEVICE = re.compile(r"auto|cpu|vulkan:\d+")
+_DEVICE = re.compile(r"auto|cpu|vulkan:\S+")
 
 
 @dataclass
 class Settings:
     """User settings. An empty string means "not set" (TOML has no null)."""
 
-    device: str = "auto"  # "auto", "cpu", or "vulkan:<index>"
+    device: str = "auto"  # "auto", "cpu", or "vulkan:<stable device id, e.g. PCI bus id>"
     threads: int = 0  # 0 means physical cores - 1
     min_speakers: int = 2
     max_speakers: int = 3

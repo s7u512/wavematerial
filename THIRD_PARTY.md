@@ -16,6 +16,11 @@ Installed from `uv.lock` and shipped in every package.
 | PyAV (`av`) | BSD-3-Clause | https://pypi.org/project/av/ |
 | platformdirs | MIT | https://pypi.org/project/platformdirs/ |
 | tomli-w | MIT | https://pypi.org/project/tomli-w/ |
+| psutil | BSD-3-Clause | https://pypi.org/project/psutil/ |
+| transcribe-cpp | MIT | https://pypi.org/project/transcribe-cpp/ |
+| transcribe-cpp-native (includes ggml) | MIT | https://pypi.org/project/transcribe-cpp-native/ |
+| sherpa-onnx | Apache-2.0 | https://pypi.org/project/sherpa-onnx/ |
+| sherpa-onnx-core (includes ONNX Runtime, MIT) | Apache-2.0 | https://pypi.org/project/sherpa-onnx-core/ |
 | FFmpeg (inside the PyAV wheel) | LGPL-3.0-or-later | https://ffmpeg.org/ |
 | x264 (inside the PyAV wheel) | GPL-2.0-or-later | https://www.videolan.org/developers/x264.html |
 | x265 (inside the PyAV wheel) | GPL-2.0-or-later | https://www.x265.org/ |
