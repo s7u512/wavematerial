@@ -19,13 +19,17 @@ classifiers = [
 ]
 dependencies = [
     "av>=19,<20",
+    "flask>=3,<4",
     "numpy>=2,<3",
     "platformdirs>=4,<5",
     "psutil>=7,<8",
+    "pygobject>=3.52,<4 ; sys_platform == 'linux'",
+    "pywebview>=6,<7",
     "sherpa-onnx==2.0.2",
     "tomli-w>=1,<2",
     "transcribe-cpp==0.4.2",
     "transcribe-cpp-native==0.4.2",
+    "waitress>=3,<4",
 ]
 
 [project.urls]

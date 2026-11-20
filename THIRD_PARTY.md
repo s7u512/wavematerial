@@ -22,6 +22,15 @@ Installed from `uv.lock` and shipped in every package.
 | transcribe-cpp-native (includes ggml) | MIT | https://pypi.org/project/transcribe-cpp-native/ |
 | sherpa-onnx | Apache-2.0 | https://pypi.org/project/sherpa-onnx/ |
 | sherpa-onnx-core (includes ONNX Runtime, MIT) | Apache-2.0 | https://pypi.org/project/sherpa-onnx-core/ |
+| Flask, Werkzeug, Jinja2, MarkupSafe, itsdangerous, click | BSD-3-Clause | https://pypi.org/project/flask/ |
+| blinker | MIT | https://pypi.org/project/blinker/ |
+| waitress | ZPL-2.1 | https://pypi.org/project/waitress/ |
+| pywebview | BSD-3-Clause | https://pypi.org/project/pywebview/ |
+| bottle, proxy-tools (used by pywebview) | MIT | https://pypi.org/project/bottle/ |
+| typing-extensions | PSF-2.0 | https://pypi.org/project/typing-extensions/ |
+| PyGObject (Linux) | LGPL-2.1-or-later | https://pypi.org/project/PyGObject/ |
+| pycairo (Linux) | LGPL-2.1-only OR MPL-1.1 | https://pypi.org/project/pycairo/ |
+| pythonnet, clr-loader, cffi, pycparser (Windows) | MIT, MIT, MIT-0, BSD-3-Clause | https://pypi.org/project/pythonnet/ |
 | FFmpeg (inside the PyAV wheel) | LGPL-3.0-or-later | https://ffmpeg.org/ |
 | x264 (inside the PyAV wheel) | GPL-2.0-or-later | https://www.videolan.org/developers/x264.html |
 | x265 (inside the PyAV wheel) | GPL-2.0-or-later | https://www.x265.org/ |
@@ -47,12 +56,16 @@ Used to build and check the project; not shipped in installers.
 | Apollo 11 lunar landing air-to-ground transcript (20 July 1969) | `design/` mock-ups | Public domain (NASA, US government work) | NASA Apollo 11 air-to-ground transcript |
 | Titles of US government recordings (1950–1990) | `design/` mock-ups, library list | Public domain (US government works) | US government archives |
 
-## Fonts used in the mock-ups
+## Vendored front end
 
-Not committed yet. When they are vendored under `src/wavematerial/web/static/`, their
-licence files go next to them.
+Committed under `src/wavematerial/web/static/`, each with its licence file beside it.
 
-| Font | Licence | Source |
-|---|---|---|
-| Inter | SIL Open Font License 1.1 | https://rsms.me/inter/ |
-| Noto Sans | SIL Open Font License 1.1 | https://fonts.google.com/noto |
+| Component | Version | Licence | Source |
+|---|---|---|---|
+| Pico CSS (`vendor/pico/`) | 2.1.1 | MIT | npm `@picocss/pico` |
+| htmx (`vendor/htmx/`) | 2.0.11 | 0BSD | npm `htmx.org` |
+| Inter, variable, Latin and Latin Extended (`fonts/inter/`) | Fontsource 5.3.0 | OFL-1.1 | npm `@fontsource-variable/inter` (https://rsms.me/inter/) |
+| Noto Sans, variable, upright and italic (`fonts/noto-sans/`) | Fontsource 5.3.0 | OFL-1.1 | npm `@fontsource-variable/noto-sans` |
+
+The icons (`web/icons.py`) and the logo (`static/img/app-icon.svg`, a copy of
+`design/logo/app-icon.svg`) are our own work.

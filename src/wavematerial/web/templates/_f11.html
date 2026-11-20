@@ -1,0 +1,7 @@
+{# SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0 #}
+{% set full = full if full is defined else ctx.fullscreen %}
+{% if ctx.windowed %}
+<button type="button" class="f11" id="f11" hx-post="/fullscreen" hx-swap="outerHTML" data-full="{{ 'yes' if full else 'no' }}">
+  <kbd>F11</kbd><span>{{ "Exit full screen" if full else "Full screen" }}</span>
+</button>
+{% endif %}

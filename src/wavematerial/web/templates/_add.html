@@ -1,0 +1,48 @@
+{# SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0 #}
+{% from "_macros.html" import icon, tags, speaker_select %}
+<dialog open class="modal" aria-labelledby="add-title">
+  <form id="add-form" class="modal-card" hx-post="/add" hx-swap="none" tabindex="-1">
+    <header class="modal-head">
+      <h2 id="add-title">Add recordings</h2>
+      <button type="button" class="icon-btn" data-close-modal aria-label="Close">{{ icon("x") }}</button>
+    </header>
+    <div class="modal-body">
+      <div class="dropzone" id="dropzone">
+        <span class="dropzone-icon">{{ icon("upload", 18) }}</span>
+        {% if windowed %}
+        <p>Drop audio or video files, or a whole folder</p>
+        <div class="dropzone-buttons">
+          <button type="button" class="btn btn-secondary btn-sm" hx-post="/add/files" hx-vals='{"how": "files"}' hx-include="#add-files" hx-target="#add-files" hx-swap="outerHTML">{{ icon("file", 14) }} Choose files…</button>
+          <button type="button" class="btn btn-secondary btn-sm" hx-post="/add/files" hx-vals='{"how": "folder"}' hx-include="#add-files" hx-target="#add-files" hx-swap="outerHTML">{{ icon("folder", 14) }} Choose folder…</button>
+        </div>
+        {% else %}
+        <p>Type or paste the path of a file or folder</p>
+        <div class="typed-path">
+          <input type="text" id="typed-path" placeholder="/home/you/Recordings" aria-label="File or folder path">
+          <button type="button" class="btn btn-secondary btn-sm" id="typed-add">Add</button>
+        </div>
+        <p class="muted small">Picking and dropping files needs the WaveMaterial window.</p>
+        {% endif %}
+      </div>
+      {% with files=[] %}{% include "_add_files.html" %}{% endwith %}
+      <div class="add-options">
+        <fieldset class="field">
+          <legend>Speakers</legend>
+          <div class="inline">Between {{ speaker_select("min_speakers", s.min_speakers, "At least") }} and {{ speaker_select("max_speakers", s.max_speakers, "At most") }}</div>
+        </fieldset>
+        <div class="field grow">
+          <div class="field-label">Key terms <span class="muted">optional</span></div>
+          {{ tags("key_terms", s.key_terms, "Add a name, place or term…") }}
+          <p class="muted small">Spell names the way they should appear. Used as hints, not guaranteed.</p>
+        </div>
+      </div>
+    </div>
+    <footer class="modal-foot">
+      <label class="check"><input type="checkbox" name="save_defaults" value="1"> Save speakers and key terms as my defaults</label>
+      <div class="foot-right">
+        <button type="button" class="btn btn-secondary" data-close-modal>Cancel</button>
+        <button type="submit" class="btn btn-primary" id="add-submit" disabled>Add recordings</button>
+      </div>
+    </footer>
+  </form>
+</dialog>

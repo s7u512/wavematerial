@@ -1,0 +1,29 @@
+{# SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0 #}
+{% from "_macros.html" import icon %}
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="htmx-config" content='{"includeIndicatorStyles": false, "allowEval": false, "historyCacheSize": 0}'>
+  <title>{% block title %}WaveMaterial{% endblock %}</title>
+  <link rel="icon" href="/static/img/app-icon.svg">
+  <link rel="stylesheet" href="/static/vendor/pico/pico.min.css">
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/vendor/htmx/htmx.min.js" defer></script>
+  <script src="/static/app.js" defer></script>
+</head>
+<body class="{% block body_class %}{% endblock %}" data-windowed="{{ 'yes' if ctx.windowed else 'no' }}">
+{% block body %}
+<div class="shell">
+  {% include "_sidebar.html" %}
+  <main class="main">
+    {% block main %}{% endblock %}
+  </main>
+</div>
+{% endblock %}
+<div id="modal"></div>
+<div id="drawer"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

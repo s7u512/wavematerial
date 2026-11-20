@@ -1,0 +1,32 @@
+{# SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0 #}
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}Library · WaveMaterial{% endblock %}
+{% block main %}
+<header class="page-head">
+  <div>
+    <h1>Library</h1>
+    <p class="muted">{{ total }} recording{{ "" if total == 1 else "s" }}{% if in_progress %} · {{ in_progress }} in progress{% endif %}</p>
+  </div>
+  <div class="page-actions">
+    <button type="button" class="btn btn-primary" hx-get="/add" hx-target="#modal">{{ icon("plus", 14) }} Add recordings</button>
+    {% include "_f11.html" %}
+  </div>
+</header>
+<form id="library-filters" class="toolbar" action="/library" method="get">
+  <input type="hidden" name="filter" value="{{ flt }}">
+  <div class="chips" aria-label="Filter">
+    {% for key, (label, _) in filters.items() %}
+    <a class="chip{% if key == flt %} is-active{% endif %}" href="/library?filter={{ key }}{% if q %}&amp;q={{ q | urlencode }}{% endif %}"{% if key == flt %} aria-current="true"{% endif %}>{{ label }} <span class="chip-count">{{ counts[key] }}</span></a>
+    {% endfor %}
+  </div>
+  <label class="search">
+    {{ icon("search", 14) }}
+    <input type="search" name="q" value="{{ q }}" placeholder="Search transcripts" aria-label="Search transcripts"
+           hx-get="/library/table" hx-include="#library-filters" hx-target="#library-table" hx-trigger="input changed delay:300ms, search">
+  </label>
+</form>
+<div id="library-table" data-poll hx-get="/library/table" hx-include="#library-filters" hx-trigger="every 2s, refresh from:body">
+  {% include "_library_table.html" %}
+</div>
+{% endblock %}

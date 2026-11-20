@@ -1,0 +1,25 @@
+{# SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0 #}
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}Welcome · WaveMaterial{% endblock %}
+{% block body_class %}page-setup{% endblock %}
+{% block body %}
+<div class="setup-top">{% include "_f11.html" %}</div>
+<main class="setup">
+  <section class="card setup-card" aria-labelledby="setup-title">
+    <header class="setup-head">
+      <img src="/static/img/app-icon.svg" alt="" width="52" height="52">
+      <div>
+        <h1 id="setup-title">Welcome to WaveMaterial</h1>
+        <p class="muted">Transcripts with speakers, made entirely on this computer.</p>
+      </div>
+    </header>
+    <div class="banner {{ 'banner-ok' if banner.ok else 'banner-neutral' }}">
+      {% if banner.ok %}<span class="banner-icon">{{ icon("check", 12) }}</span>{% else %}<span class="banner-icon banner-icon-neutral">{{ icon("gpu", 12) }}</span>{% endif %}
+      <div><strong>{{ banner.title }}</strong><div>{{ banner.text }}</div></div>
+    </div>
+    <p class="setup-intro">WaveMaterial needs to download its speech models once ({{ s.size_total }}). After that it works fully offline. If the download is interrupted, it picks up where it left off.</p>
+    {% include "_setup_progress.html" %}
+  </section>
+</main>
+{% endblock %}

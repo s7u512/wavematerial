@@ -1,0 +1,38 @@
+{# SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0 #}
+{% from "_macros.html" import icon, pill %}
+<div id="setup-progress" data-poll hx-get="/setup/progress" hx-trigger="every 1s" hx-swap="outerHTML">
+  <ul class="dl-list">
+    {% for gr in s.groups %}
+    <li class="dl-item">
+      <div class="dl-row">
+        <span>{{ gr.label }}</span>
+        <span class="dl-meta">
+          {% if gr.ready %}{{ fmt.size(gr.total) }} {{ pill("done", "Ready") }}
+          {% else %}{{ fmt.size(gr.done) }} of {{ fmt.size(gr.total) }}{% endif %}
+        </span>
+      </div>
+      <progress class="bar {{ 'bar-ok' if gr.ready else '' }}" value="{{ gr.percent }}" max="100" aria-label="{{ gr.label }}"></progress>
+    </li>
+    {% endfor %}
+  </ul>
+  <footer class="setup-foot">
+    <div>
+      {% if s.state == "error" %}
+        <div class="error-text">{{ icon("alert", 14) }} {{ s.error }}</div>
+      {% elif s.state == "paused" %}
+        <div>Paused · {{ s.done }} of {{ s.total }}</div>
+        <div class="muted small">The download continues where it stopped.</div>
+      {% else %}
+        <div>Downloading · {{ s.done }} of {{ s.total }}</div>
+        <div class="muted small">{{ s.left or "working out the time left…" }}</div>
+      {% endif %}
+    </div>
+    {% if s.state == "error" %}
+      <button type="button" class="btn btn-secondary" hx-post="/setup/retry" hx-target="#setup-progress" hx-swap="outerHTML">{{ icon("refresh", 14) }} Try again</button>
+    {% elif s.state == "paused" %}
+      <button type="button" class="btn btn-secondary" hx-post="/setup/resume" hx-target="#setup-progress" hx-swap="outerHTML">{{ icon("play", 12) }} Resume</button>
+    {% else %}
+      <button type="button" class="btn btn-secondary" hx-post="/setup/pause" hx-target="#setup-progress" hx-swap="outerHTML">{{ icon("pause", 12) }} Pause</button>
+    {% endif %}
+  </footer>
+</div>

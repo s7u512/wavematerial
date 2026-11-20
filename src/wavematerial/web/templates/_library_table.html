@@ -1,0 +1,58 @@
+{# SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0 #}
+{% from "_macros.html" import icon, pill %}
+{% if not rows %}
+<div class="empty">
+  {% if total == 0 %}
+    <h2>No recordings yet</h2>
+    <p class="muted">Add audio or video files, or a whole folder. They are transcribed one after another, on this computer.</p>
+    <button type="button" class="btn btn-primary" hx-get="/add" hx-target="#modal">{{ icon("plus", 14) }} Add recordings</button>
+  {% else %}
+    <p class="muted">Nothing matches.</p>
+  {% endif %}
+</div>
+{% else %}
+<table class="jobs">
+  <thead>
+    <tr><th scope="col">Name</th><th scope="col" class="num">Length</th><th scope="col" class="num">Speakers</th><th scope="col">Status</th><th scope="col" class="added">Added</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr>
+  </thead>
+  <tbody>
+  {% for r in rows %}
+    <tr class="job-row{% if r.status == 'running' %} is-running{% endif %}">
+      <td class="name">
+        <button type="button" class="row-open" hx-get="/jobs/{{ r.job.id }}" hx-target="#drawer">{{ icon("file", 14) }}<span>{{ r.job.name }}</span></button>
+      </td>
+      <td class="num">{{ r.length }}</td>
+      <td class="num">{{ r.speakers }}</td>
+      <td class="status">
+        <div class="status-line">{{ pill(r.status, r.label) }}
+          {% if r.status == "running" %}<span class="pct">{{ r.percent }}%</span>{% endif %}
+          {% if r.note %}<span class="note{% if r.status == 'failed' %} note-danger{% endif %}">{{ r.note }}</span>{% endif %}
+        </div>
+        {% if r.status == "running" %}
+        <progress class="bar" value="{{ r.percent }}" max="100" aria-label="Progress"></progress>
+        <div class="detail">{{ r.detail }}</div>
+        {% endif %}
+      </td>
+      <td class="added">{{ r.added }}</td>
+      <td class="actions">
+        <details class="menu">
+          <summary aria-label="More for {{ r.job.name }}">{{ icon("more") }}</summary>
+          <ul>
+            <li><button type="button" hx-get="/jobs/{{ r.job.id }}" hx-target="#drawer">Details</button></li>
+            {% if r.status == "done" %}<li><button type="button" hx-post="/jobs/{{ r.job.id }}/open-folder" hx-swap="none">Open output folder</button></li>{% endif %}
+            {% if r.status == "running" %}<li><button type="button" hx-post="/jobs/{{ r.job.id }}/stop" hx-swap="none">Stop</button></li>{% endif %}
+            {% if r.status == "cancelled" %}<li><button type="button" hx-post="/jobs/{{ r.job.id }}/resume" hx-swap="none">Resume</button></li>{% endif %}
+            {% if r.status == "failed" %}<li><button type="button" hx-post="/jobs/{{ r.job.id }}/retry" hx-swap="none">Retry</button></li>{% endif %}
+            {% if r.status == "queued" %}
+              <li><button type="button" hx-post="/jobs/{{ r.job.id }}/up" hx-swap="none">Move up</button></li>
+              <li><button type="button" hx-post="/jobs/{{ r.job.id }}/down" hx-swap="none">Move down</button></li>
+            {% endif %}
+            {% if r.status != "running" %}<li><button type="button" class="danger" hx-post="/jobs/{{ r.job.id }}/delete" hx-swap="none" hx-confirm="Delete {{ r.job.name }} and its transcript? The original file is not touched.">Delete</button></li>{% endif %}
+          </ul>
+        </details>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}

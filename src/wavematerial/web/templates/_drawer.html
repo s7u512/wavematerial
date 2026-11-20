@@ -1,0 +1,13 @@
+{# SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0 #}
+{% from "_macros.html" import icon %}
+<div class="drawer-backdrop" data-close-drawer></div>
+<aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" tabindex="-1">
+  <header class="drawer-head">
+    <div>
+      <h2 id="drawer-title">{{ job.name }}</h2>
+      <p class="muted small">{{ fmt.length(job.duration) }}{% if size %} · {{ size }}{% endif %} · added {{ fmt.added(job.created_at) | lower }}</p>
+    </div>
+    <button type="button" class="icon-btn" data-close-drawer aria-label="Close">{{ icon("x") }}</button>
+  </header>
+  {% include "_drawer_body.html" %}
+</aside>

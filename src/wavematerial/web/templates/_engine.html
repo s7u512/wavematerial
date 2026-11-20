@@ -1,0 +1,21 @@
+{# SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0 #}
+{% from "_macros.html" import icon %}
+<section id="engine" class="engine" aria-label="Engine" data-poll
+         hx-get="/engine" hx-trigger="every 2s, refresh from:body" hx-swap="outerHTML">
+  <div class="engine-top">
+    {% if engine.running %}
+      <span class="dot dot-ok" aria-hidden="true"></span><strong>Transcribing</strong>
+      <span class="engine-pos">{{ engine.position }}</span>
+    {% elif engine.paused %}
+      <span class="dot dot-warn" aria-hidden="true"></span><strong>Paused</strong>
+    {% else %}
+      <span class="dot dot-idle" aria-hidden="true"></span><strong>Idle</strong>
+    {% endif %}
+  </div>
+  <div class="engine-device">{{ icon("gpu", 14) }}<span>{{ engine.device }}</span></div>
+  {% if engine.paused %}
+  <button type="button" class="btn btn-secondary btn-sm" hx-post="/queue/resume" hx-target="#engine" hx-swap="outerHTML">{{ icon("play", 12) }} Resume queue</button>
+  {% else %}
+  <button type="button" class="btn btn-secondary btn-sm" hx-post="/queue/pause" hx-target="#engine" hx-swap="outerHTML" title="Finish the current recording, then wait">{{ icon("pause", 12) }} Pause queue</button>
+  {% endif %}
+</section>

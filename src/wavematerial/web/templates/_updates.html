@@ -1,0 +1,9 @@
+{# SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0 #}
+{% from "_macros.html" import icon %}
+<div id="updates" class="setting" {% if ctx.updates.checking %}data-poll hx-get="/updates/status" hx-trigger="every 1s" hx-swap="outerHTML"{% endif %}>
+  <div>
+    {{ update_msg }}
+    {% if update_available %}<button type="button" class="link" hx-post="/open/releases" hx-swap="none">Open the release page</button>{% endif %}
+  </div>
+  <button type="button" class="btn btn-secondary btn-sm" hx-post="/updates/check" hx-target="#updates" hx-swap="outerHTML"{% if ctx.updates.checking %} disabled{% endif %}>{{ icon("refresh", 14) }} Check now</button>
+</div>

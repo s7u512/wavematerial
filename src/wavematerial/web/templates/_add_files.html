@@ -1,0 +1,12 @@
+{# SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0 #}
+{% from "_macros.html" import icon %}
+<div id="add-files" class="file-list" data-count="{{ files | length }}">
+  {% for f in files %}
+  <div class="file-row">
+    <input type="hidden" name="paths" value="{{ f.path }}">
+    {{ icon("file", 14) }}<span class="file-name" title="{{ f.path }}">{{ f.name }}</span>
+    <span class="file-meta">{{ f.length }}</span><span class="file-meta">{{ f.size }}</span>
+    <button type="button" class="icon-btn icon-btn-sm" data-remove-file aria-label="Remove {{ f.name }}">{{ icon("x", 12) }}</button>
+  </div>
+  {% endfor %}
+</div>

@@ -1,0 +1,21 @@
+{# SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0 #}
+{% macro icon(name, size=16, cls="") -%}
+<svg class="i{% if name in FILLED_ICONS %} i-fill{% endif %}{% if cls %} {{ cls }}{% endif %}" width="{{ size }}" height="{{ size }}" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="{{ ICONS[name] }}"/></svg>
+{%- endmacro %}
+
+{% macro pill(status, label) -%}
+<span class="pill pill-{{ status }}">{{ label }}</span>
+{%- endmacro %}
+
+{% macro tags(name, values, placeholder) -%}
+<div class="tags" data-tags data-name="{{ name }}">
+  {% for v in values %}<span class="tag">{{ v }}<input type="hidden" name="{{ name }}" value="{{ v }}"><button type="button" class="tag-x" aria-label="Remove {{ v }}">{{ icon("x", 12) }}</button></span>{% endfor %}
+  <input type="text" class="tag-entry" placeholder="{{ placeholder }}" aria-label="{{ placeholder }}" autocomplete="off">
+</div>
+{%- endmacro %}
+
+{% macro speaker_select(name, value, label) -%}
+<select name="{{ name }}" aria-label="{{ label }}" class="select-sm">
+  {% for n in range(1, 11) %}<option value="{{ n }}"{% if n == value %} selected{% endif %}>{{ n }}</option>{% endfor %}
+</select>
+{%- endmacro %}

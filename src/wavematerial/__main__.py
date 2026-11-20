@@ -151,12 +151,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
     if args.command is None:
-        print(
-            f"wavematerial {__version__}: the app is not built yet. "
-            "Available: `wavematerial models` and `wavematerial transcribe`.",
-            file=sys.stderr,
-        )
-        return 1
+        from wavematerial.app import main as run_app
+
+        return run_app()
     return args.func(args)
 
 

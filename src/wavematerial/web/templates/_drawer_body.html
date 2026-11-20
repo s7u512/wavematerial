@@ -1,0 +1,49 @@
+{# SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0 #}
+{% from "_macros.html" import icon, pill %}
+<div class="drawer-body" id="drawer-body" data-poll
+     {% if job.state in ("running", "queued") %}hx-get="/jobs/{{ job.id }}/body" hx-trigger="every 1500ms, refresh from:body" hx-swap="outerHTML"{% else %}hx-get="/jobs/{{ job.id }}/body" hx-trigger="refresh from:body" hx-swap="outerHTML"{% endif %}>
+  <div class="status-line">
+    {{ pill(row.status, row.label) }}
+    {% if job.state == "running" %}<span class="muted">{{ row.percent }}%{% if row.detail %} · {{ row.detail.split(" · ")[-1] if "left" in row.detail else "" }}{% endif %}</span>{% endif %}
+  </div>
+  {% if job.error %}<div class="banner banner-danger">{{ icon("alert", 14) }}<div>{{ job.error }}</div></div>{% endif %}
+
+  <h3 class="caps">Stages</h3>
+  <ol class="stages">
+    {% for st in stages %}
+    <li class="stage stage-{{ st.state }}">
+      <span class="stage-mark" aria-hidden="true">{% if st.state == "done" %}{{ icon("check", 12) }}{% endif %}</span>
+      <span class="stage-label">{{ st.label }}<span class="visually-hidden"> ({{ {"done": "finished", "active": "in progress", "todo": "waiting"}[st.state] }})</span></span>
+      <span class="stage-note">{{ st.note }}</span>
+    </li>
+    {% endfor %}
+  </ol>
+
+  <dl class="facts">
+    <dt>Device</dt><dd>{{ fmt.device_label(job.device) or "Chosen when it starts" }}</dd>
+    <dt>Speakers</dt><dd>{% if job.speakers is not none %}{{ job.speakers }} found (allowed {{ job.min_speakers }}–{{ job.max_speakers }}){% else %}between {{ job.min_speakers }} and {{ job.max_speakers }}{% endif %}</dd>
+    <dt>Key terms</dt><dd>{{ job.key_terms | join(", ") or "None" }}</dd>
+    <dt>Language</dt><dd>English</dd>
+    <dt>File</dt><dd class="path">{{ job.source }}</dd>
+  </dl>
+
+  <h3 class="caps">Log</h3>
+  <pre class="log" tabindex="0">{% for line in events %}{{ line }}
+{% endfor %}</pre>
+
+  <footer class="drawer-foot">
+    {% if job.state == "running" %}
+      <button type="button" class="btn btn-danger-outline" hx-post="/jobs/{{ job.id }}/stop" hx-swap="none">{{ icon("pause", 12) }} Stop</button>
+    {% elif job.state == "cancelled" %}
+      <button type="button" class="btn btn-secondary" hx-post="/jobs/{{ job.id }}/resume" hx-swap="none">{{ icon("play", 12) }} Resume</button>
+    {% elif job.state == "failed" %}
+      <button type="button" class="btn btn-secondary" hx-post="/jobs/{{ job.id }}/retry" hx-swap="none">{{ icon("refresh", 14) }} Retry</button>
+    {% elif job.state == "done" %}
+      <button type="button" class="btn btn-secondary" hx-post="/jobs/{{ job.id }}/open-folder" hx-swap="none">{{ icon("folder", 14) }} Open output folder</button>
+    {% else %}<span></span>{% endif %}
+    <div class="foot-right">
+      {% if job.state != "running" %}<button type="button" class="btn btn-ghost danger" hx-post="/jobs/{{ job.id }}/delete" hx-swap="none" hx-confirm="Delete {{ job.name }} and its transcript? The original file is not touched.">{{ icon("trash", 14) }} Delete</button>{% endif %}
+      <button type="button" class="btn btn-ghost" hx-post="/jobs/{{ job.id }}/open-log" hx-swap="none">Open log file</button>
+    </div>
+  </footer>
+</div>

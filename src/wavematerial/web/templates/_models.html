@@ -1,0 +1,20 @@
+{# SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0 #}
+{% from "_macros.html" import icon, pill %}
+<div id="models" {% if verifying or moving %}data-poll hx-get="/settings/models" hx-trigger="every 1s" hx-swap="outerHTML"{% endif %}>
+  <ul class="model-list">
+    {% for m in models %}
+    <li class="model-row">
+      <div><div>{{ m.name }}</div><div class="muted small">{{ m.role }}</div></div>
+      <div class="model-meta">{{ m.size }} {{ pill(m.status[0], m.status[1]) }}</div>
+    </li>
+    {% endfor %}
+  </ul>
+  <div class="folder-row">
+    <div class="folder-path">{{ icon("folder", 14) }}<span title="{{ models_dir }}">{{ models_dir }}</span></div>
+    {% if ctx.windowed %}<button type="button" class="btn btn-secondary btn-sm" hx-post="/settings/models-folder" hx-target="#models" hx-swap="outerHTML"{% if moving %} disabled{% endif %}>Change…</button>{% endif %}
+  </div>
+  {% if moving %}<p class="muted small">{{ moving }}</p>{% endif %}
+  <button type="button" class="btn btn-secondary btn-sm" hx-post="/settings/verify" hx-target="#models" hx-swap="outerHTML"{% if verifying %} disabled{% endif %}>
+    {{ icon("check", 14) }} {{ "Verifying…" if verifying else "Verify all" }}
+  </button>
+</div>

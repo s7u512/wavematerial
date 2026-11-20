@@ -1,0 +1,74 @@
+{# SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0 #}
+{% extends "base.html" %}
+{% from "_macros.html" import icon, tags, speaker_select %}
+{% block title %}Settings · WaveMaterial{% endblock %}
+{% block main %}
+<header class="page-head">
+  <h1>Settings</h1>
+  <div class="page-actions">{% include "_f11.html" %}</div>
+</header>
+<div class="settings">
+  <form class="card section" hx-post="/settings" hx-trigger="change" hx-swap="none">
+    <h2>Processing</h2>
+    <p class="muted">Where transcription runs.</p>
+    <div class="setting">
+      <label for="device"><span>Device</span><span class="muted small">Falls back to the processor automatically if the graphics card fails.</span></label>
+      <select id="device" name="device">
+        {% for value, label in devices %}<option value="{{ value }}"{% if value == s.device %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    {% if unreliable %}
+    <div class="banner banner-warn">{{ icon("alert", 14) }}
+      <div>The graphics card failed before, so jobs run on the processor. <button type="button" class="link" hx-post="/settings/reset-gpu" hx-swap="none">Try the graphics card again</button></div>
+    </div>
+    {% endif %}
+    <div class="setting">
+      <label for="threads"><span>Processor threads</span><span class="muted small">Used when running on the processor. Automatic = physical cores − 1.</span></label>
+      <select id="threads" name="threads">
+        <option value="0"{% if s.threads == 0 %} selected{% endif %}>Automatic ({{ threads_auto }})</option>
+        {% for n in range(1, max_threads + 1) %}<option value="{{ n }}"{% if s.threads == n %} selected{% endif %}>{{ n }}</option>{% endfor %}
+      </select>
+    </div>
+  </form>
+
+  <form class="card section" hx-post="/settings" hx-trigger="change" hx-swap="none">
+    <h2>New recordings</h2>
+    <p class="muted">Defaults for the Add recordings dialog.</p>
+    <div class="setting">
+      <div class="setting-label"><span>Speakers</span><span class="muted small">The usual number of people in your recordings.</span></div>
+      <div class="inline">{{ speaker_select("min_speakers", s.min_speakers, "At least") }} to {{ speaker_select("max_speakers", s.max_speakers, "At most") }}</div>
+    </div>
+    <div class="setting">
+      <div class="setting-label"><span>Key terms</span><span class="muted small">Names and jargon added to every new recording.</span></div>
+      <input type="hidden" name="key_terms_present" value="1">
+      {{ tags("key_terms", s.key_terms, "Add…") }}
+    </div>
+  </form>
+
+  <section class="card section" aria-labelledby="models-title">
+    <h2 id="models-title">Speech models</h2>
+    <p class="muted">Downloaded once. Everything runs on this computer.</p>
+    {% include "_models.html" %}
+  </section>
+
+  <form class="card section" hx-post="/settings" hx-trigger="change" hx-swap="none">
+    <h2>Updates</h2>
+    <div class="setting">
+      <label for="update_check"><span>Check for new versions once a day</span><span class="muted small">Only asks GitHub whether a newer release exists. Installing stays manual.</span></label>
+      <input type="hidden" name="update_check" value="off">
+      <input type="checkbox" role="switch" id="update_check" name="update_check" value="on"{% if s.update_check %} checked{% endif %}>
+    </div>
+    {% include "_updates.html" %}
+  </form>
+
+  <section class="card section" aria-labelledby="about-title">
+    <h2 id="about-title">About</h2>
+    <p>WaveMaterial {{ version }} · Licensed GPL-2.0-only WITH Universal-FOSS-exception-1.0. Speech models by Alibaba Qwen and NVIDIA (CC-BY-4.0), pyannote, and Silero.</p>
+    <p class="links">
+      <a href="/credits">Licences and credits</a>
+      <button type="button" class="link" hx-post="/open/data" hx-swap="none">Open data folder</button>
+      <button type="button" class="link" hx-post="/open/logs" hx-swap="none">Open logs</button>
+    </p>
+  </section>
+</div>
+{% endblock %}

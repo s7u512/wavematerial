@@ -1,0 +1,43 @@
+{# SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0 #}
+{% extends "base.html" %}
+{% block title %}Licences and credits · WaveMaterial{% endblock %}
+{% block main %}
+<header class="page-head">
+  <div><h1>Licences and credits</h1><p class="muted"><a href="/settings">Settings</a> › Licences and credits</p></div>
+  <div class="page-actions">{% include "_f11.html" %}</div>
+</header>
+<div class="settings">
+  <section class="card section">
+    <h2>WaveMaterial {{ version }}</h2>
+    <p>Free software under GPL-2.0-only WITH Universal-FOSS-exception-1.0. <button type="button" class="link" hx-get="/credits/licence/app" hx-target="#licence">Read the licence</button></p>
+    <p class="muted">Source code: github.com/s7u512/wavematerial</p>
+  </section>
+  <section class="card section">
+    <h2>Speech models</h2>
+    <p class="muted">Downloaded on first run from their publishers; not part of WaveMaterial.</p>
+    <ul class="credit-list">
+      {% for m in models %}
+      <li>
+        <strong>{{ m.name }}</strong> — {{ m.role }}<br>
+        By {{ m.creator }}, licensed {{ m.licence }}. {{ m.changes }}
+        <span class="muted small">Model card: {{ m.model_card }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  <section class="card section">
+    <h2>Software</h2>
+    <table class="credits">
+      <thead><tr><th scope="col">Component</th><th scope="col">Version</th><th scope="col">Licence</th><th scope="col"></th></tr></thead>
+      <tbody>
+      {% for c in bundled + software %}
+        <tr><td>{{ c.name }}</td><td>{{ c.version }}</td><td>{{ c.licence }}</td>
+            <td><button type="button" class="link" hx-get="/credits/licence/{{ c.key }}" hx-target="#licence">View licence</button></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <p class="muted small">The FFmpeg, x264, and x265 libraries are copyleft; their exact source code is offered with each WaveMaterial release.</p>
+  </section>
+  <div id="licence"></div>
+</div>
+{% endblock %}
