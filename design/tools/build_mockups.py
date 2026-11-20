@@ -33,7 +33,9 @@ BORDER_STRONG = "#3B3F46"
 TEXT = "#ECECEC"
 TEXT_2 = "#A8ACB3"
 TEXT_3 = "#858A91"  # darkest grey passing 4.5:1 on bg, surface, surface-2, tint
-ACCENT = "#C81400"  # rgb(200, 20, 0): fills, borders, icons, logo tile (3.2:1 on BG: fine for graphics)
+ACCENT = (
+    "#C81400"  # rgb(200, 20, 0): fills, borders, icons, logo tile (3.2:1 on BG: fine for graphics)
+)
 ACCENT_TEXT = "#D75647"  # same hue, lighter: for red TEXT (>= 4.5:1 on every dark background)
 ON_ACCENT = "#FFFFFF"  # text/icons on red fills (5.9:1)
 ACCENT_SOFT = "#2A0D08"  # accent-text on it: 4.58:1
@@ -44,7 +46,14 @@ DANGER = "#FF8A80"  # errors: lighter salmon + icon, so they don't read as "bran
 DANGER_SOFT = "#3A1717"
 OK = "#4CC38A"
 OK_SOFT = "#11291D"
-SPK = ["#4FB8C0", "#E0A04A", "#A08CEB", "#6FA3F2", "#A8C36A", "#D58BD5"]  # no reds: red is the accent
+SPK = [
+    "#4FB8C0",
+    "#E0A04A",
+    "#A08CEB",
+    "#6FA3F2",
+    "#A8C36A",
+    "#D58BD5",
+]  # no reds: red is the accent
 
 LOGO_RED = "#C81400"  # from design/logo/app-icon.svg
 LOGO_YELLOW = "#FFE600"  # the sickle; the wave bars are #FFFF00
@@ -96,13 +105,28 @@ def screen(name: str, x: float, y: float, w: float = W, h: float = H, **props) -
     r = _ref("s")
     cmd(
         "frame.create",
-        {"name": name, "x": x, "y": y, "width": w, "height": h, "props": {"fill": BG, "clip": True, **props}},
+        {
+            "name": name,
+            "x": x,
+            "y": y,
+            "width": w,
+            "height": h,
+            "props": {"fill": BG, "clip": True, **props},
+        },
         r,
     )
     return r
 
 
-def text(parent: str, s: str, size: float = 14, weight: str = "Regular", color: str = TEXT, family: str = UI, **props) -> str:
+def text(
+    parent: str,
+    s: str,
+    size: float = 14,
+    weight: str = "Regular",
+    color: str = TEXT,
+    family: str = UI,
+    **props,
+) -> str:
     r = _ref("t")
     fam = props.pop("fontFamily", family)
     family = fam
@@ -113,17 +137,41 @@ def text(parent: str, s: str, size: float = 14, weight: str = "Regular", color: 
             "text": s,
             "x": 0,
             "y": 0,
-            "props": {"fontFamily": family, "fontStyle": weight, "fontSize": size, "fill": color, **props},
+            "props": {
+                "fontFamily": family,
+                "fontStyle": weight,
+                "fontSize": size,
+                "fill": color,
+                **props,
+            },
         },
         r,
     )
     return r
 
 
-def para(parent: str, s: str, size: float = 14, color: str = TEXT, family: str = UI, lh: str | float = "150%", **props) -> str:
+def para(
+    parent: str,
+    s: str,
+    size: float = 14,
+    color: str = TEXT,
+    family: str = UI,
+    lh: str | float = "150%",
+    **props,
+) -> str:
     """Wrapping paragraph that fills its parent's width."""
-    return text(parent, s, size, props.pop("weight", "Regular"), color, family,
-                sizingH="fill", textAutoResize="height", lineHeight=lh, **props)
+    return text(
+        parent,
+        s,
+        size,
+        props.pop("weight", "Regular"),
+        color,
+        family,
+        sizingH="fill",
+        textAutoResize="height",
+        lineHeight=lh,
+        **props,
+    )
 
 
 def style_range(t: str, start: int, end: int, **st) -> None:
@@ -139,19 +187,46 @@ def style_word(t: str, full: str, word: str, occurrence: int = 0, **st) -> None:
 
 def rect(parent: str, w: float, h: float, fill: str, **props) -> str:
     r = _ref("r")
-    cmd("node.create", {"type": "rectangle", "parent": R(parent), "width": w, "height": h,
-                        "props": {"fill": fill, **props}}, r)
+    cmd(
+        "node.create",
+        {
+            "type": "rectangle",
+            "parent": R(parent),
+            "width": w,
+            "height": h,
+            "props": {"fill": fill, **props},
+        },
+        r,
+    )
     return r
 
 
 def dot(parent: str, d: float, fill: str, **props) -> str:
     r = _ref("d")
-    cmd("node.create", {"type": "ellipse", "parent": R(parent), "width": d, "height": d,
-                        "props": {"fill": fill, **props}}, r)
+    cmd(
+        "node.create",
+        {
+            "type": "ellipse",
+            "parent": R(parent),
+            "width": d,
+            "height": d,
+            "props": {"fill": fill, **props},
+        },
+        r,
+    )
     return r
 
 
-def vec(parent: str, path: str, w: float, h: float, stroke: str | None = None, fill: str | None = None, sw: float = 1.6, **props) -> str:
+def vec(
+    parent: str,
+    path: str,
+    w: float,
+    h: float,
+    stroke: str | None = None,
+    fill: str | None = None,
+    sw: float = 1.6,
+    **props,
+) -> str:
     r = _ref("v")
     p: dict = {"fill": fill}
     if stroke:
@@ -159,8 +234,11 @@ def vec(parent: str, path: str, w: float, h: float, stroke: str | None = None, f
     x0, y0, x1, y1 = path_bbox(path)
     size = max(w, h)  # fit the longer side, keep proportions
     dims = {"width": size} if x1 - x0 >= y1 - y0 else {"height": size}
-    cmd("node.create", {"type": "vector", "parent": R(parent), "path": path, **dims,
-                        "props": {**p, **props}}, r)
+    cmd(
+        "node.create",
+        {"type": "vector", "parent": R(parent), "path": path, **dims, "props": {**p, **props}},
+        r,
+    )
     return r
 
 
@@ -172,17 +250,42 @@ def edge(side: str, color: str = BORDER, w: float = 1) -> dict:
 
 
 def spacer(parent: str, horizontal: bool = True) -> str:
-    return frame(parent, "spacer", 1, 1, **({"sizingH": "fill"} if horizontal else {"sizingV": "fill"}))
+    return frame(
+        parent, "spacer", 1, 1, **({"sizingH": "fill"} if horizontal else {"sizingV": "fill"})
+    )
 
 
-def hstack(parent: str, name: str = "Row", gap: float = 8, pad=0, align: str = "center", **props) -> str:
-    return frame(parent, name, 10, 10, layout="horizontal", gap=gap, padding=pad, crossAlign=align,
-                 sizingH=props.pop("sizingH", "hug"), sizingV=props.pop("sizingV", "hug"), **props)
+def hstack(
+    parent: str, name: str = "Row", gap: float = 8, pad=0, align: str = "center", **props
+) -> str:
+    return frame(
+        parent,
+        name,
+        10,
+        10,
+        layout="horizontal",
+        gap=gap,
+        padding=pad,
+        crossAlign=align,
+        sizingH=props.pop("sizingH", "hug"),
+        sizingV=props.pop("sizingV", "hug"),
+        **props,
+    )
 
 
 def vstack(parent: str, name: str = "Column", gap: float = 8, pad=0, **props) -> str:
-    return frame(parent, name, 10, 10, layout="vertical", gap=gap, padding=pad,
-                 sizingH=props.pop("sizingH", "hug"), sizingV=props.pop("sizingV", "hug"), **props)
+    return frame(
+        parent,
+        name,
+        10,
+        10,
+        layout="vertical",
+        gap=gap,
+        padding=pad,
+        sizingH=props.pop("sizingH", "hug"),
+        sizingV=props.pop("sizingV", "hug"),
+        **props,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -192,7 +295,10 @@ ICON = {
     "library": "M3 3h4v10H3z M9 3h4v10H9z",
     "inbox": "M2 9l2-6h8l2 6v4H2z M2 9h4l1 2h2l1-2h4",
     "review": "M8 2l6 11H2z M8 6v3 M8 11v.5",
-    "settings": "M8 5.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5 M8 1v2 M8 13v2 M1 8h2 M13 8h2 M3 3l1.5 1.5 M11.5 11.5L13 13 M3 13l1.5-1.5 M11.5 4.5L13 3",
+    "settings": (
+        "M8 5.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5 M8 1v2 M8 13v2 M1 8h2 M13 8h2 "
+        "M3 3l1.5 1.5 M11.5 11.5L13 13 M3 13l1.5-1.5 M11.5 4.5L13 3"
+    ),
     "plus": "M8 3v10 M3 8h10",
     "search": "M7 2.5a4.5 4.5 0 1 0 0 9a4.5 4.5 0 1 0 0-9 M10.5 10.5L14 14",
     "back": "M10 3L5 8l5 5",
@@ -245,7 +351,7 @@ def path_bbox(d: str) -> tuple[float, float, float, float]:
         elif up == "A":
             cx, cy = (cx + args[5], cy + args[6]) if rel else (args[5], args[6])
         else:
-            pts = list(zip(args[0::2], args[1::2]))
+            pts = list(zip(args[0::2], args[1::2], strict=False))
             for px, py in pts[:-1]:
                 xs.append(cx + px if rel else px)
                 ys.append(cy + py if rel else py)
@@ -282,16 +388,31 @@ def icon(parent: str, name: str, color: str = TEXT_2, size: float = 16, sw: floa
 # Components
 # ---------------------------------------------------------------------------
 def logo_mark(parent: str, size: float = 28, tile: bool = True) -> str:
-    """The WaveMaterial logo, drawn from the master SVG (design/logo/app-icon.svg) scaled to `size`."""
+    """The WaveMaterial logo, drawn from the master SVG (logo/app-icon.svg) scaled to `size`."""
     canvas, tile_part, mark = logo_source.parts()
     box = frame(parent, "Logo", size, size)
     for part in ([tile_part] if tile else []) + mark:
-        cmd("node.create", {"type": "vector", "parent": R(box), "path": logo_source.scale_d(part.d, size / canvas),
-                            "x": 0, "y": 0, "props": {"fill": part.fill, "name": part.name}})
+        cmd(
+            "node.create",
+            {
+                "type": "vector",
+                "parent": R(box),
+                "path": logo_source.scale_d(part.d, size / canvas),
+                "x": 0,
+                "y": 0,
+                "props": {"fill": part.fill, "name": part.name},
+            },
+        )
     return box
 
 
-def button(parent: str, label: str, kind: str = "secondary", icon_name: str | None = None, small: bool = False) -> str:
+def button(
+    parent: str,
+    label: str,
+    kind: str = "secondary",
+    icon_name: str | None = None,
+    small: bool = False,
+) -> str:
     styles = {
         "primary": dict(fill=ACCENT, stroke=None, color=ON_ACCENT),
         "secondary": dict(fill=SURFACE, stroke=BORDER_STRONG, color=TEXT),
@@ -299,9 +420,16 @@ def button(parent: str, label: str, kind: str = "secondary", icon_name: str | No
         "danger": dict(fill=SURFACE, stroke="#6B2A2E", color=DANGER),
     }[kind]
     pad = [5, 10, 5, 10] if small else [8, 14, 8, 14]
-    b = hstack(parent, f"Button/{label}", gap=6, pad=pad, fill=styles["fill"], cornerRadius=6,
-               **({"stroke": styles["stroke"], "strokeWeight": 1} if styles["stroke"] else {}),
-               **({"effects": SHADOW_SM} if kind in ("secondary", "primary") else {}))
+    b = hstack(
+        parent,
+        f"Button/{label}",
+        gap=6,
+        pad=pad,
+        fill=styles["fill"],
+        cornerRadius=6,
+        **({"stroke": styles["stroke"], "strokeWeight": 1} if styles["stroke"] else {}),
+        **({"effects": SHADOW_SM} if kind in ("secondary", "primary") else {}),
+    )
     if icon_name:
         icon(b, icon_name, styles["color"], 14 if small else 16)
     if label:
@@ -309,11 +437,25 @@ def button(parent: str, label: str, kind: str = "secondary", icon_name: str | No
     return b
 
 
-def chip(parent: str, label: str, color: str = TEXT_2, fill: str = SURFACE, stroke: str | None = BORDER,
-         removable: bool = False, count: str | None = None, active: bool = False) -> str:
-    c = hstack(parent, f"Chip/{label}", gap=6, pad=[4, 10, 4, 10], cornerRadius=999,
-               fill=ACCENT_SOFT if active else fill,
-               **({"stroke": ACCENT if active else stroke, "strokeWeight": 1} if stroke else {}))
+def chip(
+    parent: str,
+    label: str,
+    color: str = TEXT_2,
+    fill: str = SURFACE,
+    stroke: str | None = BORDER,
+    removable: bool = False,
+    count: str | None = None,
+    active: bool = False,
+) -> str:
+    c = hstack(
+        parent,
+        f"Chip/{label}",
+        gap=6,
+        pad=[4, 10, 4, 10],
+        cornerRadius=999,
+        fill=ACCENT_SOFT if active else fill,
+        **({"stroke": ACCENT if active else stroke, "strokeWeight": 1} if stroke else {}),
+    )
     text(c, label, 12.5, "Medium", ACCENT_TEXT if active else color)
     if count:
         text(c, count, 12, "Regular", ACCENT_TEXT if active else TEXT_3, features={"tnum": True})
@@ -330,17 +472,42 @@ def pill(parent: str, label: str, fg: str, bg: str, dot_color: str | None = None
     return p
 
 
-def progress(parent: str, frac: float, width: float = 160, color: str = ACCENT, height: float = 6) -> str:
+def progress(
+    parent: str, frac: float, width: float = 160, color: str = ACCENT, height: float = 6
+) -> str:
     track = frame(parent, "Progress", width, height, fill=BORDER, cornerRadius=999, clip=True)
-    cmd("node.create", {"type": "rectangle", "parent": R(track), "width": max(width * frac, 1), "height": height,
-                        "props": {"fill": color, "cornerRadius": 999, "absolute": True, "x": 0, "y": 0}})
+    cmd(
+        "node.create",
+        {
+            "type": "rectangle",
+            "parent": R(track),
+            "width": max(width * frac, 1),
+            "height": height,
+            "props": {"fill": color, "cornerRadius": 999, "absolute": True, "x": 0, "y": 0},
+        },
+    )
     return track
 
 
-def field(parent: str, value: str, width: float | None = None, placeholder: bool = False,
-          icon_name: str | None = None, trailing: str | None = None) -> str:
-    f = hstack(parent, "Input", gap=8, pad=[7, 10, 7, 10], fill=SURFACE, stroke=BORDER_STRONG, strokeWeight=1,
-               cornerRadius=6, **({"sizingH": "fixed"} if width else {"sizingH": "fill"}))
+def field(
+    parent: str,
+    value: str,
+    width: float | None = None,
+    placeholder: bool = False,
+    icon_name: str | None = None,
+    trailing: str | None = None,
+) -> str:
+    f = hstack(
+        parent,
+        "Input",
+        gap=8,
+        pad=[7, 10, 7, 10],
+        fill=SURFACE,
+        stroke=BORDER_STRONG,
+        strokeWeight=1,
+        cornerRadius=6,
+        **({"sizingH": "fixed"} if width else {"sizingH": "fill"}),
+    )
     if width:
         cmd("node.set", {"ids": [R(f)], "props": {"width": width}})
     if icon_name:
@@ -366,44 +533,106 @@ def section_label(parent: str, s: str) -> str:
 # ---------------------------------------------------------------------------
 def sidebar(win: str, active: str, compact: bool = False) -> None:
     if compact:  # icon rail for small windows
-        sb = vstack(win, "Sidebar", gap=6, pad=[14, 10, 14, 10], fill=SIDEBAR, sizingV="fill", sizingH="fixed",
-                    crossAlign="center", **edge("right"))
+        sb = vstack(
+            win,
+            "Sidebar",
+            gap=6,
+            pad=[14, 10, 14, 10],
+            fill=SIDEBAR,
+            sizingV="fill",
+            sizingH="fixed",
+            crossAlign="center",
+            **edge("right"),
+        )
         cmd("node.set", {"ids": [R(sb)], "props": {"width": 60}})
         logo_mark(sb, 30)
         frame(sb, "gap", 1, 12)
         for key, ic in [("library", "library"), ("add", "plus")]:
-            it = frame(sb, f"Rail/{key}", 38, 38, cornerRadius=8, fill=SURFACE if key == active else None,
-                       layout="vertical", mainAlign="center", crossAlign="center")
+            it = frame(
+                sb,
+                f"Rail/{key}",
+                38,
+                38,
+                cornerRadius=8,
+                fill=SURFACE if key == active else None,
+                layout="vertical",
+                mainAlign="center",
+                crossAlign="center",
+            )
             icon(it, ic, ACCENT if key == active else TEXT_2, 18)
         spacer(sb, horizontal=False)
         dot(sb, 10, OK)
-        it = frame(sb, "Rail/settings", 38, 38, cornerRadius=8, layout="vertical", mainAlign="center",
-                   crossAlign="center")
+        it = frame(
+            sb,
+            "Rail/settings",
+            38,
+            38,
+            cornerRadius=8,
+            layout="vertical",
+            mainAlign="center",
+            crossAlign="center",
+        )
         icon(it, "settings", TEXT_2, 18)
         return
-    sb = vstack(win, "Sidebar", gap=2, pad=[18, 12, 14, 12], fill=SIDEBAR, sizingV="fill", sizingH="fixed",
-                **edge("right"))
+    sb = vstack(
+        win,
+        "Sidebar",
+        gap=2,
+        pad=[18, 12, 14, 12],
+        fill=SIDEBAR,
+        sizingV="fill",
+        sizingH="fixed",
+        **edge("right"),
+    )
     cmd("node.set", {"ids": [R(sb)], "props": {"width": SIDEBAR_W}})
     brand = hstack(sb, "Brand", gap=10, pad=[0, 6, 18, 6])
     logo_mark(brand, 30)
     text(brand, "WaveMaterial", 17, "SemiBold", TEXT, letterSpacing="-1%")
     is_lib = active == "library"
-    item = hstack(sb, "Nav/Library", gap=10, pad=[8, 10, 8, 10], cornerRadius=6, sizingH="fill",
-                  fill=SURFACE if is_lib else None)
+    item = hstack(
+        sb,
+        "Nav/Library",
+        gap=10,
+        pad=[8, 10, 8, 10],
+        cornerRadius=6,
+        sizingH="fill",
+        fill=SURFACE if is_lib else None,
+    )
     icon(item, "library", ACCENT if is_lib else TEXT_2)
-    text(item, "Library", 13.5, "Medium" if is_lib else "Regular", TEXT if is_lib else TEXT_2, sizingH="fill")
+    text(
+        item,
+        "Library",
+        13.5,
+        "Medium" if is_lib else "Regular",
+        TEXT if is_lib else TEXT_2,
+        sizingH="fill",
+    )
     text(item, "12", 12, "Regular", TEXT_3, features={"tnum": True})
     frame(sb, "gap", 1, 14)
     rl = hstack(sb, "Recent label", gap=0, pad=[0, 10, 4, 10], sizingH="fill")
     section_label(rl, "Recent")
-    for name, spk_c in [("apollo11_landing_1969", SPK[0]), ("apollo8_christmas_eve_1968", SPK[1]),
-                        ("gemini4_spacewalk_1965", SPK[2]), ("nixon_moon_call_1969", SPK[3])]:
+    for name, _spk_c in [
+        ("apollo11_landing_1969", SPK[0]),
+        ("apollo8_christmas_eve_1968", SPK[1]),
+        ("gemini4_spacewalk_1965", SPK[2]),
+        ("nixon_moon_call_1969", SPK[3]),
+    ]:
         r = hstack(sb, f"Recent/{name}", gap=10, pad=[6, 10, 6, 10], cornerRadius=6, sizingH="fill")
         icon(r, "file", TEXT_3, 15)
         text(r, name, 13, "Regular", TEXT_2, sizingH="fill")
     spacer(sb, horizontal=False)
     # engine card
-    card = vstack(sb, "Engine", gap=8, pad=12, fill=SURFACE, cornerRadius=8, stroke=BORDER, strokeWeight=1, sizingH="fill")
+    card = vstack(
+        sb,
+        "Engine",
+        gap=8,
+        pad=12,
+        fill=SURFACE,
+        cornerRadius=8,
+        stroke=BORDER,
+        strokeWeight=1,
+        sizingH="fill",
+    )
     top = hstack(card, "Engine status", gap=8, sizingH="fill")
     dot(top, 8, OK)
     text(top, "Transcribing", 13, "SemiBold", TEXT, sizingH="fill")
@@ -412,17 +641,38 @@ def sidebar(win: str, active: str, compact: bool = False) -> None:
     icon(dev, "gpu", TEXT_3, 14)
     text(dev, "Radeon 660M · Vulkan", 12, "Regular", TEXT_2)
     button(card, "Pause queue", "secondary", "pause", small=True)
-    settings_item = hstack(sb, "Nav/Settings", gap=10, pad=[8, 10, 8, 10], cornerRadius=6, sizingH="fill",
-                           fill=SURFACE if active == "settings" else None)
+    settings_item = hstack(
+        sb,
+        "Nav/Settings",
+        gap=10,
+        pad=[8, 10, 8, 10],
+        cornerRadius=6,
+        sizingH="fill",
+        fill=SURFACE if active == "settings" else None,
+    )
     cmd("node.set", {"ids": [R(settings_item)], "props": {"paddingTop": 12}})
     icon(settings_item, "settings", ACCENT if active == "settings" else TEXT_2)
-    text(settings_item, "Settings", 13.5, "Medium" if active == "settings" else "Regular",
-         TEXT if active == "settings" else TEXT_2)
+    text(
+        settings_item,
+        "Settings",
+        13.5,
+        "Medium" if active == "settings" else "Regular",
+        TEXT if active == "settings" else TEXT_2,
+    )
 
 
 def f11_hint(parent: str, label: str = "Exit full screen") -> str:
     h = hstack(parent, "F11 hint", gap=6)
-    kb = hstack(h, "Kbd", gap=0, pad=[2, 6, 2, 6], fill=SURFACE_2, cornerRadius=4, stroke=BORDER, strokeWeight=1)
+    kb = hstack(
+        h,
+        "Kbd",
+        gap=0,
+        pad=[2, 6, 2, 6],
+        fill=SURFACE_2,
+        cornerRadius=4,
+        stroke=BORDER,
+        strokeWeight=1,
+    )
     text(kb, "F11", 11.5, "Medium", TEXT_2)
     text(h, label, 12, "Regular", TEXT_3)
     return h
@@ -437,8 +687,9 @@ def page_header(main: str, title: str, subtitle: str | None = None) -> str:
     return hdr
 
 
-def shell(name: str, x: float, y: float, active: str, h: float = H, w: float = W,
-          compact: bool = False) -> tuple[str, str]:
+def shell(
+    name: str, x: float, y: float, active: str, h: float = H, w: float = W, compact: bool = False
+) -> tuple[str, str]:
     win = screen(name, x, y, w=w, h=h, layout="horizontal")
     sidebar(win, active, compact)
     main = vstack(win, "Main", gap=0, sizingH="fill", sizingV="fill")
@@ -453,7 +704,15 @@ ROWS = [
     # name, duration, speakers, status kind, status detail, added, progress
     ("apollo13_problem_1970.mp3", "18:44", "2–4", "running", "Transcribing", "Today, 14:02", 0.58),
     ("jfk_rice_university_1962.mp3", "17:47", "1", "queued", "Queued · next", "Today, 14:03", 0),
-    ("apollo11_landing_1969.mp3", "12:31", "3", "done", "Ready · speakers named", "Today, 11:40", 1),
+    (
+        "apollo11_landing_1969.mp3",
+        "12:31",
+        "3",
+        "done",
+        "Ready · speakers named",
+        "Today, 11:40",
+        1,
+    ),
     ("eisenhower_farewell_1961.mp3", "15:31", "1", "done", "Ready", "Yesterday", 1),
     ("gemini4_spacewalk_1965.mp3", "21:05", "2–3", "done", "Ready · speakers named", "12 Nov", 1),
     ("reagan_berlin_1987.wav", "26:30", "1", "failed", "Source file not found", "11 Nov", 0),
@@ -468,27 +727,68 @@ ROWS = [
 
 def library_table(main: str, selected: int | None = None) -> None:
     bar = hstack(main, "Toolbar", gap=8, pad=[0, 28, 14, 28], sizingH="fill")
-    for label, count, act in [("All", "12", True), ("In progress", "2", False), ("Done", "9", False),
-                              ("Failed", "1", False)]:
+    for label, count, act in [
+        ("All", "12", True),
+        ("In progress", "2", False),
+        ("Done", "9", False),
+        ("Failed", "1", False),
+    ]:
         chip(bar, label, count=count, active=act)
     spacer(bar)
     field(bar, "Search transcripts", width=240, placeholder=True, icon_name="search")
 
     wrap = vstack(main, "Table wrap", gap=0, pad=[0, 28, 0, 28], sizingH="fill", sizingV="fill")
-    table = vstack(wrap, "Table", gap=0, fill=SURFACE, cornerRadius=10, stroke=BORDER, strokeWeight=1,
-                   sizingH="fill", clip=True, effects=SHADOW_SM)
-    cols = [("Name", None), ("Length", 86), ("Speakers", 86), ("Status", 300), ("Added", 104), ("", 40)]
-    head = hstack(table, "Head", gap=16, pad=[10, 18, 10, 18], sizingH="fill", fill=SURFACE_2,
-                  **edge("bottom"))
+    table = vstack(
+        wrap,
+        "Table",
+        gap=0,
+        fill=SURFACE,
+        cornerRadius=10,
+        stroke=BORDER,
+        strokeWeight=1,
+        sizingH="fill",
+        clip=True,
+        effects=SHADOW_SM,
+    )
+    cols = [
+        ("Name", None),
+        ("Length", 86),
+        ("Speakers", 86),
+        ("Status", 300),
+        ("Added", 104),
+        ("", 40),
+    ]
+    head = hstack(
+        table,
+        "Head",
+        gap=16,
+        pad=[10, 18, 10, 18],
+        sizingH="fill",
+        fill=SURFACE_2,
+        **edge("bottom"),
+    )
     for label, w in cols:
-        t = text(head, label.upper(), 11, "SemiBold", TEXT_3, letterSpacing="6%",
-                 **({"sizingH": "fill"} if w is None else {}))
+        t = text(
+            head,
+            label.upper(),
+            11,
+            "SemiBold",
+            TEXT_3,
+            letterSpacing="6%",
+            **({"sizingH": "fill"} if w is None else {}),
+        )
         if w:
             cmd("node.set", {"ids": [R(t)], "props": {"textAutoResize": "height", "width": w}})
     for i, (name, dur, spk, kind, detail, added, frac) in enumerate(ROWS):
-        row = hstack(table, f"Row/{name}", gap=16, pad=[12, 18, 12, 18], sizingH="fill",
-                     fill=ACCENT_TINT if selected == i else None,
-                     **({"strokeBottomWeight": 1, "stroke": BORDER} if i < len(ROWS) - 1 else {}))
+        row = hstack(
+            table,
+            f"Row/{name}",
+            gap=16,
+            pad=[12, 18, 12, 18],
+            sizingH="fill",
+            fill=ACCENT_TINT if selected == i else None,
+            **({"strokeBottomWeight": 1, "stroke": BORDER} if i < len(ROWS) - 1 else {}),
+        )
         ncol = hstack(row, "Name", gap=10, sizingH="fill")
         icon(ncol, "file", TEXT_3, 16)
         text(ncol, name, 13.5, "Medium", TEXT, sizingH="fill")
@@ -539,26 +839,67 @@ def overlay(win: str) -> str:
 def add_dialog(x: float, y: float) -> None:
     win = library(x, y, "03 Add recordings")
     overlay(win)
-    dlg = vstack(win, "Dialog", gap=0, fill=SURFACE, cornerRadius=12, effects=SHADOW_LG, sizingH="fixed",
-                 absolute=True, x=(W - 720) / 2, y=120, clip=True)
+    dlg = vstack(
+        win,
+        "Dialog",
+        gap=0,
+        fill=SURFACE,
+        cornerRadius=12,
+        effects=SHADOW_LG,
+        sizingH="fixed",
+        absolute=True,
+        x=(W - 720) / 2,
+        y=120,
+        clip=True,
+    )
     cmd("node.set", {"ids": [R(dlg)], "props": {"width": 720}})
     head = hstack(dlg, "Head", gap=8, pad=[18, 22, 14, 22], sizingH="fill")
     text(head, "Add recordings", 17, "SemiBold", TEXT, sizingH="fill")
     icon(head, "x", TEXT_3, 18)
     body = vstack(dlg, "Body", gap=18, pad=[4, 22, 20, 22], sizingH="fill")
-    drop = vstack(body, "Dropzone", gap=8, pad=[22, 16, 22, 16], sizingH="fill", crossAlign="center",
-                  fill=SURFACE_2, stroke=BORDER_STRONG, strokeWeight=1.2, dashes=[5, 4], cornerRadius=10)
+    drop = vstack(
+        body,
+        "Dropzone",
+        gap=8,
+        pad=[22, 16, 22, 16],
+        sizingH="fill",
+        crossAlign="center",
+        fill=SURFACE_2,
+        stroke=BORDER_STRONG,
+        strokeWeight=1.2,
+        dashes=[5, 4],
+        cornerRadius=10,
+    )
     icon(drop, "upload", ACCENT, 24)
     text(drop, "Drop audio or video files, or a whole folder", 14, "Medium", TEXT)
     acts = hstack(drop, "Actions", gap=8)
     button(acts, "Choose files…", "secondary", "file", small=True)
     button(acts, "Choose folder…", "secondary", "folder", small=True)
-    lst = vstack(body, "Files", gap=0, sizingH="fill", stroke=BORDER, strokeWeight=1, cornerRadius=8, clip=True)
-    for i, (n, d, sz) in enumerate([("apollo12_landing_1969.mp3", "14:02", "13 MB"),
-                                    ("apollo14_eva_1971.mp3", "52:30", "48 MB"),
-                                    ("apollo15_rover_1971.mp3", "1:04:10", "59 MB")]):
-        r = hstack(lst, f"File/{n}", gap=10, pad=[9, 12, 9, 12], sizingH="fill",
-                   **(edge("bottom", BORDER) if i < 2 else {}))
+    lst = vstack(
+        body,
+        "Files",
+        gap=0,
+        sizingH="fill",
+        stroke=BORDER,
+        strokeWeight=1,
+        cornerRadius=8,
+        clip=True,
+    )
+    for i, (n, d, sz) in enumerate(
+        [
+            ("apollo12_landing_1969.mp3", "14:02", "13 MB"),
+            ("apollo14_eva_1971.mp3", "52:30", "48 MB"),
+            ("apollo15_rover_1971.mp3", "1:04:10", "59 MB"),
+        ]
+    ):
+        r = hstack(
+            lst,
+            f"File/{n}",
+            gap=10,
+            pad=[9, 12, 9, 12],
+            sizingH="fill",
+            **(edge("bottom", BORDER) if i < 2 else {}),
+        )
         icon(r, "file", TEXT_3, 16)
         text(r, n, 13.5, "Regular", TEXT, sizingH="fill")
         text(r, d, 12.5, "Regular", TEXT_2, features={"tnum": True})
@@ -576,14 +917,25 @@ def add_dialog(x: float, y: float) -> None:
     lbl = hstack(kt, "Label", gap=6)
     text(lbl, "Key terms", 13, "SemiBold", TEXT)
     text(lbl, "optional", 12, "Regular", TEXT_3)
-    box = hstack(kt, "Chips input", gap=6, pad=[6, 8, 6, 8], sizingH="fill", fill=SURFACE, stroke=BORDER_STRONG,
-                 strokeWeight=1, cornerRadius=6, wrap=True)
+    box = hstack(
+        kt,
+        "Chips input",
+        gap=6,
+        pad=[6, 8, 6, 8],
+        sizingH="fill",
+        fill=SURFACE,
+        stroke=BORDER_STRONG,
+        strokeWeight=1,
+        cornerRadius=6,
+        wrap=True,
+    )
     for term in ["Houston", "CAPCOM", "Antares"]:
         chip(box, term, TEXT, SURFACE_2, None, removable=True)
     text(box, "Add a name, place or term…", 13, "Regular", TEXT_3)
     para(kt, "Spell names the way they should appear. Used as hints, not guaranteed.", 12, TEXT_3)
-    foot = hstack(dlg, "Footer", gap=10, pad=[14, 22, 14, 22], sizingH="fill", fill=SURFACE_2,
-                  **edge("top"))
+    foot = hstack(
+        dlg, "Footer", gap=10, pad=[14, 22, 14, 22], sizingH="fill", fill=SURFACE_2, **edge("top")
+    )
     cb = frame(foot, "Checkbox", 16, 16, fill=ACCENT, cornerRadius=4)
     vec(cb, ICON["check"], 11, 11, stroke=ON_ACCENT, sw=2, absolute=True, x=2.5, y=2.5)
     text(foot, "Save speakers and key terms as my defaults", 13, "Regular", TEXT_2, sizingH="fill")
@@ -595,30 +947,53 @@ def add_dialog(x: float, y: float) -> None:
 # Sample transcript: Apollo 11 lunar landing, 20 July 1969 (NASA air-to-ground; public domain).
 TURNS = [
     ("Duke (CAPCOM)", 0, "08:54", "60 seconds."),
-    ("Aldrin", 1, "08:57",
-     "Lights on. Down two and a half. Forward. Forward. Good. 40 feet, down two and a half. Picking up some "
-     "dust. 30 feet, two and a half down. Faint shadow. Four forward. Four forward, drifting to the right a "
-     "little. 20 feet, down a half."),
+    (
+        "Aldrin",
+        1,
+        "08:57",
+        "Lights on. Down two and a half. Forward. Forward. Good. 40 feet, down two and a "
+        "half. Picking up some dust. 30 feet, two and a half down. Faint shadow. Four "
+        "forward. Four forward, drifting to the right a little. 20 feet, down a half.",
+    ),
     ("Duke (CAPCOM)", 0, "09:29", "30 seconds."),
     ("Aldrin", 1, "09:32", "Drifting forward just a little bit. That's good. Contact light."),
     ("Armstrong", 2, "09:40", "Shutdown."),
     ("Aldrin", 1, "09:41", "Okay. Engine stop."),
     ("Duke (CAPCOM)", 0, "09:45", "We copy you down, Eagle."),
-    ("Armstrong", 2, "09:52", "Engine arm is off. Houston, Tranquility Base here. The Eagle has landed."),
-    ("Duke (CAPCOM)", 0, "10:04",
-     "Roger, Twan… Tranquility, we copy you on the ground. You got a bunch of guys about to turn blue. "
-     "We're breathing again. Thanks a lot."),
+    (
+        "Armstrong",
+        2,
+        "09:52",
+        "Engine arm is off. Houston, Tranquility Base here. The Eagle has landed.",
+    ),
+    (
+        "Duke (CAPCOM)",
+        0,
+        "10:04",
+        "Roger, Twan… Tranquility, we copy you on the ground. You got a bunch of guys "
+        "about to turn blue. We're breathing again. Thanks a lot.",
+    ),
     ("Aldrin", 1, "10:17", "Thank you."),
     ("Duke (CAPCOM)", 0, "10:19", "You're looking good here."),
 ]
 ACTIVE_TURN = 8
 
 
-def turn_block(parent: str, idx: int, who: str, spk: int, ts: str, body: str, active: bool = False) -> str:
+def turn_block(
+    parent: str, idx: int, who: str, spk: int, ts: str, body: str, active: bool = False
+) -> str:
     # Accent edge drawn as a left border: a fill-height child inside a hug-height row collapses it.
-    t = hstack(parent, f"Turn {idx}", gap=0, align="min", sizingH="fill", pad=[10, 12, 10, 0], cornerRadius=8,
-               fill=ACCENT_TINT if active else None,
-               **(edge("left", ACCENT, 3) if active else {}))
+    t = hstack(
+        parent,
+        f"Turn {idx}",
+        gap=0,
+        align="min",
+        sizingH="fill",
+        pad=[10, 12, 10, 0],
+        cornerRadius=8,
+        fill=ACCENT_TINT if active else None,
+        **(edge("left", ACCENT, 3) if active else {}),
+    )
     gut = vstack(t, "Gutter", gap=6, pad=[3, 0, 0, 0], sizingH="fixed")
     cmd("node.set", {"ids": [R(gut)], "props": {"width": 70, "paddingLeft": 14}})
     text(gut, ts, 12, "Medium", ACCENT_TEXT if active else TEXT_3, features={"tnum": True})
@@ -634,26 +1009,77 @@ def turn_block(parent: str, idx: int, who: str, spk: int, ts: str, body: str, ac
 
 
 def player(main: str, track_w: float = 1230, compact: bool = False) -> None:
-    bar = hstack(main, "Player", gap=14, pad=[12, 24, 12, 24], sizingH="fill", fill=SURFACE,
-                 **edge("top"))
+    bar = hstack(
+        main, "Player", gap=14, pad=[12, 24, 12, 24], sizingH="fill", fill=SURFACE, **edge("top")
+    )
     icon(bar, "rewind", TEXT_2, 18)
     pb = frame(bar, "Play", 38, 38, fill=ACCENT, cornerRadius=999)
     vec(pb, ICON["pause"], 14, 14, stroke=ON_ACCENT, sw=2.4, absolute=True, x=12, y=12)
     text(bar, "10:09", 13, "SemiBold", TEXT, features={"tnum": True})
     tl = frame(bar, "Timeline", 10, 28, sizingH="fill", fill=SURFACE_2, cornerRadius=6, clip=True)
     # speaker segments across a 5-minute track (rough real pattern of the test file)
-    segs = [(0, 0.06, 0), (0.07, 0.19, 1), (0.20, 0.24, 2), (0.25, 0.37, 1), (0.38, 0.42, 0), (0.43, 0.52, 1),
-            (0.53, 0.57, 2), (0.58, 0.66, 1), (0.67, 0.70, 0), (0.71, 0.76, 1), (0.77, 0.80, 2), (0.81, 0.84, 0),
-            (0.85, 0.90, 1), (0.91, 0.95, 2), (0.96, 1.0, 0)]
+    segs = [
+        (0, 0.06, 0),
+        (0.07, 0.19, 1),
+        (0.20, 0.24, 2),
+        (0.25, 0.37, 1),
+        (0.38, 0.42, 0),
+        (0.43, 0.52, 1),
+        (0.53, 0.57, 2),
+        (0.58, 0.66, 1),
+        (0.67, 0.70, 0),
+        (0.71, 0.76, 1),
+        (0.77, 0.80, 2),
+        (0.81, 0.84, 0),
+        (0.85, 0.90, 1),
+        (0.91, 0.95, 2),
+        (0.96, 1.0, 0),
+    ]
     for a, b, s in segs:
-        cmd("node.create", {"type": "rectangle", "parent": R(tl), "width": max((b - a) * track_w - 2, 2), "height": 10,
-                            "props": {"fill": SPK[s], "opacity": 0.55, "cornerRadius": 3, "absolute": True,
-                                      "x": a * track_w, "y": 9}})
+        cmd(
+            "node.create",
+            {
+                "type": "rectangle",
+                "parent": R(tl),
+                "width": max((b - a) * track_w - 2, 2),
+                "height": 10,
+                "props": {
+                    "fill": SPK[s],
+                    "opacity": 0.55,
+                    "cornerRadius": 3,
+                    "absolute": True,
+                    "x": a * track_w,
+                    "y": 9,
+                },
+            },
+        )
     # the current selection's time range, shown as a band on the timeline
-    cmd("node.create", {"type": "rectangle", "parent": R(tl), "width": max(0.012 * track_w, 6), "height": 28,
-                        "props": {"fill": ACCENT, "opacity": 0.35, "absolute": True, "x": 0.803 * track_w, "y": 0}})
-    cmd("node.create", {"type": "rectangle", "parent": R(tl), "width": 2, "height": 28,
-                        "props": {"fill": TEXT, "absolute": True, "x": 0.811 * track_w, "y": 0}})
+    cmd(
+        "node.create",
+        {
+            "type": "rectangle",
+            "parent": R(tl),
+            "width": max(0.012 * track_w, 6),
+            "height": 28,
+            "props": {
+                "fill": ACCENT,
+                "opacity": 0.35,
+                "absolute": True,
+                "x": 0.803 * track_w,
+                "y": 0,
+            },
+        },
+    )
+    cmd(
+        "node.create",
+        {
+            "type": "rectangle",
+            "parent": R(tl),
+            "width": 2,
+            "height": 28,
+            "props": {"fill": TEXT, "absolute": True, "x": 0.811 * track_w, "y": 0},
+        },
+    )
     text(bar, "12:31", 13, "Regular", TEXT_3, features={"tnum": True})
     chip(bar, "1.0×", TEXT)
     if compact:
@@ -665,18 +1091,46 @@ def player(main: str, track_w: float = 1230, compact: bool = False) -> None:
 
 
 def editor_panel(body: str) -> None:
-    panel = vstack(body, "Side panel", gap=18, pad=[16, 18, 16, 18], fill=SURFACE, sizingV="fill",
-                   sizingH="fixed", **edge("left"))
+    panel = vstack(
+        body,
+        "Side panel",
+        gap=18,
+        pad=[16, 18, 16, 18],
+        fill=SURFACE,
+        sizingV="fill",
+        sizingH="fixed",
+        **edge("left"),
+    )
     cmd("node.set", {"ids": [R(panel)], "props": {"width": 340}})
     tabs = hstack(panel, "Tabs", gap=4, pad=3, fill=SURFACE_2, cornerRadius=8, sizingH="fill")
     for label, act in [("Speakers", True), ("Details", False)]:
-        tab = hstack(tabs, f"Tab/{label}", gap=0, pad=[6, 8, 6, 8], cornerRadius=6, sizingH="fill",
-                     mainAlign="center", fill=SURFACE if act else None, **({"effects": SHADOW_SM} if act else {}))
+        tab = hstack(
+            tabs,
+            f"Tab/{label}",
+            gap=0,
+            pad=[6, 8, 6, 8],
+            cornerRadius=6,
+            sizingH="fill",
+            mainAlign="center",
+            fill=SURFACE if act else None,
+            **({"effects": SHADOW_SM} if act else {}),
+        )
         text(tab, label, 12.5, "Medium" if act else "Regular", TEXT if act else TEXT_2)
-    for name, spk, turns, share in [("Duke (CAPCOM)", 0, "58 turns", 0.41), ("Aldrin", 1, "49 turns", 0.38),
-                                    ("Armstrong", 2, "31 turns", 0.21)]:
-        card = vstack(panel, f"Speaker/{name}", gap=10, pad=12, stroke=BORDER, strokeWeight=1, cornerRadius=8,
-                      sizingH="fill")
+    for name, spk, turns, share in [
+        ("Duke (CAPCOM)", 0, "58 turns", 0.41),
+        ("Aldrin", 1, "49 turns", 0.38),
+        ("Armstrong", 2, "31 turns", 0.21),
+    ]:
+        card = vstack(
+            panel,
+            f"Speaker/{name}",
+            gap=10,
+            pad=12,
+            stroke=BORDER,
+            strokeWeight=1,
+            cornerRadius=8,
+            sizingH="fill",
+        )
         top = hstack(card, "Top", gap=8, sizingH="fill")
         dot(top, 10, SPK[spk])
         field(top, name)
@@ -695,19 +1149,36 @@ def editor_panel(body: str) -> None:
         chip(kt, term, TEXT, SURFACE_2, None)
     section_label(panel, "Keys")
     keys = vstack(panel, "Shortcuts", gap=6, sizingH="fill")
-    for k, d in [("Ctrl+Space", "Play / pause"), ("Ctrl+J", "Jump to playing"), ("Enter", "Split turn here"),
-                 ("Alt+↑ / ↓", "Change speaker"), ("Select words", "Listen and replace")]:
+    for k, d in [
+        ("Ctrl+Space", "Play / pause"),
+        ("Ctrl+J", "Jump to playing"),
+        ("Enter", "Split turn here"),
+        ("Alt+↑ / ↓", "Change speaker"),
+        ("Select words", "Listen and replace"),
+    ]:
         row = hstack(keys, k, gap=8, sizingH="fill")
         text(row, d, 12.5, "Regular", TEXT_2, sizingH="fill")
-        kb = hstack(row, "Kbd", gap=0, pad=[2, 6, 2, 6], fill=SURFACE_2, cornerRadius=4, stroke=BORDER, strokeWeight=1)
+        kb = hstack(
+            row,
+            "Kbd",
+            gap=0,
+            pad=[2, 6, 2, 6],
+            fill=SURFACE_2,
+            cornerRadius=4,
+            stroke=BORDER,
+            strokeWeight=1,
+        )
         text(kb, k, 11.5, "Medium", TEXT_2)
 
 
 def editor(x: float, y: float, compact: bool = False, pop_xy: tuple[float, float] = (0, 0)) -> None:
     name = "07 Transcript editor (960×720 minimum)" if compact else "04 Transcript editor"
-    win, main = shell(name, x, y, "library", w=CW if compact else W, h=CH if compact else H, compact=compact)
-    top = hstack(main, "Topbar", gap=12, pad=[14, 24, 14, 20], sizingH="fill", **edge("bottom"),
-                 fill=BG)
+    win, main = shell(
+        name, x, y, "library", w=CW if compact else W, h=CH if compact else H, compact=compact
+    )
+    top = hstack(
+        main, "Topbar", gap=12, pad=[14, 24, 14, 20], sizingH="fill", **edge("bottom"), fill=BG
+    )
     back = hstack(top, "Back", gap=4)
     icon(back, "back", TEXT_2, 16)
     text(back, "Library", 13, "Regular", TEXT_2)
@@ -727,8 +1198,16 @@ def editor(x: float, y: float, compact: bool = False, pop_xy: tuple[float, float
     f11_hint(top, "Full screen" if compact else "Exit full screen")
 
     body = hstack(main, "Body", gap=0, align="min", sizingH="fill", sizingV="fill")
-    doc = vstack(body, "Transcript", gap=6, pad=[20, 24, 20, 16] if compact else [24, 40, 24, 40],
-                 sizingH="fill", sizingV="fill", clip=True, crossAlign="center")
+    doc = vstack(
+        body,
+        "Transcript",
+        gap=6,
+        pad=[20, 24, 20, 16] if compact else [24, 40, 24, 40],
+        sizingH="fill",
+        sizingV="fill",
+        clip=True,
+        crossAlign="center",
+    )
     # reading column: capped width so lines stay readable at 1080p
     col = vstack(doc, "Column", gap=6, sizingH="fill" if compact else "fixed")
     if not compact:
@@ -744,11 +1223,32 @@ def editor(x: float, y: float, compact: bool = False, pop_xy: tuple[float, float
         if i == ACTIVE_TURN:
             # playing word, and a user selection ("Twan… Tranquility") being listened to
             style_word(p, body_text, "breathing", textFills=[ACCENT_TEXT], fontStyle="SemiBold")
-            style_word(p, body_text, "Twan… Tranquility", textFills=[TEXT], textDecoration="underline",
-                       textDecorationColor=ACCENT, textDecorationThickness=3, textDecorationOffset=4)
+            style_word(
+                p,
+                body_text,
+                "Twan… Tranquility",
+                textFills=[TEXT],
+                textDecoration="underline",
+                textDecorationColor=ACCENT,
+                textDecorationThickness=3,
+                textDecorationOffset=4,
+            )
     # select-and-listen popover: select any words, replay exactly that audio, type a replacement
-    pop = vstack(win, "Selection popover", gap=10, pad=14, fill=SURFACE, cornerRadius=10, effects=SHADOW_LG,
-                 stroke=BORDER, strokeWeight=1, sizingH="fixed", absolute=True, x=pop_xy[0], y=pop_xy[1])
+    pop = vstack(
+        win,
+        "Selection popover",
+        gap=10,
+        pad=14,
+        fill=SURFACE,
+        cornerRadius=10,
+        effects=SHADOW_LG,
+        stroke=BORDER,
+        strokeWeight=1,
+        sizingH="fixed",
+        absolute=True,
+        x=pop_xy[0],
+        y=pop_xy[1],
+    )
     cmd("node.set", {"ids": [R(pop)], "props": {"width": 320}})
     ph = hstack(pop, "Head", gap=8, sizingH="fill")
     text(ph, "2 words selected", 13, "SemiBold", TEXT, sizingH="fill")
@@ -773,8 +1273,19 @@ def editor(x: float, y: float, compact: bool = False, pop_xy: tuple[float, float
 def details_drawer(x: float, y: float) -> None:
     win = library(x, y, "05 Job details", selected=0)
     overlay(win)
-    dr = vstack(win, "Drawer", gap=18, pad=[18, 22, 18, 22], fill=SURFACE, effects=SHADOW_LG, sizingH="fixed",
-                sizingV="fixed", absolute=True, x=W - 480, y=0)
+    dr = vstack(
+        win,
+        "Drawer",
+        gap=18,
+        pad=[18, 22, 18, 22],
+        fill=SURFACE,
+        effects=SHADOW_LG,
+        sizingH="fixed",
+        sizingV="fixed",
+        absolute=True,
+        x=W - 480,
+        y=0,
+    )
     cmd("node.set", {"ids": [R(dr)], "props": {"width": 480, "height": H}})
     head = hstack(dr, "Head", gap=8, sizingH="fill")
     col = vstack(head, "Title", gap=3, sizingH="fill")
@@ -785,36 +1296,86 @@ def details_drawer(x: float, y: float) -> None:
     pill(st, "Transcribing", ON_ACCENT, ACCENT, ON_ACCENT)
     text(st, "58% · about 4 min left", 12.5, "Regular", TEXT_2)
     section_label(dr, "Stages")
-    stages = vstack(dr, "Stages", gap=0, sizingH="fill", stroke=BORDER, strokeWeight=1, cornerRadius=8, clip=True)
-    data = [("Read audio", "0.5 s", "done"), ("Find speech", "5.6 s", "done"), ("Word timings", "1 min 08 s", "done"),
-            ("Transcribe text", "37 of 64 chunks", "run"), ("Identify speakers", "", "todo"),
-            ("Assemble transcript", "", "todo")]
+    stages = vstack(
+        dr,
+        "Stages",
+        gap=0,
+        sizingH="fill",
+        stroke=BORDER,
+        strokeWeight=1,
+        cornerRadius=8,
+        clip=True,
+    )
+    data = [
+        ("Read audio", "0.5 s", "done"),
+        ("Find speech", "5.6 s", "done"),
+        ("Word timings", "1 min 08 s", "done"),
+        ("Transcribe text", "37 of 64 chunks", "run"),
+        ("Identify speakers", "", "todo"),
+        ("Assemble transcript", "", "todo"),
+    ]
     for i, (lab, val, s) in enumerate(data):
-        r = hstack(stages, lab, gap=10, pad=[10, 12, 10, 12], sizingH="fill",
-                   fill=ACCENT_TINT if s == "run" else None,
-                   **(edge("bottom", BORDER) if i < len(data) - 1 else {}))
+        r = hstack(
+            stages,
+            lab,
+            gap=10,
+            pad=[10, 12, 10, 12],
+            sizingH="fill",
+            fill=ACCENT_TINT if s == "run" else None,
+            **(edge("bottom", BORDER) if i < len(data) - 1 else {}),
+        )
         if s == "done":
             c = frame(r, "Done", 18, 18, fill=OK_SOFT, cornerRadius=999)
             vec(c, ICON["check"], 10, 10, stroke=OK, sw=2, absolute=True, x=4, y=4)
         elif s == "run":
-            c = frame(r, "Running", 18, 18, fill=None, cornerRadius=999, stroke=ACCENT, strokeWeight=2)
+            c = frame(
+                r, "Running", 18, 18, fill=None, cornerRadius=999, stroke=ACCENT, strokeWeight=2
+            )
             dot(c, 6, ACCENT, absolute=True, x=6, y=6)
         else:
-            frame(r, "Todo", 18, 18, fill=None, cornerRadius=999, stroke=BORDER_STRONG, strokeWeight=1.5)
-        text(r, lab, 13.5, "Medium" if s == "run" else "Regular", TEXT if s != "todo" else TEXT_3, sizingH="fill")
+            frame(
+                r,
+                "Todo",
+                18,
+                18,
+                fill=None,
+                cornerRadius=999,
+                stroke=BORDER_STRONG,
+                strokeWeight=1.5,
+            )
+        text(
+            r,
+            lab,
+            13.5,
+            "Medium" if s == "run" else "Regular",
+            TEXT if s != "todo" else TEXT_3,
+            sizingH="fill",
+        )
         text(r, val, 12.5, "Regular", TEXT_2, features={"tnum": True})
     grid = vstack(dr, "Facts", gap=8, sizingH="fill")
-    for k, v in [("Device", "AMD Radeon 660M · Vulkan"), ("Speakers", "between 2 and 4"),
-                 ("Key terms", "Odyssey, Aquarius, Houston"), ("Language", "English")]:
+    for k, v in [
+        ("Device", "AMD Radeon 660M · Vulkan"),
+        ("Speakers", "between 2 and 4"),
+        ("Key terms", "Odyssey, Aquarius, Houston"),
+        ("Language", "English"),
+    ]:
         r = hstack(grid, k, gap=8, sizingH="fill")
         t = text(r, k, 12.5, "Regular", TEXT_3)
         cmd("node.set", {"ids": [R(t)], "props": {"textAutoResize": "height", "width": 90}})
         text(r, v, 12.5, "Regular", TEXT, sizingH="fill")
     section_label(dr, "Log")
-    log = vstack(dr, "Log", gap=3, pad=12, fill="#0B0C0E", cornerRadius=8, sizingH="fill", sizingV="fill")
-    for ln in ["14:02:11  queued", "14:04:37  started on Vulkan0 (Radeon 660M)", "14:04:38  read audio: 1124.3 s",
-               "14:04:43  64 speech chunks", "14:05:51  word timings done (68 s)",
-               "14:05:53  text model loaded (Qwen3-ASR 1.7B Q8)", "14:07:41  chunk 37/64"]:
+    log = vstack(
+        dr, "Log", gap=3, pad=12, fill="#0B0C0E", cornerRadius=8, sizingH="fill", sizingV="fill"
+    )
+    for ln in [
+        "14:02:11  queued",
+        "14:04:37  started on Vulkan0 (Radeon 660M)",
+        "14:04:38  read audio: 1124.3 s",
+        "14:04:43  64 speech chunks",
+        "14:05:51  word timings done (68 s)",
+        "14:05:53  text model loaded (Qwen3-ASR 1.7B Q8)",
+        "14:07:41  chunk 37/64",
+    ]:
         text(log, ln, 11.5, "Regular", "#C9D1D9", fontFamily="Liberation Mono")
     acts = hstack(dr, "Actions", gap=8, sizingH="fill")
     button(acts, "Stop", "danger", "pause")
@@ -830,8 +1391,18 @@ def settings(x: float, y: float) -> None:
     cmd("node.set", {"ids": [R(col)], "props": {"width": 900}})
 
     def card(title: str, sub: str | None = None) -> str:
-        c = vstack(col, title, gap=14, pad=18, fill=SURFACE, cornerRadius=10, stroke=BORDER, strokeWeight=1,
-                   sizingH="fill", effects=SHADOW_SM)
+        c = vstack(
+            col,
+            title,
+            gap=14,
+            pad=18,
+            fill=SURFACE,
+            cornerRadius=10,
+            stroke=BORDER,
+            strokeWeight=1,
+            sizingH="fill",
+            effects=SHADOW_SM,
+        )
         hc = vstack(c, "Head", gap=2, sizingH="fill")
         text(hc, title, 15, "SemiBold", TEXT)
         if sub:
@@ -847,10 +1418,18 @@ def settings(x: float, y: float) -> None:
         control(r)
 
     c = card("Processing", "Where transcription runs.")
-    row(c, "Device", "Falls back to the processor automatically if the graphics card fails.",
-        lambda r: field(r, "Automatic — Radeon 660M (Vulkan)", width=300, trailing="chev"))
-    row(c, "Processor threads", "Used when running on the processor. Automatic = physical cores − 1.",
-        lambda r: field(r, "Automatic (5)", width=300, trailing="chev"))
+    row(
+        c,
+        "Device",
+        "Falls back to the processor automatically if the graphics card fails.",
+        lambda r: field(r, "Automatic — Radeon 660M (Vulkan)", width=300, trailing="chev"),
+    )
+    row(
+        c,
+        "Processor threads",
+        "Used when running on the processor. Automatic = physical cores − 1.",
+        lambda r: field(r, "Automatic (5)", width=300, trailing="chev"),
+    )
 
     c = card("New recordings", "Defaults for the Add recordings dialog.")
 
@@ -863,8 +1442,18 @@ def settings(x: float, y: float) -> None:
     row(c, "Speakers", "The usual number of people in your recordings.", spk_ctrl)
 
     def kt_ctrl(r: str) -> None:
-        box = hstack(r, "Chips", gap=6, pad=[6, 8, 6, 8], fill=SURFACE, stroke=BORDER_STRONG, strokeWeight=1,
-                     cornerRadius=6, sizingH="fixed", wrap=True)
+        box = hstack(
+            r,
+            "Chips",
+            gap=6,
+            pad=[6, 8, 6, 8],
+            fill=SURFACE,
+            stroke=BORDER_STRONG,
+            strokeWeight=1,
+            cornerRadius=6,
+            sizingH="fixed",
+            wrap=True,
+        )
         cmd("node.set", {"ids": [R(box)], "props": {"width": 300}})
         chip(box, "Houston", TEXT, SURFACE_2, None, removable=True)
         text(box, "Add…", 13, "Regular", TEXT_3)
@@ -872,12 +1461,24 @@ def settings(x: float, y: float) -> None:
     row(c, "Key terms", "Names and jargon added to every new recording.", kt_ctrl)
 
     c = card("Speech models", "Downloaded once. Everything runs on this computer.")
-    tbl = vstack(c, "Models", gap=0, sizingH="fill", stroke=BORDER, strokeWeight=1, cornerRadius=8, clip=True)
-    models = [("Qwen3-ASR 1.7B", "Transcription text", "2.19 GB"), ("Parakeet TDT 0.6B v3", "Word timings", "640 MB"),
-              ("Speaker models", "Segmentation + voice embeddings", "47 MB"), ("Silero VAD", "Speech detection", "0.6 MB")]
+    tbl = vstack(
+        c, "Models", gap=0, sizingH="fill", stroke=BORDER, strokeWeight=1, cornerRadius=8, clip=True
+    )
+    models = [
+        ("Qwen3-ASR 1.7B", "Transcription text", "2.19 GB"),
+        ("Parakeet TDT 0.6B v3", "Word timings", "640 MB"),
+        ("Speaker models", "Segmentation + voice embeddings", "47 MB"),
+        ("Silero VAD", "Speech detection", "0.6 MB"),
+    ]
     for i, (n, role, sz) in enumerate(models):
-        r = hstack(tbl, n, gap=10, pad=[9, 12, 9, 12], sizingH="fill",
-                   **({"strokeBottomWeight": 1, "stroke": BORDER} if i < len(models) - 1 else {}))
+        r = hstack(
+            tbl,
+            n,
+            gap=10,
+            pad=[9, 12, 9, 12],
+            sizingH="fill",
+            **({"strokeBottomWeight": 1, "stroke": BORDER} if i < len(models) - 1 else {}),
+        )
         nc = vstack(r, "Name", gap=1, sizingH="fill")
         text(nc, n, 13, "Medium", TEXT)
         text(nc, role, 12, "Regular", TEXT_3)
@@ -895,15 +1496,31 @@ def settings(x: float, y: float) -> None:
         tg = frame(r, "Toggle", 36, 20, fill=ACCENT, cornerRadius=999)
         dot(tg, 16, "#FFFFFF", absolute=True, x=18, y=2)
 
-    row(c, "Check for new versions once a day", "Only asks GitHub whether a newer release exists. "
-        "Installing stays manual.", toggle_ctrl)
+    row(
+        c,
+        "Check for new versions once a day",
+        "Only asks GitHub whether a newer release exists. Installing stays manual.",
+        toggle_ctrl,
+    )
     ur = hstack(c, "Version", gap=10, sizingH="fill")
-    text(ur, "You have WaveMaterial 1.0.0 — the latest version.", 13, "Regular", TEXT_2, sizingH="fill")
+    text(
+        ur,
+        "You have WaveMaterial 1.0.0 — the latest version.",
+        13,
+        "Regular",
+        TEXT_2,
+        sizingH="fill",
+    )
     button(ur, "Check now", "secondary", "refresh", small=True)
 
     c = card("About")
-    para(c, "WaveMaterial 1.0.0 · Licensed GPL-2.0-only WITH Universal-FOSS-exception-1.0. "
-         "Speech models by Alibaba Qwen and NVIDIA (CC-BY-4.0), pyannote, and Silero.", 12.5, TEXT_2)
+    para(
+        c,
+        "WaveMaterial 1.0.0 · Licensed GPL-2.0-only WITH Universal-FOSS-exception-1.0. "
+        "Speech models by Alibaba Qwen and NVIDIA (CC-BY-4.0), pyannote, and Silero.",
+        12.5,
+        TEXT_2,
+    )
     lk = hstack(c, "Links", gap=16)
     text(lk, "Licences and credits", 13, "Medium", ACCENT_TEXT)
     text(lk, "Open data folder", 13, "Medium", ACCENT_TEXT)
@@ -914,26 +1531,45 @@ def first_run(x: float, y: float) -> None:
     win = screen("01 First run", x, y, layout="vertical", mainAlign="center", crossAlign="center")
     hint_box = hstack(win, "Corner", gap=0, absolute=True, x=W - 170, y=22)
     f11_hint(hint_box)
-    card = vstack(win, "Card", gap=20, pad=32, fill=SURFACE, cornerRadius=14, stroke=BORDER, strokeWeight=1,
-                  effects=SHADOW_LG, sizingH="fixed")
+    card = vstack(
+        win,
+        "Card",
+        gap=20,
+        pad=32,
+        fill=SURFACE,
+        cornerRadius=14,
+        stroke=BORDER,
+        strokeWeight=1,
+        effects=SHADOW_LG,
+        sizingH="fixed",
+    )
     cmd("node.set", {"ids": [R(card)], "props": {"width": 620}})
     head = hstack(card, "Head", gap=14)
     logo_mark(head, 52, tile=True)
     hc = vstack(head, "Titles", gap=2)
     text(hc, "Welcome to WaveMaterial", 22, "SemiBold", TEXT, letterSpacing="-1%")
     text(hc, "Transcripts with speakers, made entirely on this computer.", 13.5, "Regular", TEXT_2)
-    det = hstack(card, "Detected", gap=10, pad=[10, 12, 10, 12], fill=OK_SOFT, cornerRadius=8, sizingH="fill")
+    det = hstack(
+        card, "Detected", gap=10, pad=[10, 12, 10, 12], fill=OK_SOFT, cornerRadius=8, sizingH="fill"
+    )
     c = frame(det, "Ok", 20, 20, fill=OK, cornerRadius=999)
     vec(c, ICON["check"], 11, 11, stroke="#FFFFFF", sw=2.2, absolute=True, x=4.5, y=4.5)
     dc = vstack(det, "Text", gap=1, sizingH="fill")
     text(dc, "Fast mode available", 13, "SemiBold", OK)
     text(dc, "Using your AMD Radeon 660M graphics (Vulkan).", 12.5, "Regular", TEXT_2)
-    para(card, "WaveMaterial needs to download its speech models once (2.9 GB). After that it works fully "
-         "offline. If the download is interrupted, it picks up where it left off.", 13.5, TEXT_2)
+    para(
+        card,
+        "WaveMaterial needs to download its speech models once (2.9 GB). After that it works fully "
+        "offline. If the download is interrupted, it picks up where it left off.",
+        13.5,
+        TEXT_2,
+    )
     lst = vstack(card, "Models", gap=12, sizingH="fill")
-    for n, info, frac, state in [("Transcription text · Qwen3-ASR 1.7B", "1.31 of 2.19 GB", 0.6, "dl"),
-                                 ("Word timings · Parakeet TDT 0.6B", "640 MB", 1, "ok"),
-                                 ("Speaker detection models", "48 MB", 1, "ok")]:
+    for n, info, frac, state in [
+        ("Transcription text · Qwen3-ASR 1.7B", "1.31 of 2.19 GB", 0.6, "dl"),
+        ("Word timings · Parakeet TDT 0.6B", "640 MB", 1, "ok"),
+        ("Speaker detection models", "48 MB", 1, "ok"),
+    ]:
         r = vstack(lst, n, gap=6, sizingH="fill")
         top = hstack(r, "Top", gap=8, sizingH="fill")
         text(top, n, 13, "Medium", TEXT, sizingH="fill")
@@ -963,10 +1599,26 @@ def design_system() -> None:
 
     g = group("Colour")
     row = hstack(g, "Swatches", gap=12, wrap=True, sizingH="fill")
-    for n, c in [("bg", BG), ("surface", SURFACE), ("sidebar", SIDEBAR), ("border", BORDER), ("border-strong", BORDER_STRONG),
-                 ("text", TEXT), ("text-2", TEXT_2), ("text-3", TEXT_3), ("accent", ACCENT), ("accent-text", ACCENT_TEXT), ("accent-soft", ACCENT_SOFT),
-                 ("accent-tint", ACCENT_TINT), ("warn", WARN), ("warn-soft", WARN_SOFT), ("danger", DANGER),
-                 ("danger-soft", DANGER_SOFT), ("ok", OK), ("ok-soft", OK_SOFT)]:
+    for n, c in [
+        ("bg", BG),
+        ("surface", SURFACE),
+        ("sidebar", SIDEBAR),
+        ("border", BORDER),
+        ("border-strong", BORDER_STRONG),
+        ("text", TEXT),
+        ("text-2", TEXT_2),
+        ("text-3", TEXT_3),
+        ("accent", ACCENT),
+        ("accent-text", ACCENT_TEXT),
+        ("accent-soft", ACCENT_SOFT),
+        ("accent-tint", ACCENT_TINT),
+        ("warn", WARN),
+        ("warn-soft", WARN_SOFT),
+        ("danger", DANGER),
+        ("danger-soft", DANGER_SOFT),
+        ("ok", OK),
+        ("ok-soft", OK_SOFT),
+    ]:
         sw = vstack(row, n, gap=6)
         rect(sw, 104, 52, c, cornerRadius=8, stroke=BORDER, strokeWeight=1)
         text(sw, n, 12, "Medium", TEXT)
@@ -974,8 +1626,16 @@ def design_system() -> None:
     g = group("Speaker palette")
     row = hstack(g, "Speakers", gap=12)
     for i, c in enumerate(SPK):
-        s = hstack(row, f"S{i + 1}", gap=8, pad=[6, 12, 6, 10], cornerRadius=999, stroke=BORDER, strokeWeight=1,
-                   fill=SURFACE)
+        s = hstack(
+            row,
+            f"S{i + 1}",
+            gap=8,
+            pad=[6, 12, 6, 10],
+            cornerRadius=999,
+            stroke=BORDER,
+            strokeWeight=1,
+            fill=SURFACE,
+        )
         dot(s, 10, c)
         text(s, f"Speaker {i + 1}", 12.5, "SemiBold", c)
         text(s, c, 11.5, "Regular", TEXT_3)
@@ -983,10 +1643,21 @@ def design_system() -> None:
     for label, size, wt, fam, sample in [
         ("Page title · Inter SemiBold 22", 22, "SemiBold", UI, "Library"),
         ("Section · Inter SemiBold 15", 15, "SemiBold", UI, "Speech models"),
-        ("Body · Inter Regular 13.5", 13.5, "Regular", UI, "Downloaded once. Everything runs on this computer."),
+        (
+            "Body · Inter Regular 13.5",
+            13.5,
+            "Regular",
+            UI,
+            "Downloaded once. Everything runs on this computer.",
+        ),
         ("Small · Inter Regular 12", 12, "Regular", UI, "Text · chunk 24 of 41 · about 2 min left"),
-        ("Transcript · Noto Sans 16.5 / 27", 16.5, "Regular", READ,
-         "So the Europeans became conscious of the need for stability of yield."),
+        (
+            "Transcript · Noto Sans 16.5 / 27",
+            16.5,
+            "Regular",
+            READ,
+            "So the Europeans became conscious of the need for stability of yield.",
+        ),
     ]:
         r = hstack(g, label, gap=24, sizingH="fill")
         t = text(r, label, 12, "Regular", TEXT_3)

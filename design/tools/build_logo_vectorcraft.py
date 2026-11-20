@@ -32,9 +32,18 @@ REPLICA = LOGO_DIR / "replica"
 
 
 def script(size: float, tile, mark) -> list[dict]:
-    steps: list[dict] = [{"command": "file.new", "params": {
-        "name": "WaveMaterial logo", "width": size, "height": size, "units": "Pixels",
-        "backgroundContents": "transparent"}}]
+    steps: list[dict] = [
+        {
+            "command": "file.new",
+            "params": {
+                "name": "WaveMaterial logo",
+                "width": size,
+                "height": size,
+                "units": "Pixels",
+                "backgroundContents": "transparent",
+            },
+        }
+    ]
     for part in [tile, *mark]:
         n = len(steps)  # index of the path.create step, referenced as "$n.id"
         steps += [
@@ -59,18 +68,60 @@ def main() -> int:
     steps_file = REPLICA / "steps.json"
     steps_file.write_text(json.dumps(script(size, tile, mark), indent=1))
 
-    run(["vectorcraft-cli", "run", "--commands", str(steps_file),
-         "--export", str(OUT_DOC), "--export", str(REPLICA / "app-icon.svg")])
-    run(["vectorcraft-cli", "run", "--in", str(OUT_DOC), "--export", str(REPLICA / "app-icon@4x.png"), "--scale", "4"])
+    run(
+        [
+            "vectorcraft-cli",
+            "run",
+            "--commands",
+            str(steps_file),
+            "--export",
+            str(OUT_DOC),
+            "--export",
+            str(REPLICA / "app-icon.svg"),
+        ]
+    )
+    run(
+        [
+            "vectorcraft-cli",
+            "run",
+            "--in",
+            str(OUT_DOC),
+            "--export",
+            str(REPLICA / "app-icon@4x.png"),
+            "--scale",
+            "4",
+        ]
+    )
     # the master rendered by the same engine, then compared against the replica document
     master_png = REPLICA / "master@4x.png"
     run(["vectorcraft-cli", "convert", str(MASTER), str(master_png), "--scale", "4"])
-    out = run(["vectorcraft-cli", "run", "--in", str(OUT_DOC), "--cmd", "document.compare", "--params",
-               json.dumps({"path": str(master_png), "diffPath": str(REPLICA / "diff.png"), "background": "#000000"})])
+    out = run(
+        [
+            "vectorcraft-cli",
+            "run",
+            "--in",
+            str(OUT_DOC),
+            "--cmd",
+            "document.compare",
+            "--params",
+            json.dumps(
+                {
+                    "path": str(master_png),
+                    "diffPath": str(REPLICA / "diff.png"),
+                    "background": "#000000",
+                }
+            ),
+        ]
+    )
     result = json.loads(out.strip().splitlines()[-1])["result"]
-    print(f"replica: {OUT_DOC.relative_to(LOGO_DIR.parent)} ({1 + len(mark)} paths: tile, "
-          f"{sum(p.name.startswith('Wave') for p in mark)} wave bars, sickle)")
-    print(f"compare vs master @4x: rmse {result['rmse']}, differing pixels {result['over']} of {result['total']}")
+    print(
+        f"replica: {OUT_DOC.relative_to(LOGO_DIR.parent)} ({1 + len(mark)} paths: tile, "
+        f"{sum(p.name.startswith('Wave') for p in mark)} wave bars, sickle)"
+    )
+    print(
+        f"compare vs master @4x: rmse {result['rmse']}, "
+        f"differing pixels {result['over']} of {result['total']}"
+    )
     steps_file.unlink()
     return 0 if result["over"] == 0 else 1
 

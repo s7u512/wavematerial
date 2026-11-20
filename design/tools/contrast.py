@@ -23,7 +23,10 @@ def ratio(a: str, b: str) -> float:
 if __name__ == "__main__":
     import build_mockups as t  # tokens
 
-    print(f"accent {t.ACCENT} on bg: {ratio(t.ACCENT, t.BG):.2f}:1 (graphics need 3:1; text uses accent-text)")
+    print(
+        f"accent {t.ACCENT} on bg: {ratio(t.ACCENT, t.BG):.2f}:1 "
+        "(graphics need 3:1; text uses accent-text)"
+    )
     pairs = [
         ("accent fill/border/icon on bg (graphic, needs 3:1)", t.ACCENT, t.BG),
         ("accent fill/border/icon on surface (graphic, needs 3:1)", t.ACCENT, t.SURFACE),

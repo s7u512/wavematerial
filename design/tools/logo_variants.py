@@ -44,13 +44,18 @@ def mark_svg(mark, colour: str | None, title: str) -> str:
     cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
     vb = f"{cx - side / 2:.3f} {cy - side / 2:.3f} {side:.3f} {side:.3f}"
     body = "".join(f'<path d="{p.d}" fill="{colour or p.fill}"/>' for p in mark)
-    return (f'<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="{vb}">'
-            f"<title>{title}</title>{body}</svg>\n")
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="{vb}">'
+        f"<title>{title}</title>{body}</svg>\n"
+    )
 
 
 def render(svg: Path, png: Path, px: int) -> None:
-    res = subprocess.run(["vectorcraft-cli", "convert", str(svg), str(png), "--scale", f"{px / 256}"],
-                         capture_output=True, text=True)
+    res = subprocess.run(
+        ["vectorcraft-cli", "convert", str(svg), str(png), "--scale", f"{px / 256}"],
+        capture_output=True,
+        text=True,
+    )
     if res.returncode != 0:
         raise SystemExit(f"render {svg.name} at {px}px failed:\n{res.stdout}{res.stderr}")
 
@@ -84,7 +89,9 @@ def main() -> int:
         render(MASTER, png_dir / f"app-icon-{n}.png", n)
     for n in MARK_SIZES:
         render(OUT / "logo-mark.svg", png_dir / f"logo-mark-{n}.png", n)
-    write_ico([(n, (png_dir / f"app-icon-{n}.png").read_bytes()) for n in ICO_SIZES], OUT / "app-icon.ico")
+    write_ico(
+        [(n, (png_dir / f"app-icon-{n}.png").read_bytes()) for n in ICO_SIZES], OUT / "app-icon.ico"
+    )
 
     print("wrote:", ", ".join([*variants, "app-icon.ico"]))
     print(f"png/: app-icon {ICON_SIZES}, logo-mark {MARK_SIZES}")
