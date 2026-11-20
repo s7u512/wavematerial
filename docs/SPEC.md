@@ -20,7 +20,7 @@ before building it. Visual design: [`design/DESIGN.md`](../design/DESIGN.md).
 | Step | Component | Runtime |
 |---|---|---|
 | Decode | Any audio or video file → 16 kHz mono float32, in memory (no temp WAV) | PyAV (its bundled FFmpeg; no system ffmpeg) |
-| Speech chunks | Silero VAD; chunks ≤ 20 s, split at pauses | sherpa-onnx |
+| Speech chunks | Silero VAD; chunks ≤ 20 s, split at pauses of ≥ 0.4 s, each side padded by up to 0.2 s into silence | sherpa-onnx |
 | Word timings | Parakeet TDT 0.6B v3 int8 (its text is discarded) | sherpa-onnx |
 | Text | Qwen3-ASR-1.7B Q8_0 GGUF, per chunk, language forced to English | transcribe.cpp |
 | Align | Matching words take Parakeet's timing; differing spans are interpolated | Python |

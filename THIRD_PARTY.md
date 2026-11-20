@@ -17,6 +17,7 @@ Installed from `uv.lock` and shipped in every package.
 | platformdirs | MIT | https://pypi.org/project/platformdirs/ |
 | tomli-w | MIT | https://pypi.org/project/tomli-w/ |
 | psutil | BSD-3-Clause | https://pypi.org/project/psutil/ |
+| NumPy | BSD-3-Clause (bundled parts: 0BSD, MIT, Zlib, CC0-1.0) | https://pypi.org/project/numpy/ |
 | transcribe-cpp | MIT | https://pypi.org/project/transcribe-cpp/ |
 | transcribe-cpp-native (includes ggml) | MIT | https://pypi.org/project/transcribe-cpp-native/ |
 | sherpa-onnx | Apache-2.0 | https://pypi.org/project/sherpa-onnx/ |
