@@ -14,6 +14,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from wavematerial.config import Paths, Settings
+from wavematerial.jobs.events import StageClock, log_event
 from wavematerial.jobs.store import Job, JobStore, fingerprint
 from wavematerial.preflight import Choice, Device, choose
 
@@ -73,8 +74,13 @@ class Scheduler:
 
     def add(self, source: Path, *, min_speakers: int, max_speakers: int, key_terms=()) -> Job:
         job = self.store.add(
-            source, min_speakers=min_speakers, max_speakers=max_speakers, key_terms=key_terms
+            source,
+            min_speakers=min_speakers,
+            max_speakers=max_speakers,
+            key_terms=key_terms,
+            duration=_probe_duration(source),
         )
+        log_event(self.job_dir(job.id), "queued")
         self._notify()
         return job
 
@@ -96,6 +102,7 @@ class Scheduler:
         """Queue a cancelled or failed job again; it continues from its last saved stage."""
         if self.store.get(job_id).state in ("cancelled", "failed"):
             self.store.set_state(job_id, "queued", error=None)
+            log_event(self.job_dir(job_id), "queued again")
             self._notify()
 
     retry = resume
@@ -161,6 +168,7 @@ class Scheduler:
                     "GPU %s failed on job %s; rerunning on the CPU", choice.device_id, job.id
                 )
                 self.store.mark_gpu_unreliable(choice.device_id, f"failed on job {job.id}")
+                log_event(self.job_dir(job.id), "the GPU failed; continuing on the processor")
                 continue
             return
 
@@ -189,6 +197,8 @@ class Scheduler:
             error=None,
             device=f"{choice.description} ({choice.backend})",
         )
+        log_event(job_dir, f"started on {choice.description} ({choice.backend})")
+        clock = StageClock(job_dir)
         result: dict = {}
         with (job_dir / "worker.log").open("ab") as log_file:
             self._proc = subprocess.Popen(
@@ -207,9 +217,9 @@ class Scheduler:
                 except json.JSONDecodeError:
                     continue
                 if event.get("event") == "progress":
-                    self.store.update(
-                        job.id, stage=event["stage"], stage_fraction=float(event["fraction"])
-                    )
+                    fraction = float(event["fraction"])
+                    self.store.update(job.id, stage=event["stage"], stage_fraction=fraction)
+                    clock.progress(event["stage"], fraction)
                 else:
                     result = event
             code = self._proc.wait()
@@ -218,18 +228,28 @@ class Scheduler:
 
         if self._quit:
             self.store.set_state(job.id, "queued")  # app closing: resume next launch
+            log_event(job_dir, "interrupted by closing the app")
             return "quit"
         if self._stop_requested:
             self.store.set_state(job.id, "cancelled", error=None)
+            log_event(job_dir, "stopped")
             return "stopped"
         if result.get("event") == "done":
             self.store.set_state(
-                job.id, "done", duration=result["duration"], stage="render", stage_fraction=1.0
+                job.id,
+                "done",
+                duration=result["duration"],
+                speakers=result["speakers"],
+                stage="render",
+                stage_fraction=1.0,
             )
+            log_event(job_dir, "done")
             return "done"
         if result.get("kind") == "gpu":
             return "gpu"
-        self.store.set_state(job.id, "failed", error=result.get("message") or _death(code))
+        error = result.get("message") or _death(code)
+        self.store.set_state(job.id, "failed", error=error)
+        log_event(job_dir, f"failed: {error}")
         return "failed"
 
     def _kill_worker(self) -> None:
@@ -240,6 +260,17 @@ class Scheduler:
                 proc.wait(5)
             except subprocess.TimeoutExpired:
                 proc.kill()
+
+
+def _probe_duration(source: Path) -> float | None:
+    """The file's length from its header, without decoding (None if unknown)."""
+    try:
+        import av
+
+        with av.open(str(source)) as container:
+            return container.duration / 1_000_000 if container.duration else None
+    except Exception:
+        return None
 
 
 def _death(code: int) -> str:

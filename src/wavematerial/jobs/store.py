@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     device TEXT,
     position REAL NOT NULL,
     duration REAL,
+    speakers INTEGER,
     created_at TEXT NOT NULL,
     started_at TEXT,
     finished_at TEXT
@@ -85,6 +86,7 @@ class Job:
     device: str | None
     position: float
     duration: float | None
+    speakers: int | None
     created_at: str
     started_at: str | None
     finished_at: str | None
@@ -130,20 +132,30 @@ class JobStore:
         finally:
             db.close()
 
-    def add(self, source: Path, *, min_speakers: int, max_speakers: int, key_terms=()) -> Job:
+    def add(
+        self,
+        source: Path,
+        *,
+        min_speakers: int,
+        max_speakers: int,
+        key_terms=(),
+        duration: float | None = None,
+    ) -> Job:
         with self._db() as db:
             position = db.execute("SELECT COALESCE(MAX(position), 0) + 1 FROM jobs").fetchone()[0]
             cur = db.execute(
                 "INSERT INTO jobs (name, source, fingerprint, min_speakers, max_speakers,"
-                " key_terms, state, position, created_at) VALUES (?,?,?,?,?,?,'queued',?,?)",
+                " key_terms, state, position, duration, created_at)"
+                " VALUES (?,?,?,?,?,?,'queued',?,?,?)",
                 (
-                    source.stem,
+                    source.name,
                     str(source),
                     fingerprint(source),
                     min_speakers,
                     max_speakers,
                     json.dumps(list(key_terms)),
                     position,
+                    duration,
                     _now(),
                 ),
             )
