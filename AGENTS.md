@@ -38,10 +38,10 @@ RFC 2119 and RFC 8174. When you depart from a SHOULD, say so and why in your sum
 11. The project is **GPL-2.0-only WITH Universal-FOSS-exception-1.0**. Every source file MUST
     start with `# SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0`
     (or the comment syntax of its language).
-12. You MUST NOT add code under GPL-3.0-only, AGPL, or any proprietary licence, and MUST NOT
-    copy code whose licence you have not checked. A new dependency's licence MUST be
-    OSI-approved or FSF-free, and the dependency MUST be added to `THIRD_PARTY.md` in the
-    same change.
+12. You MUST NOT add code under GPL-3.0 (only or or-later), any AGPL, or any proprietary
+    licence, and MUST NOT copy code whose licence you have not checked. A new dependency's
+    licence MUST be OSI-approved or FSF-free, and the dependency MUST be added to
+    `THIRD_PARTY.md` in the same change.
 13. Model weights MUST NOT be committed or bundled; they are downloaded at runtime from the
     pinned URLs in `src/wavematerial/models/manifest.toml`. CC-BY models need attribution in
     `THIRD_PARTY.md` and the About page.
@@ -96,7 +96,7 @@ RFC 2119 and RFC 8174. When you depart from a SHOULD, say so and why in your sum
 
 WaveMaterial is a fully local, offline-capable desktop app that turns audio and video
 recordings into speaker-attributed English transcripts, with an editor to correct them. It
-runs on Linux and Windows, Vulkan GPU first with a CPU fallback. Python (3.11) with a Flask +
+runs on Linux and Windows, Vulkan GPU first with a CPU fallback. Python (3.12) with a Flask +
 htmx UI shown in a pywebview window.
 
 ### Layout

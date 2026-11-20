@@ -2,8 +2,25 @@
 
 Everything in this repository that is not our own work, with its licence and source. A new
 dependency, font, icon, image, or sample is added here in the same change that adds it.
-Model weights are never committed; when the model manifest exists, their licences and
-attribution are listed here as well.
+Model weights are never committed; their licences and credits live in the model manifest.
+
+This file covers the source tree. The list shipped inside each package is generated from
+the bundle when the package is built (see `docs/SPEC.md`, Licence).
+
+## Runtime dependencies
+
+Installed from `uv.lock` and shipped in every package.
+
+| Component | Licence | Source |
+|---|---|---|
+| PyAV (`av`) | BSD-3-Clause | https://pypi.org/project/av/ |
+| FFmpeg (inside the PyAV wheel) | LGPL-3.0-or-later | https://ffmpeg.org/ |
+| x264 (inside the PyAV wheel) | GPL-2.0-or-later | https://www.videolan.org/developers/x264.html |
+| x265 (inside the PyAV wheel) | GPL-2.0-or-later | https://www.x265.org/ |
+
+The PyAV wheel also carries other libraries (among them dav1d, LAME, Opus, SVT-AV1, VMAF,
+libvpl, libvpx, libwebp, and libxcb, plus their dependencies). Their licences and exact
+sources are recorded when the packages are built, and each release offers that source.
 
 ## Development tools
 

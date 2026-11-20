@@ -11,12 +11,13 @@ download, on Linux and Windows, using a Vulkan GPU when there is one and the CPU
 ## Honest support claims
 
 When 1.0.0 is released, it will have been tested on one machine (Ryzen 5 7535HS,
-Radeon 660M, 14 GB RAM, Linux) and with one recording. Everything else will be
+Radeon 660M, 14 GB RAM, Arch Linux) and with one recording. Windows builds are made and
+tested only under Wine (Bottles), never on real Windows. Everything else will be
 "untested, should work".
 
 ## Development
 
-You need Python 3.11 and [uv](https://docs.astral.sh/uv/).
+You need [uv](https://docs.astral.sh/uv/); `uv sync` fetches Python 3.12 if you don't have it.
 
 ```
 uv sync

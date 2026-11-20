@@ -41,8 +41,8 @@ A GitHub no-reply address is fine.
 
 ## Dependencies and assets
 
-- A new dependency must have an OSI-approved or FSF-free licence (never GPL-3.0-only, AGPL,
-  or proprietary), and is added to `THIRD_PARTY.md` in the same pull request.
+- A new dependency must have an OSI-approved or FSF-free licence (never GPL-3.0, only or
+  or-later, any AGPL, or proprietary), and is added to `THIRD_PARTY.md` in the same pull request.
 - Icons, fonts, images, and sample audio must be your own work or under a licence recorded
   in `THIRD_PARTY.md`. Sample recordings and transcripts must be public domain.
 - Never commit model weights, private recordings, personal data, secrets, or local paths.

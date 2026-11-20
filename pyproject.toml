@@ -3,7 +3,7 @@ name = "wavematerial"
 version = "0.1.0.dev0"
 description = "Local, offline speaker-attributed transcription with an editor."
 readme = "README.md"
-requires-python = ">=3.11,<3.12"
+requires-python = ">=3.12,<3.13"
 license = "GPL-2.0-only WITH Universal-FOSS-exception-1.0"
 license-files = ["LICENSE.md", "THIRD_PARTY.md"]
 authors = [{ name = "s7u512" }]
@@ -14,10 +14,12 @@ classifiers = [
     "Natural Language :: English",
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
-    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Multimedia :: Sound/Audio :: Speech",
 ]
-dependencies = []
+dependencies = [
+    "av>=19,<20",
+]
 
 [project.urls]
 Repository = "https://github.com/s7u512/wavematerial"
@@ -37,7 +39,7 @@ packages = ["src/wavematerial"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]

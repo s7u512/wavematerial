@@ -19,7 +19,7 @@ before building it. Visual design: [`design/DESIGN.md`](../design/DESIGN.md).
 
 | Step | Component | Runtime |
 |---|---|---|
-| Decode | ffmpeg → 16 kHz mono float32, in memory (no temp WAV) | ffmpeg |
+| Decode | Any audio or video file → 16 kHz mono float32, in memory (no temp WAV) | PyAV (its bundled FFmpeg; no system ffmpeg) |
 | Speech chunks | Silero VAD; chunks ≤ 20 s, split at pauses | sherpa-onnx |
 | Word timings | Parakeet TDT 0.6B v3 int8 (its text is discarded) | sherpa-onnx |
 | Text | Qwen3-ASR-1.7B Q8_0 GGUF, per chunk, language forced to English | transcribe.cpp |
@@ -96,7 +96,8 @@ Paths come from `platformdirs`. Nothing is written inside the install folder.
 ## Models
 
 - A manifest shipped with the app lists each model's URL (pinned to an exact version),
-  size, sha256, licence, and attribution. The About page is generated from it.
+  size, sha256, licence, creator, upstream model card, and what was changed from the
+  original (for example, converted to ONNX or quantised to Q8_0).
 - Models are downloaded from upstream only (Hugging Face and sherpa-onnx releases) over
   plain HTTPS: no mirroring and no token.
 - Downloads resume after an interruption, are retried, and are sha256-verified before they
@@ -136,17 +137,34 @@ Paths come from `platformdirs`. Nothing is written inside the install folder.
 - Contributions are accepted under the same licence and exception.
 - Model weights are downloaded at run time, never shipped. CC-BY models are credited on
   the About page.
+- Packages bundle PyAV's FFmpeg (LGPL-3.0-or-later) and the libraries in its wheel,
+  including x264 and x265 (GPL-2.0-or-later). Each release offers their exact source.
+- **About page** (in Settings, works offline):
+  - WaveMaterial's version and licence, with the full text, and a link to the source of
+    that exact release;
+  - each model's required credit, from the manifest;
+  - every bundled component with its version and licence, and its licence text.
+- The component list and licence texts are **generated from the bundle** when packages are
+  built, plus a short hand-kept list for what pip can't see (the Python runtime, FFmpeg's
+  libraries, the vendored front end, and fonts). The build **fails** if a component has no
+  licence, or one that is GPL-3.0 (only or or-later), any AGPL, or proprietary.
 
 ## Distribution
 
-- Python 3.11. Installers bundle the app, a Python runtime, and the native libraries;
-  models are not bundled.
-- Formats: `.deb`, Flatpak, a Windows `.exe` installer, and a Linux `.tar.gz` with no
-  compatibility guarantees.
+- Python 3.12. Every package wraps the same bundle: a standalone Python runtime with the app
+  and its locked dependencies. Models are not bundled.
+- **Arch Linux first:** a `PKGBUILD` (not published to the AUR), plus a Linux `.tar.gz` of
+  the same bundle with no compatibility guarantees.
+- **`.deb`** for Debian 13 and later.
+- **Flatpak** for other Linux distributions, as a `.flatpak` file on GitHub releases.
+- **Windows `.exe`** installer, per user (no admin rights needed).
+- Everything is built locally; there is no CI. Nothing is signed. Each release carries
+  SHA256 checksums.
 
 ## Support claims
 
 - WaveMaterial is tested on one machine (Ryzen 5 7535HS, Radeon 660M, 14 GB RAM, Linux) and
   one recording. Everything else is "untested, should work", and the README says so.
+- Windows builds are made and tested only under Wine (Bottles), never on real Windows.
 - Requirements are stated as measured: peak 3.4 GB RAM on the CPU path; about 1.2 GB plus
   2.2 GB of shared GPU memory on Vulkan; 2.9 GB of models on disk.
