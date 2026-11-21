@@ -6,9 +6,9 @@ A fully local desktop app that turns audio and video recordings into speaker-att
 English transcripts, with an editor to correct them. It runs offline after a one-time model
 download, on Linux and Windows, using a Vulkan GPU when there is one and the CPU otherwise.
 
-> **Status: 1.0.0 is being prepared.** It will ship a Windows installer and a Linux
-> `.tar.gz`. Until then, run it from source (below). What 1.0.0 does is in
-> [`docs/SPEC.md`](docs/SPEC.md), and the visual design is in
+> **WaveMaterial 1.0.0** is out: a Windows installer and a Linux `.tar.gz` are on the
+> [releases page](https://github.com/s7u512/wavematerial/releases), or run it from source
+> (below). What it does is in [`docs/SPEC.md`](docs/SPEC.md), and the visual design is in
 > [`design/DESIGN.md`](design/DESIGN.md).
 
 See [`USAGE.md`](USAGE.md) for a tour of every screen, with screenshots.

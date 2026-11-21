@@ -6,6 +6,8 @@ Every user-visible change is recorded here. The format follows
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-21
+
 ### Added
 - A Windows installer: per user, no admin rights needed. It is built and tested only
   under Wine. Windows needs Microsoft's Visual C++ Redistributable (x64), which the
