@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0
 """Export: a transcript as a file the user saves. docx and pdf are made only on export.
 
-Formatting stays as plain as the other outputs: a title, then `SPEAKER: text` per turn.
+docx and pdf share one layout: the title (centred), the speakers and duration, a centred
+TRANSCRIPT heading, then `SPEAKER: text` per turn, justified.
 docx needs python-docx and pdf needs reportlab, both in the optional `export` extra; a
 format whose library is missing is simply not offered.
 """
@@ -16,6 +17,7 @@ from xml.sax.saxutils import escape
 
 from wavematerial.transcript.render import render_json, render_srt, render_txt, render_vtt
 from wavematerial.transcript.schema import Transcript
+from wavematerial.web.format import length
 
 LABELS = {
     "txt": "Plain text (.txt)",
@@ -60,28 +62,50 @@ def render(fmt: str, t: Transcript, title: str) -> bytes:
     raise ValueError(f"unknown export format {fmt!r}")
 
 
+def _details(t: Transcript) -> list[tuple[str, str]]:
+    """The lines between the title and the transcript: label and value."""
+    used = {turn.speaker for turn in t.turns}
+    speakers = ", ".join(t.display_name(s) for s in t.speakers if s in used) or "none"
+    return [("Speakers", speakers), ("Duration", length(t.duration))]
+
+
 def _docx(t: Transcript, title: str) -> bytes:
     from docx import Document
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
 
     doc = Document()
     doc.core_properties.title = title
-    doc.add_heading(title, level=1)
+    doc.add_heading(title, level=1).alignment = WD_ALIGN_PARAGRAPH.CENTER
+    doc.add_paragraph()
+    for i, (label, value) in enumerate(details := _details(t)):
+        p = doc.add_paragraph()
+        p.add_run(f"{label}: ").bold = True
+        p.add_run(value)
+        if i < len(details) - 1:
+            p.paragraph_format.space_after = 0
+    doc.add_paragraph()
+    heading = doc.add_paragraph()
+    heading.add_run("TRANSCRIPT").bold = True
+    heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    doc.add_paragraph()
     for turn in t.turns:
         p = doc.add_paragraph()
         p.add_run(f"{t.display_name(turn.speaker)}: ").bold = True
         p.add_run(turn.text)
+        p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     out = io.BytesIO()
     doc.save(out)
     return out.getvalue()
 
 
 def _pdf(t: Transcript, title: str) -> bytes:
+    from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.units import mm
     from reportlab.pdfbase import pdfmetrics
     from reportlab.pdfbase.ttfonts import TTFont
-    from reportlab.platypus import Paragraph, SimpleDocTemplate
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
     # Noto Sans covers Latin with diacritics, Greek, and Cyrillic, unlike PDF's base fonts.
     if "NotoSans" not in pdfmetrics.getRegisteredFontNames():
@@ -89,10 +113,15 @@ def _pdf(t: Transcript, title: str) -> bytes:
         pdfmetrics.registerFont(TTFont("NotoSans-Bold", FONTS / "NotoSans-Bold.ttf"))
         pdfmetrics.registerFontFamily("NotoSans", normal="NotoSans", bold="NotoSans-Bold")
     heading = ParagraphStyle(
-        "title", fontName="NotoSans-Bold", fontSize=16, leading=20, spaceAfter=12
+        "title", fontName="NotoSans-Bold", fontSize=16, leading=20, alignment=TA_CENTER
     )
-    body = ParagraphStyle("turn", fontName="NotoSans", fontSize=11, leading=15, spaceAfter=8)
-    story = [Paragraph(escape(title), heading)]
+    detail = ParagraphStyle("detail", fontName="NotoSans", fontSize=11, leading=15)
+    centred = ParagraphStyle("centred", parent=detail, alignment=TA_CENTER)
+    body = ParagraphStyle("turn", parent=detail, spaceAfter=8, alignment=TA_JUSTIFY)
+    blank = Spacer(1, detail.leading)
+    story = [Paragraph(escape(title), heading), blank]
+    story += [Paragraph(f"<b>{label}:</b> {escape(value)}", detail) for label, value in _details(t)]
+    story += [blank, Paragraph("<b>TRANSCRIPT</b>", centred), blank]
     for turn in t.turns:
         who = escape(t.display_name(turn.speaker))
         story.append(Paragraph(f"<b>{who}:</b> {escape(turn.text)}", body))

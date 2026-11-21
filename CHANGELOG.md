@@ -29,7 +29,8 @@ Every user-visible change is recorded here. The format follows
   and "Restore original transcript" (undoable).
 - Export from the editor: plain text, SRT and WebVTT subtitles, JSON with word timings,
   and, with the optional `export` extra, .docx and PDF. In the window a Save dialog asks
-  where, starting in the last folder used.
+  where, starting in the last folder used. The .docx and PDF open with the centred title,
+  the speakers and duration, and a TRANSCRIPT heading, with the transcript justified.
 - Editor, second round: Shift+click selects across turns; a right-click menu in the text;
   Move rest to next turn and Move start to previous turn; Play starts at the cursor; Esc
   pauses playback; a History tab with named versions, automatic versions on opening, and

@@ -381,8 +381,16 @@ def test_docx_and_pdf_exports_carry_the_transcript():
     doc = docx.Document(io.BytesIO(export.render("docx", t, "Interview")))
     assert [p.text for p in doc.paragraphs] == [
         "Interview",
+        "",
+        "Speakers: Interviewer",
+        "Duration: 0:03",
+        "",
+        "TRANSCRIPT",
+        "",
         "Interviewer: Jawaharlal Nehru, Śāstrī.",
     ]
+    centre, justify = 1, 3  # WD_ALIGN_PARAGRAPH
+    assert [doc.paragraphs[i].alignment for i in (0, 5, 7)] == [centre, centre, justify]
     pdf = export.render("pdf", t, "Interview")
     assert pdf.startswith(b"%PDF") and b"NotoSans" in pdf  # the embedded font covers ā and ś
     assert export.render("pdf", t, "Interview") == pdf  # reproducible

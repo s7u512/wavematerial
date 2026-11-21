@@ -70,6 +70,8 @@ before building it. Visual design: [`design/DESIGN.md`](../design/DESIGN.md).
   rendered from that revision, and the original can always be restored.
 - Outputs: `json`, `txt`, `srt`, and `vtt` are always produced; `docx` and `pdf` are made
   on export. Plain formatting: `SPEAKER: text` per turn, one subtitle cue per turn.
+  `docx` and `pdf` also carry a centred title, then Speakers and Duration lines, a centred
+  TRANSCRIPT heading, and the turns justified.
 - **Editor:** fix words; change a turn's speaker; name, merge, and split speakers; split
   and join turns; find and replace; undo and redo; rename the recording. Selecting any
   words plays exactly that audio, with Loop, 0.75× speed, and a Replace field. Clicking a
