@@ -63,6 +63,7 @@ Filename: "{app}\python\pythonw.exe"; Parameters: "-m wavematerial"; WorkingDir:
 const
   VCRedistKey = 'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64';
   VCRedistPage = 'https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist';
+  VCRedistDownload = 'https://aka.ms/vs/17/release/vc_redist.x64.exe';
 
 function HasVCRedist(): Boolean;
 var
@@ -86,9 +87,11 @@ begin
     Log('Visual C++ Redistributable (x64) {#MinVCRedist} or later not found.');
     if SuppressibleMsgBox('WaveMaterial needs the Microsoft Visual C++ Redistributable (x64), '
       + 'version {#MinVCRedist} or later, and it is not installed.' + #13#10#13#10
-      + 'Installing it needs administrator rights. Open Microsoft''s download page now? '
-      + 'After installing it, run this installer again.',
+      + 'Download it from Microsoft:' + #13#10 + VCRedistDownload + #13#10
+      + '(details: ' + VCRedistPage + ')' + #13#10#13#10
+      + 'Installing it needs administrator rights. After installing it, run this installer '
+      + 'again.' + #13#10#13#10 + 'Start the download now?',
       mbError, MB_YESNO, IDNO) = IDYES then
-      ShellExec('open', VCRedistPage, '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
+      ShellExec('open', VCRedistDownload, '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
   end;
 end;

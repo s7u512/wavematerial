@@ -194,7 +194,8 @@ Paths come from `platformdirs`. Nothing is written inside the install folder.
   wavematerial`. Inno Setup builds it under Wine (`packaging/windows/build.py`).
 - The Windows bundle ships none of Microsoft's C++ runtime (wheels' private copies included).
   The installer requires the Visual C++ Redistributable (x64) at the newest version the
-  bundled files were built with, and offers Microsoft's download page if it is missing.
+  bundled files were built with; if it is missing, it gives Microsoft's download links and offers
+  to start the download.
 - Everything is built locally; there is no CI. Nothing is signed. Each release carries
   SHA256 checksums.
 

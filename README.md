@@ -26,6 +26,11 @@ Redistributable (x64)**, in a recent version; many PCs already do. The installer
 names the version it needs, and offers Microsoft's download page if it's missing. Installing
 the redistributable needs administrator rights; WaveMaterial itself doesn't.
 
+- Direct download (always Microsoft's latest x64 version):
+  <https://aka.ms/vs/17/release/vc_redist.x64.exe>
+- Microsoft's page for it, with other versions and details:
+  <https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist>
+
 ## Development
 
 You need [uv](https://docs.astral.sh/uv/); `uv sync` fetches Python 3.12 if you don't have it.
