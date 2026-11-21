@@ -62,10 +62,12 @@ def create_app(ctx: AppContext) -> Flask:
 
     @app.context_processor
     def globals_():
+        s = ctx.settings()
         return {
             "ctx": ctx,
             "version": __version__,
             "title_of": lambda job: format.title(job.name, job.source),
+            "widths": {"sidebar": s.sidebar_width, "panel": s.panel_width},
         }
 
     from wavematerial.web import views

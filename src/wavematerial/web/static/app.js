@@ -54,6 +54,70 @@
     setInterval(() => fetch("/alive", { cache: "no-store" }).catch(() => {}), 30000);
   }
 
+  // ---- draggable dividers: sidebar | content, and transcript | side panel in the editor -----
+  // Widths are saved in settings (the window forgets browser storage between launches).
+  const DIVIDERS = [
+    { id: "divider-sidebar", setting: "sidebar_width", prop: "--sidebar-w", def: 248, min: 160, max: 480,
+      target: () => document.documentElement, width: (x) => x },
+    { id: "divider-panel", setting: "panel_width", prop: "--panel-w", def: 340, min: 260, max: 640,
+      target: () => document.getElementById("editor"), width: (x) => window.innerWidth - x },
+  ];
+  function saveWidth(setting, value) {
+    fetch("/settings/ui", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [setting]: value }),
+    }).catch(() => {});
+  }
+  for (const d of DIVIDERS) {
+    const bar = document.getElementById(d.id);
+    const target = d.target();
+    if (!bar || !target) continue;
+    const current = () => parseInt(getComputedStyle(target).getPropertyValue(d.prop), 10) || d.def;
+    const limit = (w) => {
+      let max = d.max;
+      if (d.id === "divider-panel") { // keep the transcript readable
+        const side = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--sidebar-w"), 10) || 248;
+        max = Math.min(max, window.innerWidth - side - 420);
+      }
+      return Math.round(Math.min(Math.max(w, d.min), Math.max(d.min, max)));
+    };
+    const set = (w) => {
+      target.style.setProperty(d.prop, `${limit(w)}px`);
+      bar.setAttribute("aria-valuenow", String(limit(w)));
+    };
+    bar.setAttribute("aria-valuemin", String(d.min));
+    bar.setAttribute("aria-valuemax", String(d.max));
+    bar.setAttribute("aria-valuenow", String(current()));
+    bar.addEventListener("pointerdown", (evt) => {
+      bar.setPointerCapture(evt.pointerId);
+      bar.classList.add("is-dragging");
+      document.body.classList.add("is-resizing");
+    });
+    bar.addEventListener("pointermove", (evt) => {
+      if (bar.hasPointerCapture(evt.pointerId)) set(d.width(evt.clientX));
+    });
+    bar.addEventListener("pointerup", (evt) => {
+      if (!bar.hasPointerCapture(evt.pointerId)) return;
+      bar.releasePointerCapture(evt.pointerId);
+      bar.classList.remove("is-dragging");
+      document.body.classList.remove("is-resizing");
+      saveWidth(d.setting, current());
+    });
+    bar.addEventListener("dblclick", () => {
+      target.style.removeProperty(d.prop);
+      bar.setAttribute("aria-valuenow", String(current()));
+      saveWidth(d.setting, 0);
+    });
+    bar.addEventListener("keydown", (evt) => {
+      const step = { ArrowLeft: -16, ArrowRight: 16 }[evt.key];
+      if (!step) return;
+      evt.preventDefault();
+      set(current() + (d.id === "divider-panel" ? -step : step)); // the panel grows leftwards
+      saveWidth(d.setting, current());
+    });
+  }
+
   // ---- drawer and modal --------------------------------------------------------------------
   function closeDrawer() { $("#drawer").replaceChildren(); }
   function closeModal() { $("#modal").replaceChildren(); }

@@ -6,7 +6,7 @@
 {% block scripts %}<script src="/static/retime.js" defer></script>
 <script src="/static/editor.js" defer></script>{% endblock %}
 {% block main %}
-<div class="editor" id="editor">
+<div class="editor" id="editor"{% if widths.panel %} style="--panel-w: {{ widths.panel }}px"{% endif %}>
   <header class="ed-top">
     <a class="ed-back" href="/library">{{ icon("back", 14) }} Library</a>
     <div class="ed-title">
@@ -61,6 +61,7 @@
       </div>
     </div>
 
+    <div class="divider divider-panel" id="divider-panel" role="separator" aria-orientation="vertical" aria-label="Side panel width" title="Drag to resize; double-click to reset" tabindex="0"></div>
     <aside class="ed-panel" id="ed-panel" aria-label="Speakers and details">
       <div class="tabs" role="tablist">
         <button type="button" role="tab" id="tab-btn-speakers" aria-controls="tab-speakers" aria-selected="true">Speakers</button>
