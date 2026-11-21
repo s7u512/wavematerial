@@ -1692,7 +1692,14 @@
         ...[...named, ...autos].map((v) => {
           const li = el("li", "version" + (v.auto ? " version-auto" : ""));
           const text = el("div", "version-text");
-          text.append(el("strong", "", v.auto ? "Automatic: when opened" : v.name), el("span", "", when(v.created)));
+          // Click the name to rename it, as with the recording's title.
+          const name = el("button", "version-name");
+          name.type = "button";
+          name.title = "Rename this version";
+          name.dataset.rename = v.id;
+          name.dataset.current = v.auto ? "" : v.name;
+          name.append(el("strong", "", v.auto ? "Automatic: when opened" : v.name));
+          text.append(name, el("span", "", when(v.created)));
           const restore = el("button", "btn btn-ghost btn-sm", "Restore");
           restore.type = "button";
           restore.dataset.restore = v.id;
@@ -1753,7 +1760,48 @@
       setNote(`The version could not be saved: ${exc.message}`, true);
     }
   });
+  function renameVersion(btn) {
+    const box = el("input", "version-rename");
+    box.type = "text";
+    box.maxLength = 80;
+    box.value = btn.dataset.current;
+    box.placeholder = "Version name";
+    box.setAttribute("aria-label", "Version name");
+    btn.replaceWith(box);
+    box.focus();
+    box.select();
+    let done = false;
+    const finish = async (keep) => {
+      if (done) return;
+      done = true;
+      const value = box.value.trim();
+      if (keep && value && value !== btn.dataset.current) {
+        try {
+          await postJson(`/jobs/${data.job}/versions/${btn.dataset.rename}/rename`, { name: value });
+        } catch (exc) {
+          setNote(`The version could not be renamed: ${exc.message}`, true);
+        }
+      }
+      loadVersions();
+    };
+    box.addEventListener("keydown", (evt) => {
+      if (evt.key === "Enter") {
+        evt.preventDefault();
+        finish(true);
+      } else if (evt.key === "Escape") {
+        evt.preventDefault();
+        evt.stopPropagation(); // Esc cancels the rename only
+        finish(false);
+      }
+    });
+    box.addEventListener("blur", () => finish(true));
+  }
   versionList.addEventListener("click", async (evt) => {
+    const n = evt.target.closest("[data-rename]");
+    if (n) {
+      renameVersion(n);
+      return;
+    }
     const r = evt.target.closest("[data-restore]");
     const d = evt.target.closest("[data-delete]");
     if (r) restoreFrom(`/jobs/${data.job}/versions/${r.dataset.restore}`, r.dataset.name);
@@ -1937,6 +1985,7 @@
     (evt) => {
       const mod = evt.ctrlKey || evt.metaKey;
       if (evt.key === "Escape") {
+        if (evt.target.closest?.(".version-rename")) return; // it cancels its own rename
         if (renaming) endRename(false);
         else if (!passageEl.hidden) closePassage(true);
         else if (!ctx.hidden) closeCtx();

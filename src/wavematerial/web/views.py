@@ -573,6 +573,19 @@ def register(app: Flask) -> None:
         except TranscriptError:
             abort(404)
 
+    @app.post("/jobs/<int:job_id>/versions/<int:vid>/rename")
+    def versions_rename(job_id: int, vid: int):
+        ctx = _ctx()
+        job_dir = ctx.scheduler.job_dir(_done_job(ctx, job_id).id)
+        name = " ".join(str((request.get_json(silent=True) or {}).get("name") or "").split())[:80]
+        if not name:
+            return jsonify(error="A version needs a name."), 422
+        try:
+            versions.rename_version(job_dir, vid, name)
+        except TranscriptError:
+            abort(404)
+        return jsonify(name=name)
+
     @app.post("/jobs/<int:job_id>/versions/<int:vid>/delete")
     def versions_delete(job_id: int, vid: int):
         ctx = _ctx()

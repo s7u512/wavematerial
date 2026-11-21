@@ -97,8 +97,10 @@
         <button type="button" class="btn btn-secondary btn-sm" id="save-version">Save version…</button>
         <form class="version-form" id="version-form" hidden>
           <input type="text" id="version-name" maxlength="80" placeholder="Name, e.g. after first pass" aria-label="Version name" autocomplete="off">
-          <button type="submit" class="btn btn-primary btn-sm">Save</button>
-          <button type="button" class="btn btn-ghost btn-sm" id="version-cancel">Cancel</button>
+          <div class="version-form-buttons">
+            <button type="button" class="btn btn-ghost btn-sm" id="version-cancel">Cancel</button>
+            <button type="submit" class="btn btn-primary btn-sm">Save</button>
+          </div>
         </form>
         <ul class="version-list" id="version-list" aria-label="Saved versions"></ul>
         <div class="version version-original">

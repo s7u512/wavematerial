@@ -464,6 +464,15 @@ def test_history_saves_versions_and_an_automatic_one_on_opening(web):
     assert sum(v["auto"] for v in versions_now) == 3  # only the newest automatic ones are kept
     assert any(v["name"] == "after first pass" for v in versions_now)  # named ones stay
 
+    auto_id = next(v["id"] for v in listing() if v["auto"])
+    assert (
+        _post(client, f"/jobs/{job.id}/versions/{auto_id}/rename", json={"name": " "}).status_code
+        == 422
+    )
+    r = _post(client, f"/jobs/{job.id}/versions/{auto_id}/rename", json={"name": "  kept  this "})
+    assert r.get_json() == {"name": "kept this"}
+    renamed = next(v for v in listing() if v["id"] == auto_id)
+    assert (renamed["name"], renamed["auto"]) == ("kept this", False)  # now a named version
     saved = _get(client, f"/jobs/{job.id}/versions/{vid}").get_json()
     assert saved["turns"][0]["words"][0][0] == "Falcon"
     _post(client, f"/jobs/{job.id}/versions/{vid}/delete")

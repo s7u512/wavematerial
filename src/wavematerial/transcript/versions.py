@@ -102,6 +102,16 @@ def load_version(job_dir: Path, vid: int, original: Transcript) -> Transcript:
     )
 
 
+def rename_version(job_dir: Path, vid: int, name: str) -> None:
+    """Rename a version. A renamed automatic version becomes a named one (kept, not pruned)."""
+    path = _dir(job_dir) / f"{vid:04d}.json"
+    data = _read(path)
+    if data is None:
+        raise TranscriptError(f"version {vid} is missing or unreadable")
+    data.update(name=name, auto=False)
+    write_text_atomic(path, json.dumps(data, ensure_ascii=False))
+
+
 def delete_version(job_dir: Path, vid: int) -> None:
     (_dir(job_dir) / f"{vid:04d}.json").unlink(missing_ok=True)
 

@@ -466,13 +466,18 @@ ul.plain li { list-style: none; margin: 0; }
 
 /* history */
 #tab-history > p { margin: 0 0 10px; }
-.version-form { display: flex; gap: 6px; margin: 10px 0 0; }
-.version-form input { margin: 0 !important; height: 30px; font-size: 13px; flex: 1; }
+.version-form { display: grid; gap: 6px; margin: 10px 0 0; }
+.version-form input { width: 100%; margin: 0 !important; height: 32px; font-size: 13px; }
+.version-form-buttons { display: flex; justify-content: flex-end; gap: 6px; }
+.version-form-buttons .btn { width: auto; }
 .version-list { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 6px; }
 .version-list li { list-style: none; margin: 0; }
 .version { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
 .version-text { flex: 1; min-width: 0; display: grid; }
 .version-text strong { font-weight: 500; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.version-name { display: block; width: 100%; margin: 0; padding: 0; border: 0; background: none; color: var(--text); font: inherit; text-align: left; cursor: text; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.version-name:hover strong { text-decoration: underline dotted; }
+.version-rename { width: 100%; margin: 0 0 2px !important; height: 26px; padding: 2px 6px !important; font-size: 13px; }
 .version-text span { color: var(--text-2); font-size: var(--fs-small); }
 .version-auto strong { color: var(--text-2); font-weight: 400; }
 .version-original { margin-top: 14px; border-style: dashed; }
