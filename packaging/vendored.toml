@@ -331,6 +331,22 @@ source = false
 licence_files = ["mingw64/share/licenses/zlib/LICENSE"]
 
 [[lib]]
+# How PyAV built the FFmpeg libraries above: pyav-ffmpeg's build script and the patches it
+# applies to FFmpeg, x265, gmp, libvpx and the AMF headers. Shipped with the sources because
+# the GPL asks for the scripts that control compilation. The repository has no licence file;
+# its patches are modifications of the (L)GPL code they apply to.
+name = "pyav-ffmpeg build scripts and patches"
+version = "9.0.2-1 (bac8894)"
+licence = "NOASSERTION"
+platforms = ["linux", "windows"]
+files = []
+url = "https://github.com/PyAV-Org/pyav-ffmpeg/archive/bac889417e26be29615cb6a3f38318151fed55cd.tar.gz"
+sha256 = "18cb507f2651902bbd824aec838262a6ac2c85a9883b629360322acadd4c4bfd"
+source = true
+credits = false
+licence_files = []
+
+[[lib]]
 # Built from source on Linux (no wheel); its licence shows on the credits page from its
 # package metadata. The exact sdist uv.lock pins.
 name = "PyGObject"

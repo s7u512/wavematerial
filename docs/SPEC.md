@@ -201,6 +201,10 @@ Paths come from `platformdirs`. Nothing is written inside the install folder.
   to start the download.
 - Everything is built locally; there is no CI. Nothing is signed. Each release carries
   SHA256 checksums.
+- Releases are assembled locally by `packaging/release.py` (packages, WaveMaterial's source,
+  the exact sources of every bundled copyleft library with the scripts and patches that
+  built them, notes from `CHANGELOG.md`, checksums) and uploaded as a GitHub draft by
+  `packaging/publish.sh`, which asks for a token; the maintainer publishes the draft.
 
 ## Support claims
 

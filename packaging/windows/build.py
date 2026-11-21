@@ -39,7 +39,7 @@ MS_RUNTIME = "msvcp140,msvcp140_1,msvcp140_2,vcruntime140,vcruntime140_1,concrt1
 
 
 def numeric(version: str) -> str:
-    """Windows' four-part version: 0.1.0.dev0 -> 0.1.0.0."""
+    """Windows' four-part version: 1.0.0 -> 1.0.0.0, 1.1.0.dev0 -> 1.1.0.0."""
     parts = [int(re.match(r"\d+", p).group()) for p in version.split(".")[:3]]
     return ".".join(map(str, parts + [0] * (4 - len(parts))))
 

@@ -292,6 +292,8 @@ def copy_vendored_licences(libs: list[dict], dest: Path) -> None:
     """Each library's licence texts in dest/<slug>/, and components.json for the credits page."""
     listed = []
     for lib in libs:
+        if not lib["licence_files"]:  # source-only entries (build scripts)
+            continue
         archive = vendored_archive(lib)
         folder = dest / slug(lib["name"])
         folder.mkdir(parents=True)
