@@ -108,3 +108,19 @@ def test_adding_a_folder_queues_its_media_and_saves_defaults(web):
     assert all(j.state == "queued" and j.duration == pytest.approx(0.5) for j in jobs)
     s = ctx.settings()
     assert (s.min_speakers, s.max_speakers, s.key_terms) == (2, 3, ["Tranquility"])
+
+
+def test_library_poll_keeps_the_counts_current(web):
+    ctx, client, tmp = web
+    client.set_cookie(COOKIE, "secret-token", domain="127.0.0.1")
+    for name in ("apollo11.wav", "gemini4.wav"):
+        (tmp / name).write_bytes(b"\0")
+        ctx.store.add(tmp / name, min_speakers=1, max_speakers=2)
+    ctx.store.set_state(ctx.store.all()[0].id, "done")
+
+    # The poll swaps only the table; the counts outside it ride along out of band.
+    table = _get(client, "/library/table?filter=all").get_data(as_text=True)
+    assert table.count('hx-swap-oob="true"') == 3
+    assert "2 recordings · 1 in progress" in table
+    assert 'Done <span class="chip-count">1</span>' in table
+    assert 'id="nav-library-count" class="nav-count" hx-swap-oob="true">2<' in table

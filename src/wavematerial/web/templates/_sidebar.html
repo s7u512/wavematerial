@@ -1,12 +1,12 @@
 {# SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0 #}
-{% from "_macros.html" import icon %}
+{% from "_macros.html" import icon, nav_library_count %}
 <nav class="sidebar" aria-label="Main">
   <a class="brand" href="/library">
     <img src="/static/img/app-icon.svg" alt="" width="30" height="30">
     <span class="brand-name">WaveMaterial</span>
   </a>
   <a class="nav-item{% if active == 'library' %} is-active{% endif %}" href="/library" title="Library">
-    {{ icon("library") }}<span class="nav-label">Library</span><span class="nav-count">{{ library_count }}</span>
+    {{ icon("library") }}<span class="nav-label">Library</span>{{ nav_library_count(library_count) }}
   </a>
   {% if recent %}
   <div class="nav-section">Recent</div>

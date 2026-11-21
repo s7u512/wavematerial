@@ -313,7 +313,7 @@ def register(app: Flask) -> None:
     def library_table():
         ctx = _ctx()
         data = _library(ctx, request.args.get("filter", "all"), request.args.get("q", ""))
-        return render_template("_library_table.html", **data)
+        return render_template("_library_table.html", **data, oob=True)
 
     @app.get("/engine")
     def engine():

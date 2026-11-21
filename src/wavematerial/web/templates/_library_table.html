@@ -1,5 +1,5 @@
 {# SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0 #}
-{% from "_macros.html" import icon, pill %}
+{% from "_macros.html" import icon, pill, library_summary, library_chips, nav_library_count %}
 {% if not rows %}
 <div class="empty">
   {% if total == 0 %}
@@ -55,4 +55,9 @@
   {% endfor %}
   </tbody>
 </table>
+{% endif %}
+{% if oob %}
+{{ library_summary(total, in_progress, oob=True) }}
+{{ library_chips(filters, flt, q, counts, oob=True) }}
+{{ nav_library_count(total, oob=True) }}
 {% endif %}
