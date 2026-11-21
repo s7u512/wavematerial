@@ -47,6 +47,14 @@ def _setup_logging(paths: Paths) -> None:
 
 def _open_window(ctx: AppContext, url: str) -> None:
     """Show the app window; returns when it is closed. Raises if no window can be shown."""
+    if sys.platform == "win32":
+        # Without the WebView2 runtime, pywebview quietly falls back to MSHTML (Internet
+        # Explorer's engine), where this UI can't work. Refuse it, so the app opens in the
+        # browser instead.
+        from webview.platforms import winforms
+
+        if winforms.renderer != "edgechromium":
+            raise RuntimeError(f"WebView2 is not available (pywebview chose {winforms.renderer})")
     import webview
     from webview.dom import DOMEventHandler
 
