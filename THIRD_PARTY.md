@@ -76,6 +76,7 @@ Used to build and check the project; not shipped in installers.
 | Content | Where | Licence | Source |
 |---|---|---|---|
 | Apollo 11 lunar landing air-to-ground transcript (20 July 1969) | `design/` mock-ups | Public domain (NASA, US government work) | NASA Apollo 11 air-to-ground transcript |
+| Apollo 11 onboard audio highlights 1 and 4 (July 1969), as transcribed by WaveMaterial | `demo/usage/` screenshots (the audio itself is not in the repository) | Public domain (NASA, US government work) | https://archive.org/details/NasaApollo11OnboardRecordings |
 | Titles of US government recordings (1950–1990) | `design/` mock-ups, library list | Public domain (US government works) | US government archives |
 
 ## Vendored front end

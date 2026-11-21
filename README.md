@@ -11,6 +11,8 @@ download, on Linux and Windows, using a Vulkan GPU when there is one and the CPU
 > for 1.0.0 is in [`docs/SPEC.md`](docs/SPEC.md), and the visual design is in
 > [`design/DESIGN.md`](design/DESIGN.md).
 
+See [`USAGE.md`](USAGE.md) for a tour of every screen, with screenshots.
+
 ## Honest support claims
 
 When 1.0.0 is released, it will have been tested on one machine (Ryzen 5 7535HS,
