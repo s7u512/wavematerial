@@ -6,12 +6,62 @@ A fully local desktop app that turns audio and video recordings into speaker-att
 English transcripts, with an editor to correct them. It runs offline after a one-time model
 download, on Linux and Windows, using a Vulkan GPU when there is one and the CPU otherwise.
 
-> **Status: in development.** There is no release or installer yet; the app runs from
-> source (`uv sync --extra export`, then `uv run --extra export wavematerial`). The plan
-> for 1.0.0 is in [`docs/SPEC.md`](docs/SPEC.md), and the visual design is in
+> **Status: 1.0.0 is being prepared.** It will ship a Windows installer and a Linux
+> `.tar.gz`. Until then, run it from source (below). What 1.0.0 does is in
+> [`docs/SPEC.md`](docs/SPEC.md), and the visual design is in
 > [`design/DESIGN.md`](design/DESIGN.md).
 
 See [`USAGE.md`](USAGE.md) for a tour of every screen, with screenshots.
+
+## Install
+
+Downloads are on the [releases page](https://github.com/s7u512/wavematerial/releases), with
+SHA256 checksums and the source code. Nothing is signed. The first run downloads the speech
+models (2.7 GB); after that WaveMaterial works offline.
+
+- **Windows 10 or 11 (64-bit):** `WaveMaterial-<version>-windows-x86_64-setup.exe`. It
+  installs for your user only and needs no administrator rights, but Windows must already
+  have the Microsoft Visual C++ Redistributable (see below).
+- **Linux:** `wavematerial-<version>-linux-x86_64.tar.gz`. Unpack it and run
+  `bin/wavematerial`; its `README.txt` explains adding it to your applications menu. It is
+  built on Arch Linux with no compatibility guarantees, and needs WebKitGTK 4.1, a Vulkan
+  loader for fast mode, and GStreamer's "good" plugins for playback.
+- **Anything else, or if the `.tar.gz` doesn't run:** run from source.
+
+### Windows needs one thing first
+
+The Windows installer doesn't include Microsoft's Visual C++ runtime, because its licence
+isn't a free-software licence. Windows must have the **Microsoft Visual C++ Redistributable
+(x64)**, in a recent version; many PCs already do. The installer checks, names the version
+it needs, and offers Microsoft's download if it's missing. Installing the redistributable
+needs administrator rights; WaveMaterial itself doesn't.
+
+- Direct download (always Microsoft's latest x64 version):
+  <https://aka.ms/vs/17/release/vc_redist.x64.exe>
+- Microsoft's page for it, with other versions and details:
+  <https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist>
+
+## Run from source
+
+You need [uv](https://docs.astral.sh/uv/) (it fetches Python 3.12 if you don't have it) and
+git. On Linux, PyGObject is built against your system's libraries, so you also need a C
+compiler, WebKitGTK 4.1, and GStreamer's "good" plugins:
+
+- Arch Linux: `sudo pacman -S --needed base-devel webkit2gtk-4.1 gst-plugins-good vulkan-icd-loader`
+- Debian 13 (untested): `sudo apt install build-essential pkg-config libgirepository-2.0-dev
+  libcairo2-dev gir1.2-webkit2-4.1 gstreamer1.0-plugins-good libvulkan1`
+
+Then:
+
+```
+git clone https://github.com/s7u512/wavematerial
+cd wavematerial
+uv run --extra export wavematerial
+```
+
+(`--extra export` adds .docx and PDF export.) On Windows the same commands should work in
+PowerShell (tested only under Wine); the app window needs the WebView2 runtime, which
+Windows 10 and 11 include.
 
 ## Honest support claims
 
@@ -19,19 +69,6 @@ When 1.0.0 is released, it will have been tested on one machine (Ryzen 5 7535HS,
 Radeon 660M, 14 GB RAM, Arch Linux) and with one recording. Windows builds are made and
 tested only under Wine (Bottles), never on real Windows. Everything else will be
 "untested, should work".
-
-## Windows needs one thing first
-
-WaveMaterial's Windows installer doesn't include Microsoft's Visual C++ runtime, because
-its licence isn't a free-software licence. Windows must have the **Microsoft Visual C++
-Redistributable (x64)**, in a recent version; many PCs already do. The installer checks,
-names the version it needs, and offers Microsoft's download page if it's missing. Installing
-the redistributable needs administrator rights; WaveMaterial itself doesn't.
-
-- Direct download (always Microsoft's latest x64 version):
-  <https://aka.ms/vs/17/release/vc_redist.x64.exe>
-- Microsoft's page for it, with other versions and details:
-  <https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist>
 
 ## Development
 

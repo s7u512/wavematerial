@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=WaveMaterial
+GenericName=Transcription
+Comment=Transcribe recordings with speakers, offline, and edit the transcripts
+Exec=wavematerial
+Icon=io.github.s7u512.WaveMaterial
+Terminal=false
+Categories=AudioVideo;Audio;
+Keywords=transcribe;speech;speaker;diarisation;subtitles;captions;
+StartupNotify=true
+StartupWMClass=io.github.s7u512.WaveMaterial
