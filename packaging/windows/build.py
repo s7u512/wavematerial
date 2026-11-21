@@ -6,7 +6,8 @@
 Builds the Windows bundle (packaging/bundle.py --target windows), installs Inno Setup into
 the build bottle if needed, compiles wavematerial.iss, then test-installs the result in the
 bottle: it runs on Microsoft's C++ runtime (not Wine's), writes nothing into its install
-folder, and uninstalls cleanly; and an installer that asks for a newer runtime than the
+folder, runs sherpa-onnx with Windows' older onnxruntime.dll already loaded, and
+uninstalls cleanly; and an installer that asks for a newer runtime than the
 bottle has refuses to install.
 
 The bottle needs Microsoft's Visual C++ Redistributable (x64), as users' machines do;
@@ -23,6 +24,7 @@ import shutil
 import subprocess
 import sys
 import tomllib
+import zipfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -36,6 +38,25 @@ INNO_DIR = "C:\\wm\\innosetup"
 VCREDIST_KEY = "HKLM\\SOFTWARE\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\x64"
 # Load Microsoft's runtime DLLs (installed by its redistributable), never Wine's own.
 MS_RUNTIME = "msvcp140,msvcp140_1,msvcp140_2,vcruntime140,vcruntime140_1,concrt140=n"
+# ONNX Runtime 1.17.1, the version Windows 11 24H2 ships as System32\onnxruntime.dll, and
+# the voice detector model, for the DLL clash test.
+OLD_ORT = "microsoft.ml.onnxruntime.1.17.1.nupkg"
+OLD_ORT_SHA256 = "60493669633f99542a0a3e4dd17bfa9542cbfcd9852ef672f8c36ce6a9d2d935"
+OLD_ORT_URL = f"https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime/1.17.1/{OLD_ORT}"
+VAD = "silero_vad.onnx"
+VAD_SHA256 = "9e2449e1087496d8d4caba907f23e0bd3f78d91fa552479bb9c23ac09cbb1fd6"
+VAD_URL = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx"
+
+
+def old_onnxruntime() -> tuple[Path, Path]:
+    """The old onnxruntime.dll and the VAD model, in dist/cache/test."""
+    nupkg = fetch(f"test/{OLD_ORT}", OLD_ORT_SHA256, OLD_ORT_URL)
+    dll = nupkg.parent / "onnxruntime-1.17.1" / "onnxruntime.dll"
+    if not dll.exists():
+        dll.parent.mkdir(exist_ok=True)
+        with zipfile.ZipFile(nupkg) as z:
+            dll.write_bytes(z.read("runtimes/win-x64/native/onnxruntime.dll"))
+    return fetch(f"test/{VAD}", VAD_SHA256, VAD_URL), dll
 
 
 def numeric(version: str) -> str:
@@ -106,6 +127,7 @@ def main() -> int:
     python = app / "python" / "python.exe"
     wine.run(python, "-m", "wavematerial", "--version")
     wine.run(python, "-c", "import av, numpy.fft, webview, sherpa_onnx, transcribe_cpp, docx")
+    wine.run(python, "-B", HERE / "onnxruntime_clash.py", *old_onnxruntime())
     written = snapshot(app) - before
     if written:
         sys.exit(f"Running the installed app wrote into its folder: {sorted(written)[:10]}")

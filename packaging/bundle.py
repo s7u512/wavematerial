@@ -375,6 +375,43 @@ def unvendor_msvc(root: Path) -> tuple[int, int, int, int]:
     return newest
 
 
+# Windows ships DLLs under these names itself (Windows ML: Windows 11 24H2 has ONNX Runtime
+# 1.17 as System32\onnxruntime.dll). A bundled DLL with the same name can lose to Windows'
+# copy: then sherpa-onnx gets ONNX Runtime 1.17 and crashes. Bundled copies take a private
+# name of the same length or shorter, and the binaries that import them are patched.
+PRIVATE_NAMES = {"onnxruntime.dll": "wm-onnxrt.dll"}
+WINDOWS_SHIPS = {"onnxruntime.dll", "onnxruntime_providers_shared.dll", "directml.dll"}
+
+
+def privatise_dlls(root: Path) -> None:
+    """Rename bundled DLLs that Windows also ships, and point their importers at the new name."""
+    pes = [p for p in root.rglob("*") if p.suffix.lower() in (".pyd", ".dll")]
+    for name, private in PRIVATE_NAMES.items():
+        old = re.compile(re.escape(name.encode()) + b"\0", re.IGNORECASE)
+        new = private.encode().ljust(len(name) + 1, b"\0")
+        copies = [p for p in pes if p.name.lower() == name]
+        if not copies:
+            sys.exit(f"No bundled {name}; update PRIVATE_NAMES.")
+        users = 0
+        for pe in pes:
+            if pe.name.lower() == name:  # its own export name doesn't affect loading
+                continue
+            data = pe.read_bytes()
+            found = len(old.findall(data))
+            if found > 1:
+                sys.exit(f"{pe} names {name} more than once; patch it by hand.")
+            if found:
+                pe.write_bytes(old.sub(new, data))
+                users += 1
+        if not users:
+            sys.exit(f"Nothing imports {name}; check before renaming it.")
+        for dll in copies:
+            dll.rename(dll.with_name(private))
+    clash = [str(p.relative_to(root)) for p in root.rglob("*") if p.name.lower() in WINDOWS_SHIPS]
+    if clash:
+        sys.exit(f"Bundled DLLs named like Windows' own (add them to PRIVATE_NAMES): {clash}")
+
+
 def snapshot(root: Path) -> set[str]:
     return {str(p.relative_to(root)) for p in root.rglob("*")}
 
@@ -452,7 +489,10 @@ def main() -> int:
         record.unlink()
     needs = ""
     if windows:
+        # sherpa-onnx-core's copies of its C API libraries, for command-line use; unused.
+        remove(site, "Scripts")
         vcredist = ".".join(map(str, unvendor_msvc(root)))
+        privatise_dlls(root)
         needs = f"Needs: Microsoft Visual C++ Redistributable (x64) {vcredist} or later\n"
 
     # 3. Isolation and launch.
