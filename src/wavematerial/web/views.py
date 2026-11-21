@@ -408,7 +408,10 @@ def register(app: Flask) -> None:
         except (OSError, TranscriptError) as exc:
             log.warning("Can't open the transcript of job %s: %s", job.id, exc)
             return render_template(
-                "editor_error.html", **_shell(ctx, "library"), job=job, title=job.name
+                "editor_error.html",
+                **_shell(ctx, "library"),
+                job=job,
+                title=format.title(job.name, job.source),
             )
         data = {
             "job": job.id,
@@ -429,7 +432,7 @@ def register(app: Flask) -> None:
             "editor.html",
             **_shell(ctx, "library"),
             job=job,
-            title=job.name.rsplit(".", 1)[0] if "." in job.name else job.name,
+            title=format.title(job.name, job.source),
             length=format.length(t.duration),
             n_speakers=len(t.speakers),
             language={"en": "English"}.get(t.language, t.language),
@@ -455,7 +458,9 @@ def register(app: Flask) -> None:
         request.max_content_length = 64 << 20  # long recordings make long transcripts
         job_dir = ctx.scheduler.job_dir(job.id)
         try:
-            edited = edited_transcript(request.get_json(silent=True), read_artifact(job_dir))
+            # force: the editor's last save on leaving is a beacon sent as text/plain.
+            body = request.get_json(force=True, silent=True)
+            edited = edited_transcript(body, read_artifact(job_dir))
         except TranscriptError as exc:
             log.warning("Refused an edit to job %s: %s", job.id, exc)
             return jsonify(error=str(exc)), 422
@@ -464,6 +469,30 @@ def register(app: Flask) -> None:
             write_outputs(job_dir, edited)
         ctx.store.update(job.id, speakers=len({t.speaker for t in edited.turns}))
         return jsonify(ok=True)
+
+    @app.post("/jobs/<int:job_id>/rename")
+    def rename(job_id: int):
+        ctx = _ctx()
+        job = _done_job(ctx, job_id)
+        name = " ".join((request.form.get("name") or "").split())[:200]
+        if not name:
+            return jsonify(error="A recording needs a name."), 422
+        ctx.store.update(job.id, name=name)
+        return jsonify(name=name)
+
+    @app.get("/jobs/<int:job_id>/original")
+    def original(job_id: int):
+        """The model's output, for "Restore original transcript" (an undoable edit)."""
+        ctx = _ctx()
+        t = read_artifact(ctx.scheduler.job_dir(_done_job(ctx, job_id).id))
+        return jsonify(
+            speakers=list(t.speakers),
+            names={},
+            turns=[
+                {"speaker": turn.speaker, "words": [[w.text, w.start, w.end] for w in turn.words]}
+                for turn in t.turns
+            ],
+        )
 
     # ---- editor audio ---------------------------------------------------------------------
     def _done_job(ctx: AppContext, job_id: int) -> Job:

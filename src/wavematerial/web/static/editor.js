@@ -208,6 +208,7 @@
     spokenIndex = -1;
     playingTurn = -1;
     update();
+    if (typeof search === "function" && findInput.value) search();
   }
 
   function renderSpeakers() {
@@ -645,6 +646,13 @@
   );
   window.addEventListener("beforeunload", (evt) => {
     if (pending || saving) evt.preventDefault();
+  });
+  // A reload or a closing window doesn't wait for fetch(); a beacon is delivered anyway.
+  window.addEventListener("pagehide", () => {
+    if (!pending && !saving) return;
+    // text/plain: a beacon may not carry a JSON content type; the server parses it anyway.
+    const body = new Blob([JSON.stringify(payload())], { type: "text/plain" });
+    if (navigator.sendBeacon(`/jobs/${data.job}/revision`, body)) pending = false;
   });
 
   // ---- typing -------------------------------------------------------------------------------
@@ -1181,6 +1189,225 @@
   }
   $("#sel-merge-btn").addEventListener("click", mergeSelection);
 
+
+  // ---- find and replace ---------------------------------------------------------------------
+  // Matches are found in each turn's text (its words joined by single spaces, which is what
+  // a rendered turn shows) and painted with the CSS Custom Highlight API, so the editable
+  // text is never touched. Without that API, the current match is selected instead.
+  const findInput = $("#find");
+  const replInput = $("#find-replace");
+  const findCount = $("#find-count");
+  const replaceRow = $("#replace-row");
+  const findToggle = $("#find-toggle");
+  const hl = window.CSS && CSS.highlights && window.Highlight ? { all: new Highlight(), cur: new Highlight() } : null;
+  if (hl) {
+    CSS.highlights.set("wm-find", hl.all);
+    CSS.highlights.set("wm-find-current", hl.cur);
+  }
+  let matches = [];
+  let current = -1;
+  const joined = (turn) => turn.words.map((w) => w.text).join(" ");
+
+  function search() {
+    const q = findInput.value.toLowerCase();
+    matches = [];
+    if (q) {
+      model.turns.forEach((turn, ti) => {
+        const text = joined(turn).toLowerCase();
+        for (let i = text.indexOf(q); i >= 0; i = text.indexOf(q, i + q.length)) {
+          matches.push({ turn: ti, start: i, end: i + q.length });
+        }
+      });
+    }
+    current = matches.length ? Math.min(Math.max(current, 0), matches.length - 1) : -1;
+    paint();
+  }
+
+  function domRange(m) {
+    if (dirty.has(m.turn)) return null; // its elements are being typed in
+    const p = textOf(m.turn);
+    if (!p) return null;
+    const r = document.createRange();
+    const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT);
+    let at = 0;
+    let node;
+    let started = false;
+    while ((node = walker.nextNode())) {
+      const len = node.data.length;
+      if (!started && m.start <= at + len) {
+        r.setStart(node, m.start - at);
+        started = true;
+      }
+      if (started && m.end <= at + len) {
+        r.setEnd(node, m.end - at);
+        return r;
+      }
+      at += len;
+    }
+    return null;
+  }
+
+  function paint() {
+    findCount.textContent = findInput.value
+      ? matches.length ? `${current + 1} of ${matches.length}` : "No matches"
+      : "";
+    if (!hl) return;
+    hl.all.clear();
+    hl.cur.clear();
+    matches.forEach((m, i) => {
+      const r = domRange(m);
+      if (r) (i === current ? hl.cur : hl.all).add(r);
+    });
+  }
+
+  function go(step) {
+    if (!matches.length) return;
+    current = (current + step + matches.length) % matches.length;
+    paint();
+    const r = domRange(matches[current]);
+    if (!r) return;
+    const box = r.getBoundingClientRect();
+    const v = scroller.getBoundingClientRect();
+    if (box.top < v.top + 80 || box.bottom > v.bottom - 40) {
+      scroller.scrollBy({ top: box.top - v.top - v.height / 2, behavior: "smooth" });
+    }
+    if (!hl) {
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(r);
+    }
+  }
+
+  // Replace character ranges of one turn's text, re-timing the words that changed.
+  function replaceInTurn(ti, ranges, text) {
+    const turn = model.turns[ti];
+    let s = joined(turn);
+    for (const m of [...ranges].sort((a, b) => b.start - a.start)) s = s.slice(0, m.start) + text + s.slice(m.end);
+    const [t0, t1] = window_(ti);
+    model.turns[ti] = { speaker: turn.speaker, words: retime(splitWords(s), turn.words, t0, t1) };
+  }
+  function afterReplace() {
+    model.turns = model.turns.filter((t) => t.words.length);
+    renderAll(null);
+    changed();
+    search();
+  }
+  function replaceOne() {
+    if (current < 0) return;
+    flushDirty(true);
+    record("replace");
+    const m = matches[current];
+    replaceInTurn(m.turn, [m], replInput.value);
+    afterReplace();
+    if (matches.length) go(0);
+  }
+  function replaceAll() {
+    if (!matches.length) return;
+    flushDirty(true);
+    record("replace-all");
+    const n = matches.length;
+    const byTurn = new Map();
+    for (const m of matches) byTurn.set(m.turn, [...(byTurn.get(m.turn) || []), m]);
+    byTurn.forEach((ranges, ti) => replaceInTurn(ti, ranges, replInput.value));
+    afterReplace();
+    findCount.textContent = `Replaced ${n}`;
+  }
+
+  findInput.addEventListener("input", () => {
+    current = 0;
+    search();
+    if (matches.length) go(0);
+  });
+  findInput.addEventListener("keydown", (evt) => {
+    if (evt.key === "Enter") {
+      evt.preventDefault();
+      go(evt.shiftKey ? -1 : 1);
+    }
+  });
+  replInput.addEventListener("keydown", (evt) => {
+    if (evt.key === "Enter") {
+      evt.preventDefault();
+      replaceOne();
+    }
+  });
+  $("#find-next").addEventListener("click", () => go(1));
+  $("#find-prev").addEventListener("click", () => go(-1));
+  $("#replace-one").addEventListener("click", replaceOne);
+  $("#replace-all").addEventListener("click", replaceAll);
+  function showReplace(open) {
+    replaceRow.hidden = !open;
+    findToggle.setAttribute("aria-expanded", String(open));
+  }
+  findToggle.addEventListener("click", () => {
+    showReplace(replaceRow.hidden);
+    if (!replaceRow.hidden) replInput.focus();
+  });
+
+  // ---- renaming the recording, restoring the original ---------------------------------------
+  const nameBtn = $("#rename-btn");
+  const nameInput = $("#rename-input");
+  let renaming = false;
+  function startRename() {
+    renaming = true;
+    nameInput.value = $("#ed-name").textContent;
+    nameBtn.hidden = true;
+    nameInput.hidden = false;
+    nameInput.focus();
+    nameInput.select();
+  }
+  async function endRename(keep) {
+    if (!renaming) return;
+    renaming = false;
+    const name = nameInput.value.trim();
+    nameInput.hidden = true;
+    nameBtn.hidden = false;
+    nameBtn.focus();
+    if (!keep || !name || name === $("#ed-name").textContent) return;
+    const body = new URLSearchParams({ name });
+    try {
+      const resp = await fetch(`/jobs/${data.job}/rename`, { method: "POST", body });
+      if (!resp.ok) throw new Error();
+      const saved = (await resp.json()).name;
+      $("#ed-name").textContent = saved;
+      document.title = `${saved} · WaveMaterial`;
+      const recent = document.querySelector(".nav-recent.is-active .nav-label");
+      if (recent) recent.textContent = saved;
+    } catch {
+      setNote("The new name could not be saved. Try again.", true);
+    }
+  }
+  nameBtn.addEventListener("click", startRename);
+  nameInput.addEventListener("keydown", (evt) => {
+    if (evt.key === "Enter") {
+      evt.preventDefault();
+      endRename(true);
+    }
+  });
+  nameInput.addEventListener("blur", () => endRename(true));
+
+  // Restoring is an ordinary edit, so Undo brings the edits back.
+  $("#restore-original").addEventListener("click", async () => {
+    $("#more-menu").removeAttribute("open");
+    try {
+      const resp = await fetch(`/jobs/${data.job}/original`);
+      if (!resp.ok) throw new Error();
+      const orig = await resp.json();
+      flushDirty(true);
+      hidePopover();
+      record("restore");
+      model.speakers = orig.speakers;
+      model.names = orig.names;
+      model.turns = orig.turns.map((t) => ({
+        speaker: t.speaker,
+        words: t.words.map(([text, start, end]) => ({ text, start, end })),
+      }));
+      renderAll(null);
+      changed();
+    } catch {
+      setNote("The original transcript could not be loaded.", true);
+    }
+  });
+
   // ---- side panel ---------------------------------------------------------------------------
   const tabs = [...document.querySelectorAll('.tabs [role="tab"]')];
   function selectTab(tab) {
@@ -1215,15 +1442,38 @@
     (evt) => {
       const mod = evt.ctrlKey || evt.metaKey;
       if (evt.key === "Escape") {
-        if (!menu.hidden) closeMenu();
+        if (renaming) endRename(false);
+        else if (!menu.hidden) closeMenu();
         else if (!pop.hidden) hidePopover();
         else if (editor.classList.contains("panel-open")) setPanel(false);
-        else return;
+        else if (evt.target === findInput || evt.target === replInput) {
+          findInput.value = "";
+          search();
+          showReplace(false);
+          evt.target.blur();
+        } else return;
         evt.preventDefault();
         evt.stopImmediatePropagation();
         return;
       }
       const inField = evt.target.closest?.("input, textarea, select");
+      if (mod && !evt.shiftKey && (evt.key.toLowerCase() === "f" || evt.key.toLowerCase() === "h")) {
+        evt.preventDefault();
+        const sel = window.getSelection();
+        const picked = sel.rangeCount && !sel.isCollapsed && turnsEl.contains(sel.anchorNode) ? sel.toString().trim() : "";
+        if (picked && !picked.includes("\n")) {
+          findInput.value = picked;
+          search();
+        }
+        if (evt.key.toLowerCase() === "h") {
+          showReplace(true);
+          (picked ? replInput : findInput).focus();
+        } else {
+          findInput.focus();
+          findInput.select();
+        }
+        return;
+      }
       if (mod && evt.code === "Space") {
         evt.preventDefault();
         togglePlay();

@@ -10,7 +10,7 @@
   <header class="ed-top">
     <a class="ed-back" href="/library">{{ icon("back", 14) }} Library</a>
     <div class="ed-title">
-      <h1 title="{{ job.name }}">{{ title }}</h1>
+      <h1 class="ed-name-row"><button type="button" class="ed-name" id="rename-btn" title="Rename the recording"><span id="ed-name">{{ title }}</span>{{ icon("pencil", 12) }}</button><input type="text" id="rename-input" class="ed-name-input" aria-label="Recording name" maxlength="200" hidden></h1>
       <p class="ed-meta">{{ length }} · <span id="speaker-count">{{ n_speakers }} speaker{{ "" if n_speakers == 1 else "s" }}</span> · {{ language }}<span id="save-state" class="save-state" role="status"></span></p>
     </div>
     <div class="ed-actions">
@@ -19,6 +19,13 @@
         <button type="button" class="btn btn-ghost btn-sm" id="redo" title="Redo (Ctrl+Shift+Z)" disabled>Redo</button>
       </div>
       <button type="button" class="icon-btn ed-panel-toggle" id="panel-toggle" aria-controls="ed-panel" aria-expanded="false" title="Speakers and details">{{ icon("speaker") }}<span class="visually-hidden">Speakers and details</span></button>
+      <details class="menu" id="more-menu">
+        <summary title="More" aria-label="More">{{ icon("more") }}</summary>
+        <ul>
+          <li><button type="button" id="restore-original">Restore original transcript</button></li>
+          <li><button type="button" hx-post="/jobs/{{ job.id }}/open-folder" hx-swap="none">Open output folder</button></li>
+        </ul>
+      </details>
       {% include "_f11.html" %}
     </div>
   </header>
@@ -26,6 +33,20 @@
   <div class="ed-body">
     <div class="ed-scroll" id="ed-scroll">
       <div class="ed-column">
+        <div class="find-bar">
+          <div class="find-row">
+            <label class="find-field">{{ icon("search", 14) }}<input type="search" id="find" placeholder="Find in transcript (Ctrl+F)" aria-label="Find in transcript" autocomplete="off" spellcheck="false"></label>
+            <span class="find-count" id="find-count" aria-live="polite"></span>
+            <button type="button" class="icon-btn" id="find-prev" title="Previous (Shift+Enter)" aria-label="Previous match">{{ icon("up", 14) }}</button>
+            <button type="button" class="icon-btn" id="find-next" title="Next (Enter)" aria-label="Next match">{{ icon("down", 14) }}</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="find-toggle" aria-expanded="false" aria-controls="replace-row">Replace</button>
+          </div>
+          <div class="find-row" id="replace-row" hidden>
+            <label class="find-field"><input type="text" id="find-replace" placeholder="Replace with" aria-label="Replace with" autocomplete="off" spellcheck="false"></label>
+            <button type="button" class="btn btn-secondary btn-sm" id="replace-one">Replace</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="replace-all">Replace all</button>
+          </div>
+        </div>
         <div id="turns" class="turns" aria-label="Transcript"></div>
       </div>
     </div>
@@ -51,6 +72,7 @@
           <div><dt>Split turn here</dt><dd><kbd>Enter</kbd></dd></div>
           <div><dt>Join with turn above</dt><dd><kbd>Backspace</kbd> at start</dd></div>
           <div><dt>Change speaker</dt><dd><kbd>Alt+↑ / ↓</kbd></dd></div>
+          <div><dt>Find / replace</dt><dd><kbd>Ctrl+F</kbd> <kbd>Ctrl+H</kbd></dd></div>
           <div><dt>Undo / redo</dt><dd><kbd>Ctrl+Z</kbd> <kbd>Ctrl+Shift+Z</kbd></dd></div>
         </dl>
       </section>

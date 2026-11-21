@@ -271,3 +271,34 @@ def test_editor_turns_audio_off_where_the_window_would_crash_playing_it(web, mon
     assert audio_problem() is None  # a browser plays audio its own way
     ctx.native = NativeHooks(pick_files=lambda: [])  # the app window (WebKitGTK on Linux)
     assert audio_problem() == "no audio sink"
+
+
+def test_renaming_a_recording_and_fetching_its_original_transcript(web):
+    ctx, client, tmp = web
+    client.set_cookie(COOKIE, "secret-token", domain="127.0.0.1")
+    source = tmp / "apollo11.wav"
+    source.write_bytes(b"\0")
+    job = ctx.store.add(source, min_speakers=1, max_speakers=2)
+    job_dir = ctx.scheduler.job_dir(job.id)
+    job_dir.mkdir(parents=True)
+    original = Transcript(
+        "en", 3.0, ("SPEAKER_00",), (Turn("SPEAKER_00", (Word("Eagle", 1.0, 1.4),)),)
+    )
+    write_artifact(job_dir, original)
+    save_revision(
+        job_dir, replace(original, turns=(Turn("SPEAKER_00", (Word("Falcon", 1.0, 1.4),)),))
+    )
+    ctx.store.set_state(job.id, "done")
+
+    assert "<title>apollo11 · WaveMaterial" in _get(client, f"/jobs/{job.id}/edit").get_data(
+        as_text=True
+    )
+    assert _post(client, f"/jobs/{job.id}/rename", data={"name": "  "}).status_code == 422
+    r = _post(client, f"/jobs/{job.id}/rename", data={"name": "  Apollo 11  landing v1.2 "})
+    assert r.get_json()["name"] == "Apollo 11 landing v1.2"
+    page = _get(client, f"/jobs/{job.id}/edit").get_data(as_text=True)
+    assert "<title>Apollo 11 landing v1.2 · WaveMaterial" in page  # not cut at the dot
+    assert ">Apollo 11 landing v1.2<" in page  # the Recent list too
+
+    orig = _get(client, f"/jobs/{job.id}/original").get_json()
+    assert orig["turns"][0]["words"][0][0] == "Eagle" and orig["names"] == {}

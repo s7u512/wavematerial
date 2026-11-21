@@ -14,6 +14,7 @@ import hmac
 from flask import Flask, abort, g, redirect, request
 
 from wavematerial import __version__
+from wavematerial.web import format
 from wavematerial.web.context import AppContext
 
 COOKIE = "wavematerial_token"
@@ -59,7 +60,11 @@ def create_app(ctx: AppContext) -> Flask:
 
     @app.context_processor
     def globals_():
-        return {"ctx": ctx, "version": __version__}
+        return {
+            "ctx": ctx,
+            "version": __version__,
+            "title_of": lambda job: format.title(job.name, job.source),
+        }
 
     from wavematerial.web import views
 

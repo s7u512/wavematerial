@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import re
 from datetime import UTC, datetime
+from pathlib import Path
 
 
 def length(seconds: float | None) -> str:
@@ -15,6 +16,14 @@ def length(seconds: float | None) -> str:
     h, rem = divmod(s, 3600)
     m, s = divmod(rem, 60)
     return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
+
+
+def title(name: str, source: Path) -> str:
+    """A recording's name for headings: without the file's extension, if it still has it."""
+    suffix = source.suffix
+    if suffix and name.lower().endswith(suffix.lower()) and len(name) > len(suffix):
+        return name[: -len(suffix)]
+    return name
 
 
 def size(n: int) -> str:
