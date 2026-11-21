@@ -7,6 +7,8 @@ Every user-visible change is recorded here. The format follows
 ## [Unreleased]
 
 ### Added
+- A Windows installer: per user, no admin rights needed. It is built and tested only
+  under Wine.
 - The app window: first-run model download (resumable, with pause), the library with
   filters and search, adding recordings (files, folders, or drag and drop) with speaker
   range and key terms, job details with stages and log, settings, and licences and credits.
