@@ -39,6 +39,15 @@ The PyAV wheel also carries other libraries (among them dav1d, LAME, Opus, SVT-A
 libvpl, libvpx, libwebp, and libxcb, plus their dependencies). Their licences and exact
 sources are recorded when the packages are built, and each release offers that source.
 
+## Native libraries inside the wheels
+
+Some wheels carry native libraries of their own: FFmpeg and its codecs in PyAV (x264 and
+x265 are GPL-2.0-or-later; GnuTLS, alsa-lib, libiconv and others are LGPL), alsa-lib in
+sherpa-onnx, the image libraries in Pillow, and OpenBLAS in numpy. Each one, with its
+version, licence, and pinned source archive, is listed in
+[`packaging/vendored.toml`](packaging/vendored.toml). Packages show their licence texts on
+the credits page, and every release ships the exact source of the copyleft ones.
+
 ## Export extra
 
 The optional `export` extra (docx and pdf export). Packages ship it; a source install

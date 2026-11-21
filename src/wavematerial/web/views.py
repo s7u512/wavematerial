@@ -1054,7 +1054,7 @@ def register(app: Flask) -> None:
         ctx = _ctx()
         return render_template(
             "credits.html", **_shell(ctx, "settings"), models=ctx.manifest,
-            software=credits.software(), bundled=credits.BUNDLED,
+            software=credits.software(), bundled=credits.bundled(),
         )  # fmt: skip
 
     @app.get("/credits/licence/<path:name>")

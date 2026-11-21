@@ -95,6 +95,21 @@ def test_packaged_runtime_shows_its_built_in_libraries_licences(tmp_path, monkey
     assert "Apache" in text and "zlib" in text
 
 
+def test_packaged_runtime_lists_its_vendored_libraries(tmp_path, monkeypatch):
+    from wavematerial.web import credits
+
+    vendored = tmp_path / "licenses" / "vendored"
+    (vendored / "x264").mkdir(parents=True)
+    (vendored / "x264" / "COPYING").write_text("GNU GPL v2", encoding="utf-8")
+    entry = {"name": "x264", "version": "b35605a", "licence": "GPL-2.0-or-later", "key": "x264"}
+    (vendored / "components.json").write_text(json.dumps([entry]), encoding="utf-8")
+    monkeypatch.setattr(credits.sys, "base_prefix", str(tmp_path))
+    names = [c.name for c in credits.bundled()]
+    assert "x264" in names and not any("inside PyAV" in n for n in names)
+    assert "GNU GPL v2" in credits.licence_text("vendored/x264")
+    assert credits.licence_text("vendored/../licenses") is None
+
+
 def test_adding_a_folder_queues_its_media_and_saves_defaults(web):
     ctx, client, tmp = web
     client.set_cookie(COOKIE, "secret-token", domain="127.0.0.1")

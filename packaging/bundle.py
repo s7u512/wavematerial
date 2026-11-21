@@ -24,6 +24,7 @@ Redistributable, at least the version BUILD-INFO.txt names (the installer checks
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import hashlib
 import io
 import json
@@ -46,6 +47,7 @@ PBS_URL = "https://github.com/astral-sh/python-build-standalone/releases/downloa
 REPO = Path(__file__).resolve().parent.parent
 HERE = Path(__file__).resolve().parent
 CACHE = REPO / "dist" / "cache"
+VENDORED = HERE / "vendored.toml"
 
 # Listed in PYTHON.json but not shipped: the runtimes link OpenSSL 3, not 1.1 (the smoke test
 # checks); zlib-ng's file is missing from the archive (it is under the zlib licence, which
@@ -210,7 +212,7 @@ def fetch(name: str, sha256: str, url: str) -> Path:
     """A download in dist/cache, fetched once and checked against its pinned sha256."""
     path = CACHE / name
     if not path.exists():
-        CACHE.mkdir(parents=True, exist_ok=True)
+        path.parent.mkdir(parents=True, exist_ok=True)
         part = path.with_name(path.name + ".part")
         run("curl", "-fsSL", "--output", part, url)
         part.rename(path)
@@ -225,14 +227,83 @@ def pbs(target: Target, kind: str, sha256: str) -> Path:
     return fetch(name, sha256, f"{PBS_URL}/{PBS_RELEASE}/{name.replace('+', '%2B')}")
 
 
-def untar(archive: Path, dest: Path, keep=lambda name: True) -> None:
+def open_tar(archive: Path) -> tarfile.TarFile:
     if archive.suffix == ".zst":
         data = subprocess.run(["zstd", "-dc", archive], check=True, capture_output=True).stdout
-        tf = tarfile.open(fileobj=io.BytesIO(data))
-    else:
-        tf = tarfile.open(archive)
-    with tf:
+        return tarfile.open(fileobj=io.BytesIO(data))
+    return tarfile.open(archive)
+
+
+def untar(archive: Path, dest: Path, keep=lambda name: True) -> None:
+    with open_tar(archive) as tf:
         tf.extractall(dest, members=[m for m in tf.getmembers() if keep(m.name)], filter="data")
+
+
+def read_member(archive: Path, member: str) -> bytes:
+    """A file from an archive; "outer!inner" reads from an archive inside the archive."""
+    outer, _, inner = member.partition("!")
+    with open_tar(archive) as tf:
+        f = tf.extractfile(outer) if outer in tf.getnames() else None
+        if f is None:
+            sys.exit(f"{archive.name} has no {outer}; update {VENDORED.name}.")
+        data = f.read()
+    if not inner:
+        return data
+    with tarfile.open(fileobj=io.BytesIO(data)) as tf:
+        f = tf.extractfile(inner) if inner in tf.getnames() else None
+        if f is None:
+            sys.exit(f"{outer} in {archive.name} has no {inner}; update {VENDORED.name}.")
+        return f.read()
+
+
+def vendored(target: Target) -> tuple[list[str], list[dict]]:
+    """The covered folders and the vendored libraries for a target (see vendored.toml)."""
+    data = tomllib.loads(VENDORED.read_text(encoding="utf-8"))
+    return data.get("covered", []), [x for x in data["lib"] if target.os in x["platforms"]]
+
+
+def vendored_archive(lib: dict) -> Path:
+    name = f"{lib['sha256'][:12]}-{lib['url'].rsplit('/', 1)[1]}"
+    return fetch(f"vendored/{name}", lib["sha256"], lib["url"])
+
+
+def slug(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+
+def check_vendored(site: Path, covered: list[str], libs: list[dict]) -> None:
+    """Every vendored library file is listed in vendored.toml, and every entry is still used."""
+    files = sorted(p.relative_to(site).as_posix() for p in site.glob("*.libs/*") if p.is_file())
+
+    def hits(patterns: list[str]) -> list[str]:
+        return [f for f in files if any(fnmatch.fnmatchcase(f, pat) for pat in patterns)]
+
+    stale = [x["name"] for x in libs if x["files"] and not hits(x["files"])]
+    claimed = set(hits(covered)) | {f for x in libs for f in hits(x["files"])}
+    unlisted = [f for f in files if f not in claimed]
+    if stale or unlisted:
+        sys.exit(
+            f"{VENDORED.name} is out of date. Entries matching nothing: {stale}. "
+            f"Vendored files it doesn't list: {unlisted}"
+        )
+
+
+def copy_vendored_licences(libs: list[dict], dest: Path) -> None:
+    """Each library's licence texts in dest/<slug>/, and components.json for the credits page."""
+    listed = []
+    for lib in libs:
+        archive = vendored_archive(lib)
+        folder = dest / slug(lib["name"])
+        folder.mkdir(parents=True)
+        for member in lib["licence_files"]:
+            (folder / member.rsplit("!", 1)[-1].rsplit("/", 1)[-1]).write_bytes(
+                read_member(archive, member)
+            )
+        if lib.get("credits", True):
+            listed.append(
+                {k: lib[k] for k in ("name", "version", "licence")} | {"key": slug(lib["name"])}
+            )
+    (dest / "components.json").write_text(json.dumps(listed, indent=1) + "\n", encoding="utf-8")
 
 
 def remove(root: Path, pattern: str) -> None:
@@ -422,6 +493,11 @@ def main() -> int:
     (root / "licenses").mkdir()
     for rel in licence_paths(full / "python", present):
         shutil.copy2(full / "python" / rel, root / "licenses" / Path(rel).name)
+
+    # 5b. Vendored native libraries: all accounted for, with their licence texts.
+    covered, libs = vendored(target)
+    check_vendored(site, covered, libs)
+    copy_vendored_licences(libs, root / "licenses" / "vendored")
 
     # 6. Build record.
     commit = git("rev-parse", "HEAD") + (" (with uncommitted changes)" if dirty else "")

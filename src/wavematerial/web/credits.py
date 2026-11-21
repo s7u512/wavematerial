@@ -8,6 +8,7 @@ it bundles); the rest is a short hand-kept list with licence files shipped in `s
 from __future__ import annotations
 
 import importlib.metadata as md
+import json
 import re
 import sys
 import sysconfig
@@ -56,17 +57,41 @@ BUNDLED = [
         "PSF-2.0; OpenSSL Apache-2.0; others (see text)",
         "python",
     ),
-    Component(
-        "FFmpeg and codec libraries (inside PyAV)",
-        "",
-        "LGPL-3.0-or-later; x264 and x265 GPL-2.0-or-later",
-        "pkg/av",
-    ),
     Component("Pico CSS", "2.1.1", "MIT", "static/vendor/pico/LICENSE.md"),
     Component("htmx", "2.0.11", "0BSD", "static/vendor/htmx/LICENSE"),
     Component("Inter", "", "OFL-1.1", "static/fonts/inter/OFL.txt"),
     Component("Noto Sans", "", "OFL-1.1", "static/fonts/noto-sans/OFL.txt"),
 ]
+
+
+# Shown when the runtime has no vendored-library list (a development install).
+_FFMPEG_SUMMARY = Component(
+    "FFmpeg and codec libraries (inside PyAV)",
+    "",
+    "LGPL-3.0-or-later; x264 and x265 GPL-2.0-or-later",
+    "pkg/av",
+)
+
+
+def _vendored_dir() -> Path:
+    return Path(sys.base_prefix) / "licenses" / "vendored"
+
+
+def vendored() -> list[Component]:
+    """Native libraries inside the bundled wheels, as packaging/bundle.py listed them."""
+    listing = _vendored_dir() / "components.json"
+    if not listing.is_file():
+        return []
+    entries = json.loads(listing.read_text(encoding="utf-8"))
+    return [
+        Component(e["name"], e["version"], e["licence"], f"vendored/{e['key']}") for e in entries
+    ]
+
+
+def bundled() -> list[Component]:
+    """Everything that isn't a Python package: the runtime, native libraries, front end, fonts."""
+    native = vendored() or [_FFMPEG_SUMMARY]
+    return BUNDLED[:1] + native + BUNDLED[1:]
 
 
 def _python_licences() -> str:
@@ -97,6 +122,17 @@ def licence_text(key: str) -> str | None:
         return None
     if key == "python":
         return _python_licences()
+    if key.startswith("vendored/"):
+        name = key.removeprefix("vendored/")
+        folder = _vendored_dir() / name
+        if "/" in name or name.startswith(".") or not folder.is_dir():
+            return None
+        texts = [
+            f"== {p.name} ==\n\n{p.read_text(encoding='utf-8', errors='replace')}"
+            for p in sorted(folder.iterdir())
+            if p.is_file()
+        ]
+        return "\n\n".join(texts) or None
     if key.startswith("static/"):
         rel = key.removeprefix("static/")
         if ".." in rel.split("/"):

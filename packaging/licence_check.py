@@ -6,6 +6,8 @@ exactly the components that ship: the same list the app's credits page shows.
 
 Writes the component list to the given file, and exits non-zero if any component has no
 licence or one that WaveMaterial can't ship (GPL-3.0 only or or-later, any AGPL, proprietary).
+GCC's runtime library is GPL-3.0-or-later WITH GCC-exception-3.1, which allows shipping it
+with programs under any licence, so it passes.
 """
 
 from __future__ import annotations
@@ -14,7 +16,7 @@ import re
 import sys
 from pathlib import Path
 
-from wavematerial.web.credits import BUNDLED, licence_text, software
+from wavematerial.web.credits import bundled, licence_text, software
 
 # Matches GPL-3.0 / GPLv3 (but not LGPL), AGPL in any form, and proprietary licences.
 FORBIDDEN = re.compile(
@@ -27,13 +29,13 @@ def main() -> int:
     out = Path(sys.argv[1])
     problems = []
     lines = []
-    for c in software() + BUNDLED:
+    for c in software() + bundled():
         text = licence_text(c.key) or ""
         label = f"{c.name} {c.version}".strip()
         lines.append(f"{label}\t{c.licence}")
         if c.licence == "see licence text" and not text:
             problems.append(f"{label}: no licence found")
-        elif FORBIDDEN.search(c.licence):
+        elif FORBIDDEN.search(c.licence) and "GCC-exception" not in c.licence:
             problems.append(f"{label}: licence not allowed ({c.licence})")
         elif not text:
             problems.append(f"{label}: no licence text to show")
