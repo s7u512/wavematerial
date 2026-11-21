@@ -1,11 +1,14 @@
 # WaveMaterial
 
+**Offline, Vulkan-first transcription with speaker diarisation and transcript editing.**
+
 A fully local desktop app that turns audio and video recordings into speaker-attributed
 English transcripts, with an editor to correct them. It runs offline after a one-time model
 download, on Linux and Windows, using a Vulkan GPU when there is one and the CPU otherwise.
 
-> **Status: in development.** Nothing is usable yet. The plan for 1.0.0 is in
-> [`docs/SPEC.md`](docs/SPEC.md), and the visual design is in
+> **Status: in development.** There is no release or installer yet; the app runs from
+> source (`uv sync --extra export`, then `uv run --extra export wavematerial`). The plan
+> for 1.0.0 is in [`docs/SPEC.md`](docs/SPEC.md), and the visual design is in
 > [`design/DESIGN.md`](design/DESIGN.md).
 
 ## Honest support claims

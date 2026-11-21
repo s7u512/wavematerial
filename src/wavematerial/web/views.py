@@ -48,6 +48,8 @@ from wavematerial.web.media import window_audio_problem
 
 log = logging.getLogger(__name__)
 
+TAGLINE = "Offline, Vulkan-first transcription with speaker diarisation and transcript editing"
+
 MEDIA = {
     ".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg", ".oga", ".opus", ".wma", ".aiff", ".aif",
     ".mp4", ".m4v", ".mkv", ".mov", ".avi", ".webm", ".3gp", ".amr", ".mpg", ".mpeg", ".ts",
@@ -292,8 +294,11 @@ def register(app: Flask) -> None:
 
     @app.get("/")
     def home():
+        """The landing screen when the app opens (first-run setup until the models are in)."""
         ctx = _ctx()
-        return redirect("/library" if ctx.installer.all_installed() else "/setup")
+        if not ctx.installer.all_installed():
+            return redirect("/setup")
+        return render_template("landing.html", tagline=TAGLINE)
 
     # first run
     @app.get("/setup")

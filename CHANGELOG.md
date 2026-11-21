@@ -11,6 +11,7 @@ Every user-visible change is recorded here. The format follows
   filters and search, adding recordings (files, folders, or drag and drop) with speaker
   range and key terms, job details with stages and log, settings, and licences and credits.
   F11 or Esc leaves full screen.
+- The app opens on a landing screen with the logo, the name, and its tagline.
 - When no app window can open, WaveMaterial runs in the browser with a Quit WaveMaterial
   item in the sidebar, and quits by itself a few minutes after its last tab closes.
 - Opening a finished recording shows its transcript with a player: play from any

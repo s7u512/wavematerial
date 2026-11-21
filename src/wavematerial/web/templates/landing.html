@@ -1,0 +1,14 @@
+{# SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0 #}
+{% extends "base.html" %}
+{% block title %}WaveMaterial{% endblock %}
+{% block body_class %}page-landing{% endblock %}
+{% block body %}
+<div class="setup-top">{% include "_f11.html" %}</div>
+<main class="landing">
+  <img class="landing-logo" src="/static/img/app-icon.svg" alt="" width="168" height="168">
+  <h1>WaveMaterial</h1>
+  <p class="landing-tagline">{{ tagline }}</p>
+  <a class="btn btn-primary landing-go" href="/library" autofocus>Open library</a>
+  <p class="landing-version">Version {{ version }}</p>
+</main>
+{% endblock %}

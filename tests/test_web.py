@@ -547,3 +547,14 @@ def test_a_passage_is_transcribed_again_only_while_the_queue_is_idle(web, monkey
     assert state["state"] == "done" and state["words"] == [["Eagle", 1.0, 2.0]]
     assert state["available"] and ctx.scheduler.try_hold()  # released afterwards
     ctx.scheduler.release_hold()
+
+
+def test_the_app_opens_on_the_landing_screen_once_set_up(web):
+    ctx, client, _ = web
+    client.set_cookie(COOKIE, "secret-token", domain="127.0.0.1")
+    r = _get(client, "/")
+    assert r.status_code == 302 and r.headers["Location"] == "/setup"  # models not in yet
+    ctx.installer.all_installed = lambda: True
+    page = _get(client, "/").get_data(as_text=True)
+    assert "Vulkan-first transcription" in page and 'href="/library"' in page
+    assert 'class="sidebar"' not in page  # minimal: no sidebar
