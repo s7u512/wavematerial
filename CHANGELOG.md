@@ -29,6 +29,11 @@ Every user-visible change is recorded here. The format follows
 - Export from the editor: plain text, SRT and WebVTT subtitles, JSON with word timings,
   and, with the optional `export` extra, .docx and PDF. In the window a Save dialog asks
   where, starting in the last folder used.
+- Editor, second round: Shift+click selects across turns; a right-click menu in the text;
+  Move rest to next turn and Move start to previous turn; Play starts at the cursor; Esc
+  pauses playback; a History tab with named versions, automatic versions on opening, and
+  the original transcript; draggable dividers between sidebar, transcript, and panel; a
+  search box in the sidebar; Quit WaveMaterial in the sidebar.
 - Each transcription keeps a small Ogg Opus copy of its audio for playback, so the player
   works with any input format and after the original is moved.
 - Transcription runs in the background, one recording at a time, resumes after a crash or

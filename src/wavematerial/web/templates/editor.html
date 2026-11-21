@@ -28,7 +28,6 @@
       <details class="menu" id="more-menu">
         <summary title="More" aria-label="More">{{ icon("more") }}</summary>
         <ul>
-          <li><button type="button" id="restore-original">Restore original transcript</button></li>
           <li><button type="button" hx-post="/jobs/{{ job.id }}/open-folder" hx-swap="none">Open output folder</button></li>
         </ul>
       </details>
@@ -66,6 +65,7 @@
       <div class="tabs" role="tablist">
         <button type="button" role="tab" id="tab-btn-speakers" aria-controls="tab-speakers" aria-selected="true">Speakers</button>
         <button type="button" role="tab" id="tab-btn-details" aria-controls="tab-details" aria-selected="false" tabindex="-1">Details</button>
+        <button type="button" role="tab" id="tab-btn-history" aria-controls="tab-history" aria-selected="false" tabindex="-1">History</button>
       </div>
       <section id="tab-speakers" role="tabpanel" aria-labelledby="tab-btn-speakers">
         <div id="speaker-list" class="speaker-list"></div>
@@ -90,6 +90,20 @@
           <div><dt>Find / replace</dt><dd><kbd>Ctrl+F</kbd> <kbd>Ctrl+H</kbd></dd></div>
           <div><dt>Undo / redo</dt><dd><kbd>Ctrl+Z</kbd> <kbd>Ctrl+Shift+Z</kbd></dd></div>
         </dl>
+      </section>
+      <section id="tab-history" role="tabpanel" aria-labelledby="tab-btn-history" hidden>
+        <p class="muted small">Edits save as you go. Save a version to keep a checkpoint you can go back to.</p>
+        <button type="button" class="btn btn-secondary btn-sm" id="save-version">Save version…</button>
+        <form class="version-form" id="version-form" hidden>
+          <input type="text" id="version-name" maxlength="80" placeholder="Name, e.g. after first pass" aria-label="Version name" autocomplete="off">
+          <button type="submit" class="btn btn-primary btn-sm">Save</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="version-cancel">Cancel</button>
+        </form>
+        <ul class="version-list" id="version-list" aria-label="Saved versions"></ul>
+        <div class="version version-original">
+          <div class="version-text"><strong>Original transcript</strong><span>As the transcription made it</span></div>
+          <button type="button" class="btn btn-ghost btn-sm" id="restore-original">Restore</button>
+        </div>
       </section>
       <section id="tab-details" role="tabpanel" aria-labelledby="tab-btn-details" hidden>
         <dl class="facts">

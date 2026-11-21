@@ -1654,28 +1654,106 @@
   });
   nameInput.addEventListener("blur", () => endRename(true));
 
-  // Restoring is an ordinary edit, so Undo brings the edits back.
-  $("#restore-original").addEventListener("click", async () => {
-    $("#more-menu").removeAttribute("open");
+  // ---- history: saved versions --------------------------------------------------------------
+  // Restoring (a version or the original) is an ordinary edit, so Undo brings the edits back;
+  // the state it replaces is saved first as a version too, so nothing is ever lost.
+  const versionList = $("#version-list");
+  const versionForm = $("#version-form");
+  const versionName = $("#version-name");
+  async function api(url, options = {}) {
+    const resp = await fetch(url, options);
+    if (!resp.ok) throw new Error((await resp.json().catch(() => ({}))).error || resp.statusText);
+    return resp.status === 204 ? null : resp.json();
+  }
+  const postJson = (url, body) =>
+    api(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  function when(iso) {
+    const d = new Date(iso);
+    const today = new Date();
+    const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+    return d.toDateString() === today.toDateString() ? `Today, ${time}` : `${d.toLocaleDateString([], { day: "numeric", month: "short" })}, ${time}`;
+  }
+  async function loadVersions() {
     try {
-      const resp = await fetch(`/jobs/${data.job}/original`);
-      if (!resp.ok) throw new Error();
-      const orig = await resp.json();
+      const list = await api(`/jobs/${data.job}/versions`);
+      const named = list.filter((v) => !v.auto);
+      const autos = list.filter((v) => v.auto);
+      versionList.replaceChildren(
+        ...[...named, ...autos].map((v) => {
+          const li = el("li", "version" + (v.auto ? " version-auto" : ""));
+          const text = el("div", "version-text");
+          text.append(el("strong", "", v.auto ? "Automatic: when opened" : v.name), el("span", "", when(v.created)));
+          const restore = el("button", "btn btn-ghost btn-sm", "Restore");
+          restore.type = "button";
+          restore.dataset.restore = v.id;
+          restore.dataset.name = v.auto ? "the automatic version" : `"${v.name}"`;
+          const del = el("button", "icon-btn icon-btn-sm", "✕");
+          del.type = "button";
+          del.dataset.delete = v.id;
+          del.title = "Delete this version";
+          del.setAttribute("aria-label", `Delete ${v.auto ? "the automatic version" : v.name}`);
+          li.append(text, restore, del);
+          return li;
+        }),
+      );
+    } catch {
+      versionList.replaceChildren(el("li", "muted small", "Saved versions could not be loaded."));
+    }
+  }
+  async function restoreFrom(url, label) {
+    try {
       flushDirty(true);
+      await flushSaves();
+      await postJson(`/jobs/${data.job}/versions`, { name: `Before restoring ${label}` });
+      const t = await api(url);
       hidePopover();
       record("restore");
-      model.speakers = orig.speakers;
-      model.names = orig.names;
-      model.turns = orig.turns.map((t) => ({
-        speaker: t.speaker,
-        words: t.words.map(([text, start, end]) => ({ text, start, end })),
+      model.speakers = t.speakers;
+      model.names = t.names;
+      model.turns = t.turns.map((turn) => ({
+        speaker: turn.speaker,
+        words: turn.words.map(([text, start, end]) => ({ text, start, end })),
       }));
       renderAll(null);
       changed();
-    } catch {
-      setNote("The original transcript could not be loaded.", true);
+      loadVersions();
+    } catch (exc) {
+      setNote(`That couldn't be restored: ${exc.message}`, true);
+    }
+  }
+  $("#save-version").addEventListener("click", () => {
+    versionForm.hidden = false;
+    versionName.value = "";
+    versionName.focus();
+  });
+  $("#version-cancel").addEventListener("click", () => {
+    versionForm.hidden = true;
+  });
+  versionForm.addEventListener("submit", async (evt) => {
+    evt.preventDefault();
+    const name = versionName.value.trim();
+    if (!name) return;
+    flushDirty(true);
+    await flushSaves(); // the version is what's on screen
+    try {
+      await postJson(`/jobs/${data.job}/versions`, { name });
+      versionForm.hidden = true;
+      loadVersions();
+    } catch (exc) {
+      setNote(`The version could not be saved: ${exc.message}`, true);
     }
   });
+  versionList.addEventListener("click", async (evt) => {
+    const r = evt.target.closest("[data-restore]");
+    const d = evt.target.closest("[data-delete]");
+    if (r) restoreFrom(`/jobs/${data.job}/versions/${r.dataset.restore}`, r.dataset.name);
+    if (d) {
+      await api(`/jobs/${data.job}/versions/${d.dataset.delete}/delete`, { method: "POST" }).catch(() => {});
+      loadVersions();
+    }
+  });
+  $("#restore-original").addEventListener("click", () => restoreFrom(`/jobs/${data.job}/original`, "the original"));
+  loadVersions();
 
   // ---- export -------------------------------------------------------------------------------
   // In the window the server asks where to save (a native dialog); a browser downloads.

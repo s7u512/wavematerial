@@ -19,7 +19,7 @@ from wavematerial.models.manifest import load_manifest
 from wavematerial.preflight import Device
 from wavematerial.transcript.render import write_outputs
 from wavematerial.transcript.schema import Transcript, Turn, Word
-from wavematerial.transcript.store import save_revision, write_artifact
+from wavematerial.transcript.store import read_artifact, save_revision, write_artifact
 from wavematerial.updates import UpdateChecker
 from wavematerial.web import COOKIE, create_app
 from wavematerial.web.context import AppContext, NativeHooks
@@ -425,3 +425,47 @@ def test_sidebar_search_finds_titles_and_transcript_text(web):
     assert "apollo11" in found("tranquil") and "gemini4" not in found("tranquil")  # text
     assert "No matches" in found("zzz")
     assert "Recent" in found("")
+
+
+def test_history_saves_versions_and_an_automatic_one_on_opening(web):
+    ctx, client, tmp = web
+    client.set_cookie(COOKIE, "secret-token", domain="127.0.0.1")
+    source = tmp / "apollo11.wav"
+    source.write_bytes(b"\0")
+    job = ctx.store.add(source, min_speakers=1, max_speakers=2)
+    job_dir = ctx.scheduler.job_dir(job.id)
+    job_dir.mkdir(parents=True)
+    t = Transcript("en", 3.0, ("SPEAKER_00",), (Turn("SPEAKER_00", (Word("Eagle", 1.0, 1.5),)),))
+    write_artifact(job_dir, t)
+    ctx.store.set_state(job.id, "done")
+
+    def listing():
+        return _get(client, f"/jobs/{job.id}/versions").get_json()
+
+    _get(client, f"/jobs/{job.id}/edit")
+    assert listing() == []  # nothing edited yet: no automatic version
+
+    def edit(word):
+        save_revision(job_dir, replace(t, turns=(Turn("SPEAKER_00", (Word(word, 1.0, 1.5),)),)))
+
+    edit("Falcon")
+    _get(client, f"/jobs/{job.id}/edit")
+    _get(client, f"/jobs/{job.id}/edit")  # unchanged since: no second one
+    assert [(v["name"], v["auto"]) for v in listing()] == [("When opened", True)]
+
+    assert _post(client, f"/jobs/{job.id}/versions", json={"name": " "}).status_code == 422
+    vid = _post(client, f"/jobs/{job.id}/versions", json={"name": "after first pass"}).get_json()[
+        "id"
+    ]
+    for word in ("Columbia", "Orion", "Aquarius", "Intrepid"):
+        edit(word)
+        _get(client, f"/jobs/{job.id}/edit")
+    versions_now = listing()
+    assert sum(v["auto"] for v in versions_now) == 3  # only the newest automatic ones are kept
+    assert any(v["name"] == "after first pass" for v in versions_now)  # named ones stay
+
+    saved = _get(client, f"/jobs/{job.id}/versions/{vid}").get_json()
+    assert saved["turns"][0]["words"][0][0] == "Falcon"
+    _post(client, f"/jobs/{job.id}/versions/{vid}/delete")
+    assert _get(client, f"/jobs/{job.id}/versions/{vid}").status_code == 404
+    assert (job_dir / "artifact.json").exists() and read_artifact(job_dir) == t  # untouched

@@ -29,12 +29,13 @@ from wavematerial.jobs.events import STAGE_LABELS, read_events, stage_times
 from wavematerial.jobs.store import Job
 from wavematerial.models.download import is_installed, verify
 from wavematerial.preflight import choose, usable_gpus
-from wavematerial.transcript import export
+from wavematerial.transcript import export, versions
 from wavematerial.transcript.render import write_outputs
 from wavematerial.transcript.schema import TranscriptError
 from wavematerial.transcript.store import (
     REVISION,
     edited_transcript,
+    has_revision,
     read_artifact,
     read_current,
     save_revision,
@@ -441,6 +442,63 @@ def register(app: Flask) -> None:
         return "", 204  # the request itself is the heartbeat (see the guard)
 
     # ---- transcript editor ----------------------------------------------------------------
+    def _auto_version(job_dir: Path, t) -> None:
+        """Opening an edited transcript saves it as an automatic version, unless unchanged."""
+        if not has_revision(job_dir):
+            return
+        autos = [v for v in versions.list_versions(job_dir) if v["auto"]]
+        if autos:
+            try:
+                latest = versions.load_version(job_dir, autos[0]["id"], read_artifact(job_dir))
+                if versions.same_content(latest, t):
+                    return
+            except TranscriptError:
+                pass
+        versions.save_version(job_dir, t, "When opened", auto=True)
+
+    def _transcript_json(t) -> dict:
+        return {
+            "speakers": list(t.speakers),
+            "names": dict(t.speaker_names),
+            "turns": [
+                {"speaker": turn.speaker, "words": [[w.text, w.start, w.end] for w in turn.words]}
+                for turn in t.turns
+            ],
+        }
+
+    @app.get("/jobs/<int:job_id>/versions")
+    def versions_list(job_id: int):
+        ctx = _ctx()
+        return jsonify(versions.list_versions(ctx.scheduler.job_dir(_done_job(ctx, job_id).id)))
+
+    @app.post("/jobs/<int:job_id>/versions")
+    def versions_save(job_id: int):
+        """Save the transcript as it is now (the editor saves pending edits first)."""
+        ctx = _ctx()
+        job_dir = ctx.scheduler.job_dir(_done_job(ctx, job_id).id)
+        name = " ".join(str((request.get_json(silent=True) or {}).get("name") or "").split())[:80]
+        if not name:
+            return jsonify(error="A version needs a name."), 422
+        vid = versions.save_version(job_dir, read_current(job_dir), name)
+        return jsonify(id=vid)
+
+    @app.get("/jobs/<int:job_id>/versions/<int:vid>")
+    def versions_get(job_id: int, vid: int):
+        ctx = _ctx()
+        job_dir = ctx.scheduler.job_dir(_done_job(ctx, job_id).id)
+        try:
+            return jsonify(
+                _transcript_json(versions.load_version(job_dir, vid, read_artifact(job_dir)))
+            )
+        except TranscriptError:
+            abort(404)
+
+    @app.post("/jobs/<int:job_id>/versions/<int:vid>/delete")
+    def versions_delete(job_id: int, vid: int):
+        ctx = _ctx()
+        versions.delete_version(ctx.scheduler.job_dir(_done_job(ctx, job_id).id), vid)
+        return "", 204
+
     @app.get("/jobs/<int:job_id>/edit")
     def editor(job_id: int):
         ctx = _ctx()
@@ -453,6 +511,7 @@ def register(app: Flask) -> None:
         job_dir = ctx.scheduler.job_dir(job.id)
         try:
             t = read_current(job_dir)
+            _auto_version(job_dir, t)
         except (OSError, TranscriptError) as exc:
             log.warning("Can't open the transcript of job %s: %s", job.id, exc)
             return render_template(
