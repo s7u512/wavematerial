@@ -28,8 +28,15 @@ from wavematerial.jobs.events import STAGE_LABELS, read_events, stage_times
 from wavematerial.jobs.store import Job
 from wavematerial.models.download import is_installed, verify
 from wavematerial.preflight import choose, usable_gpus
+from wavematerial.transcript.render import write_outputs
 from wavematerial.transcript.schema import TranscriptError
-from wavematerial.transcript.store import REVISION, read_current
+from wavematerial.transcript.store import (
+    REVISION,
+    edited_transcript,
+    read_artifact,
+    read_current,
+    save_revision,
+)
 from wavematerial.updates import RELEASES_PAGE
 from wavematerial.web import credits, format
 from wavematerial.web.context import AppContext, open_path
@@ -429,6 +436,31 @@ def register(app: Flask) -> None:
             stages=stages,
             data=data,
         )
+
+    _save_lock = threading.Lock()
+
+    @app.post("/jobs/<int:job_id>/revision")
+    def save_edits(job_id: int):
+        """Autosave from the editor: check the edited transcript, save it, re-render outputs."""
+        ctx = _ctx()
+        try:
+            job = ctx.store.get(job_id)
+        except KeyError:
+            abort(404)
+        if job.state != "done":
+            abort(409)
+        request.max_content_length = 64 << 20  # long recordings make long transcripts
+        job_dir = ctx.scheduler.job_dir(job.id)
+        try:
+            edited = edited_transcript(request.get_json(silent=True), read_artifact(job_dir))
+        except TranscriptError as exc:
+            log.warning("Refused an edit to job %s: %s", job.id, exc)
+            return jsonify(error=str(exc)), 422
+        with _save_lock:
+            save_revision(job_dir, edited)
+            write_outputs(job_dir, edited)
+        ctx.store.update(job.id, speakers=len({t.speaker for t in edited.turns}))
+        return jsonify(ok=True)
 
     # ---- editor audio ---------------------------------------------------------------------
     def _done_job(ctx: AppContext, job_id: int) -> Job:

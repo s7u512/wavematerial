@@ -123,6 +123,50 @@ def read_current(job_dir: Path) -> Transcript:
         return original
 
 
+# Edited words get approximate timings, so allow a little slack before calling them wrong.
+_SLACK = 0.5
+
+
+def edited_transcript(data: Any, original: Transcript) -> Transcript:
+    """Check an edited transcript sent by the editor; raise `TranscriptError` if it's wrong.
+
+    `data` has `speakers` (ids), `names` (id -> name), and `turns` in the JSON layout.
+    Timings must stay in order and inside the recording; they are never edited by hand,
+    only carried over or shared out by the editor, so anything else is a bug.
+    """
+    if not isinstance(data, dict):
+        raise TranscriptError("expected a JSON object")
+    speakers = data.get("speakers")
+    names = data.get("names", {})
+    if (
+        not isinstance(speakers, list)
+        or not all(isinstance(s, str) and s.strip() for s in speakers)
+        or len(set(speakers)) != len(speakers)
+    ):
+        raise TranscriptError("speakers must be a list of distinct ids")
+    if not isinstance(names, dict) or not all(isinstance(v, str) for v in names.values()):
+        raise TranscriptError("names must map speaker ids to text")
+    turns = turns_from_json(data.get("turns"))
+    previous = 0.0
+    for i, turn in enumerate(turns):
+        if turn.speaker not in speakers:
+            raise TranscriptError(f"turn {i} has an unknown speaker {turn.speaker!r}")
+        for w in turn.words:
+            if not w.text.strip() or any(c.isspace() for c in w.text):
+                raise TranscriptError(f"turn {i} has a word that is empty or contains a space")
+            if w.start < previous - 1e-3 or w.start < 0 or w.end > original.duration + _SLACK:
+                raise TranscriptError(f"turn {i} has a word out of order or outside the recording")
+            previous = w.start
+    return Transcript(
+        language=original.language,
+        duration=original.duration,
+        speakers=tuple(speakers),
+        turns=turns,
+        engine=original.engine,
+        speaker_names={str(k): v.strip() for k, v in names.items() if k in speakers and v.strip()},
+    )
+
+
 def restore_original(job_dir: Path) -> None:
     """Drop the user's edits and speaker names."""
     (job_dir / REVISION).unlink(missing_ok=True)

@@ -195,3 +195,55 @@ def test_editor_opens_the_current_revision_and_only_for_done_jobs(web):
     (job_dir / "artifact.json").write_text("{not json")
     broken = _get(client, f"/jobs/{job.id}/edit")
     assert broken.status_code == 200 and "can't be opened" in broken.get_data(as_text=True)
+
+
+def test_autosave_writes_the_revision_and_outputs_and_refuses_bad_edits(web):
+    ctx, client, tmp = web
+    client.set_cookie(COOKIE, "secret-token", domain="127.0.0.1")
+    source = tmp / "apollo11.wav"
+    source.write_bytes(b"\0")
+    job = ctx.store.add(source, min_speakers=1, max_speakers=2)
+    job_dir = ctx.scheduler.job_dir(job.id)
+    job_dir.mkdir(parents=True)
+    turns = (
+        Turn("SPEAKER_00", (Word("Houston,", 1.0, 1.5), Word("Tranquility", 1.6, 2.2))),
+        Turn("SPEAKER_01", (Word("Roger.", 3.0, 3.4),)),
+    )
+    write_artifact(job_dir, Transcript("en", 5.0, ("SPEAKER_00", "SPEAKER_01"), turns))
+    artifact = (job_dir / "artifact.json").read_bytes()
+    ctx.store.set_state(job.id, "done")
+
+    def save(body):
+        return _post(client, f"/jobs/{job.id}/revision", json=body)
+
+    def words(*ws):
+        return [{"word": w, "start": s, "end": e} for w, s, e in ws]
+
+    good = {
+        "speakers": ["SPEAKER_00", "SPEAKER_01", "SPEAKER_02"],
+        "names": {"SPEAKER_00": "Armstrong", "SPEAKER_02": "  "},
+        "turns": [
+            {
+                "speaker": "SPEAKER_00",
+                "words": words(
+                    ("Houston,", 1.0, 1.5), ("Tranquility", 1.6, 1.9), ("Base", 1.9, 2.2)
+                ),
+            },
+            {"speaker": "SPEAKER_02", "words": words(("Roger.", 3.0, 3.4))},
+        ],
+    }
+    assert save(good).status_code == 200
+    assert (job_dir / "artifact.json").read_bytes() == artifact
+    txt = (job_dir / "outputs" / "transcript.txt").read_text()
+    assert txt == "Armstrong: Houston, Tranquility Base\n\nSPEAKER_02: Roger.\n\n"
+    assert ctx.store.get(job.id).speakers == 2
+
+    backwards = {
+        **good,
+        "turns": [{"speaker": "SPEAKER_00", "words": words(("a", 2.0, 2.1), ("b", 1.0, 1.1))}],
+    }
+    spaced = {**good, "turns": [{"speaker": "SPEAKER_00", "words": words(("two words", 1.0, 1.1))}]}
+    stranger = {**good, "turns": [{"speaker": "SPEAKER_09", "words": words(("hi", 1.0, 1.1))}]}
+    for bad in (backwards, spaced, stranger, {"turns": []}, None):
+        assert save(bad).status_code == 422
+    assert "Tranquility Base" in (job_dir / "outputs" / "transcript.txt").read_text()  # unchanged

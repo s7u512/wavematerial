@@ -14,7 +14,12 @@ Every user-visible change is recorded here. The format follows
 - Opening a finished recording shows its transcript with a player: play from any
   timestamp or Ctrl+click a word, Follow highlights the spoken word, and selecting words
   plays exactly that audio (with Loop and 0.75×). The side panel lists the speakers with a
-  sample of each, and the recording's details. Editing comes next.
+  sample of each, and the recording's details.
+- Editing transcripts: fix words in place (edited words keep approximate timings), split
+  a turn with Enter and join turns with Backspace, change a turn's speaker (menu or
+  Alt+↑/↓, including a new speaker), replace selected words, merge neighbouring turns
+  into one, and undo and redo. Edits save automatically and update every output file;
+  the model's original output is kept unchanged.
 - Each transcription keeps a small Ogg Opus copy of its audio for playback, so the player
   works with any input format and after the original is moved.
 - Transcription runs in the background, one recording at a time, resumes after a crash or

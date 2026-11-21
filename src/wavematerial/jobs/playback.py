@@ -12,12 +12,15 @@ from __future__ import annotations
 import subprocess
 import sys
 import threading
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from wavematerial.engine.playback import PLAYBACK
 
 MAKER = [sys.executable, "-m", "wavematerial.engine.playback"]
+# Far longer than any recording takes (about 3 s per 5 minutes of audio).
+TIMEOUT = 600
 
 
 @dataclass(frozen=True)
@@ -29,6 +32,7 @@ class PlaybackState:
 @dataclass
 class PlaybackCopies:
     _running: dict[int, subprocess.Popen] = field(default_factory=dict)
+    _started: dict[int, float] = field(default_factory=dict)
     _failed: dict[int, str] = field(default_factory=dict)
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
@@ -38,6 +42,16 @@ class PlaybackCopies:
             if (job_dir / PLAYBACK).exists():
                 return PlaybackState("ready")
             if job_id in self._failed:
+                return PlaybackState("failed", self._failed[job_id])
+            proc = self._running.get(job_id)
+            if proc and (
+                proc.poll() is not None or time.monotonic() - self._started[job_id] > TIMEOUT
+            ):
+                # Ended without a copy, or hung: say so rather than wait for ever.
+                if proc.poll() is None:
+                    proc.kill()
+                self._running.pop(job_id, None)
+                self._failed[job_id] = "The audio for playback could not be made."
                 return PlaybackState("failed", self._failed[job_id])
             if job_id not in self._running:
                 if not source.exists():
@@ -56,6 +70,7 @@ class PlaybackCopies:
                     creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
                 )
                 self._running[job_id] = proc
+                self._started[job_id] = time.monotonic()
                 threading.Thread(
                     target=self._wait, args=(job_id, proc), name=f"playback-{job_id}", daemon=True
                 ).start()

@@ -3,16 +3,21 @@
 {% from "_macros.html" import icon %}
 {% block title %}{{ title }} · WaveMaterial{% endblock %}
 {% block body_class %}page-editor{% endblock %}
-{% block scripts %}<script src="/static/editor.js" defer></script>{% endblock %}
+{% block scripts %}<script src="/static/retime.js" defer></script>
+<script src="/static/editor.js" defer></script>{% endblock %}
 {% block main %}
 <div class="editor" id="editor">
   <header class="ed-top">
     <a class="ed-back" href="/library">{{ icon("back", 14) }} Library</a>
     <div class="ed-title">
       <h1 title="{{ job.name }}">{{ title }}</h1>
-      <p class="ed-meta">{{ length }} · {{ n_speakers }} speaker{{ "" if n_speakers == 1 else "s" }} · {{ language }}</p>
+      <p class="ed-meta">{{ length }} · <span id="speaker-count">{{ n_speakers }} speaker{{ "" if n_speakers == 1 else "s" }}</span> · {{ language }}<span id="save-state" class="save-state" role="status"></span></p>
     </div>
     <div class="ed-actions">
+      <div class="undo-group">
+        <button type="button" class="btn btn-ghost btn-sm" id="undo" title="Undo (Ctrl+Z)" disabled>Undo</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="redo" title="Redo (Ctrl+Shift+Z)" disabled>Redo</button>
+      </div>
       <button type="button" class="icon-btn ed-panel-toggle" id="panel-toggle" aria-controls="ed-panel" aria-expanded="false" title="Speakers and details">{{ icon("speaker") }}<span class="visually-hidden">Speakers and details</span></button>
       {% include "_f11.html" %}
     </div>
@@ -43,6 +48,10 @@
           <div><dt>Play from a word</dt><dd><kbd>Ctrl+click</kbd></dd></div>
           <div><dt>Listen to a passage</dt><dd><kbd>Select words</kbd></dd></div>
           <div><dt>Play the selection</dt><dd><kbd>Space</kbd></dd></div>
+          <div><dt>Split turn here</dt><dd><kbd>Enter</kbd></dd></div>
+          <div><dt>Join with turn above</dt><dd><kbd>Backspace</kbd> at start</dd></div>
+          <div><dt>Change speaker</dt><dd><kbd>Alt+↑ / ↓</kbd></dd></div>
+          <div><dt>Undo / redo</dt><dd><kbd>Ctrl+Z</kbd> <kbd>Ctrl+Shift+Z</kbd></dd></div>
         </dl>
       </section>
       <section id="tab-details" role="tabpanel" aria-labelledby="tab-btn-details" hidden>
@@ -88,8 +97,23 @@
       <button type="button" class="toggle-chip" id="sel-loop" aria-pressed="false">Loop</button>
       <button type="button" class="toggle-chip" id="sel-slow" aria-pressed="false">0.75×</button>
     </div>
-    <p class="sel-hint">Space plays · Esc closes</p>
+    <label class="sel-label" for="sel-replace">Replace with</label>
+    <input type="text" id="sel-replace" class="sel-input" autocomplete="off" spellcheck="false">
+    <div class="sel-merge" id="sel-merge" hidden>
+      <label class="sel-label" for="sel-merge-speaker" id="sel-merge-label">Merge into one turn, said by</label>
+      <div class="sel-merge-row">
+        <select id="sel-merge-speaker" class="select-sm"></select>
+        <button type="button" class="btn btn-secondary btn-sm" id="sel-merge-btn">Merge</button>
+      </div>
+    </div>
+    <div class="sel-foot">
+      <span class="sel-hint">Space plays · Enter replaces</span>
+      <button type="button" class="btn btn-ghost btn-sm" id="sel-cancel">Cancel</button>
+      <button type="button" class="btn btn-primary btn-sm" id="sel-replace-btn">Replace</button>
+    </div>
   </div>
+
+  <div class="spk-menu" id="spk-menu" role="menu" aria-label="Speaker" hidden></div>
 
   <audio id="audio" preload="auto"></audio>
   <script type="application/json" id="transcript-data">{{ data | tojson }}</script>

@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0
-// The transcript editor: turns, speakers, the player, Follow, and select-and-listen.
-// The transcript lives here, in `model`; everything on screen is rendered from it.
+// The transcript editor: turns, speakers, the player, Follow, select-and-listen, editing,
+// undo and redo, and autosave. The transcript lives here, in `model`; the screen is
+// rendered from it. Word objects are never changed in place (edits make new arrays), so
+// an undo snapshot can share them.
 (() => {
   "use strict";
   const $ = (sel, root = document) => root.querySelector(sel);
   const editor = $("#editor");
   if (!editor) return;
+  const { splitWords, retime } = window.wmRetime;
 
   const data = JSON.parse($("#transcript-data").textContent);
   const model = {
@@ -24,6 +27,7 @@
   const player = $(".player");
   const note = $("#audio-note");
   const pop = $("#sel-pop");
+  const menu = $("#spk-menu");
 
   // ---- helpers ------------------------------------------------------------------------------
   function el(tag, cls, text) {
@@ -46,37 +50,158 @@
   const speakerColour = (id) => `var(--spk-${(Math.max(0, model.speakers.indexOf(id)) % 6) + 1})`;
   const speakerName = (id) => model.names[id] || id;
   const typing = (target) => target.closest?.("input, textarea, select, [contenteditable]");
+  const nonSpace = (text) => text.replace(/\s+/g, "").length;
+  const turnStart = (turn) => (turn.words.length ? turn.words[0].start : null);
+  const turnEnd = (turn) => (turn.words.length ? turn.words[turn.words.length - 1].end : null);
+  const turnIndex = (node) => [...turnsEl.children].indexOf(node.closest(".turn"));
+  const textOf = (ti) => turnsEl.children[ti]?.querySelector(".turn-text");
+
+  // The time a turn's words may use: from the end of the turn before to the start of the next.
+  function window_(ti) {
+    let t0 = 0;
+    for (let k = ti - 1; k >= 0; k--) {
+      const e = turnEnd(model.turns[k]);
+      if (e !== null) { t0 = e; break; }
+    }
+    let t1 = duration;
+    for (let k = ti + 1; k < model.turns.length; k++) {
+      const s = turnStart(model.turns[k]);
+      if (s !== null) { t1 = s; break; }
+    }
+    const own = model.turns[ti].words;
+    if (own.length) {
+      t0 = Math.min(t0, own[0].start);
+      t1 = Math.max(t1, own[own.length - 1].end);
+    }
+    return [t0, t1];
+  }
+
+  // ---- caret positions, counted in non-space characters (they survive re-rendering) ----------
+  function nsBefore(p, node, offset) {
+    const r = document.createRange();
+    r.selectNodeContents(p);
+    r.setEnd(node, offset);
+    return nonSpace(r.toString());
+  }
+  function caretState() {
+    const sel = window.getSelection();
+    if (!sel.rangeCount || !sel.isCollapsed) return null;
+    const p = sel.focusNode && (sel.focusNode.nodeType === 1 ? sel.focusNode : sel.focusNode.parentElement)?.closest(".turn-text");
+    if (!p || !turnsEl.contains(p)) return null;
+    const r = document.createRange();
+    r.selectNodeContents(p);
+    r.setEnd(sel.focusNode, sel.focusOffset);
+    const before = r.toString();
+    return { turn: turnIndex(p), ns: nonSpace(before), space: /\s$/.test(before) };
+  }
+  // Put the caret after `ns` non-space characters of `p` (and past the space after them,
+  // if `space` and there still is one).
+  function placeCaret(p, ns, space = false) {
+    p.focus({ preventScroll: true });
+    const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT);
+    let count = 0;
+    let node;
+    let target = null;
+    let at = 0;
+    outer: while ((node = walker.nextNode())) {
+      const t = node.data;
+      for (let i = 0; i <= t.length; i++) {
+        if (count === ns) {
+          const afterSpace = i > 0 && /\s/.test(t[i - 1]);
+          if (!target || afterSpace) {
+            target = node;
+            at = i;
+          }
+          if (!space || afterSpace) break outer;
+        }
+        if (i < t.length && !/\s/.test(t[i]) && ++count > ns) break outer;
+      }
+    }
+    const r = document.createRange();
+    if (target) r.setStart(target, at);
+    else r.selectNodeContents(p);
+    r.collapse(!!target);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(r);
+  }
+  function restoreCaret(c) {
+    if (!c) return;
+    const p = textOf(Math.min(c.turn, model.turns.length - 1));
+    if (p) placeCaret(p, c.ns, c.space);
+  }
+  // Which word of a turn a non-space offset falls in (the word before, at a boundary).
+  function wordAtNs(turn, ns) {
+    let cum = 0;
+    for (let i = 0; i < turn.words.length; i++) {
+      cum += nonSpace(turn.words[i].text);
+      if (ns < cum) return i;
+    }
+    return turn.words.length - 1;
+  }
 
   // ---- rendering ----------------------------------------------------------------------------
-  // `flat` lists every word in reading order, with its element, for Follow and selections.
+  // `flat` lists every word in reading order for Follow; `el` is null while a turn is being
+  // typed in and its word elements are stale.
   let flat = [];
+  const dirty = new Set(); // turns whose word elements are stale
+  const editBase = new Map(); // turn -> its words before the current run of typing
+
+  const CHEV = '<svg class="i" width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>';
+
+  function fillText(p, turn) {
+    const frag = document.createDocumentFragment();
+    turn.words.forEach((w, wi) => {
+      if (wi) frag.append(" ");
+      frag.append(el("span", "w", w.text));
+    });
+    p.replaceChildren(frag);
+  }
+
+  function renderTurn(turn) {
+    const div = el("div", "turn");
+    div.style.setProperty("--spk", speakerColour(turn.speaker));
+    const start = turnStart(turn) ?? 0;
+    const time = el("button", "turn-time", clock(start));
+    time.type = "button";
+    time.title = "Play from here";
+    const who = el("button", "turn-speaker");
+    who.type = "button";
+    who.setAttribute("aria-haspopup", "menu");
+    who.title = "Change speaker (Alt+↑/↓)";
+    who.append(el("span", "", speakerName(turn.speaker)));
+    who.insertAdjacentHTML("beforeend", CHEV);
+    const text = el("p", "turn-text");
+    text.contentEditable = "plaintext-only";
+    text.spellcheck = false;
+    text.setAttribute("aria-label", `${speakerName(turn.speaker)} at ${clock(start)}`);
+    fillText(text, turn);
+    div.append(time, who, text);
+    return div;
+  }
 
   function renderTurns() {
-    flat = [];
     const frag = document.createDocumentFragment();
-    model.turns.forEach((turn, ti) => {
-      const art = el("div", "turn");
-      art.dataset.turn = ti;
-      art.style.setProperty("--spk", speakerColour(turn.speaker));
-      const time = el("button", "turn-time", clock(turn.words[0].start));
-      time.type = "button";
-      time.title = "Play from here";
-      time.dataset.seek = turn.words[0].start;
-      const who = el("div", "turn-speaker", speakerName(turn.speaker));
-      const text = el("p", "turn-text");
-      turn.words.forEach((w, wi) => {
-        if (wi) text.append(" ");
-        const span = el("span", "w", w.text);
-        span.dataset.i = flat.length;
-        flat.push({ start: w.start, end: w.end, el: span, turn: ti });
-        text.append(span);
-      });
-      art.append(time, who, text);
-      frag.append(art);
-    });
+    for (const turn of model.turns) frag.append(renderTurn(turn));
     turnsEl.replaceChildren(frag);
+    dirty.clear();
+    editBase.clear();
+    reindex();
+  }
+
+  function reindex() {
+    flat = [];
+    model.turns.forEach((turn, ti) => {
+      const p = textOf(ti);
+      const spans = !dirty.has(ti) && p ? p.querySelectorAll(".w") : [];
+      const ok = spans.length === turn.words.length;
+      turn.words.forEach((w, wi) => {
+        flat.push({ start: w.start, end: w.end, el: ok ? spans[wi] : null, turn: ti });
+      });
+    });
     spokenIndex = -1;
     playingTurn = -1;
+    update();
   }
 
   function renderSpeakers() {
@@ -84,13 +209,15 @@
     let total = 0;
     for (const turn of model.turns) {
       const st = stats.get(turn.speaker);
-      if (!st) continue;
-      const len = turn.words[turn.words.length - 1].end - turn.words[0].start;
+      if (!st || !turn.words.length) continue;
+      const len = turnEnd(turn) - turnStart(turn);
       st.turns += 1;
       st.time += len;
       total += len;
-      if (!st.longest || len > st.longest.len) st.longest = { start: turn.words[0].start, len };
+      if (!st.longest || len > st.longest.len) st.longest = { start: turnStart(turn), len };
     }
+    const used = model.speakers.filter((sp) => stats.get(sp).turns).length;
+    $("#speaker-count").textContent = `${used} speaker${used === 1 ? "" : "s"}`;
     const list = $("#speaker-list");
     list.replaceChildren(
       ...model.speakers
@@ -122,8 +249,9 @@
   function renderTimeline() {
     const segs = [];
     for (const turn of model.turns) {
-      const start = turn.words[0].start;
-      const end = turn.words[turn.words.length - 1].end;
+      if (!turn.words.length) continue;
+      const start = turnStart(turn);
+      const end = turnEnd(turn);
       const last = segs[segs.length - 1];
       if (last && last.speaker === turn.speaker && start - last.end < 2) last.end = end;
       else segs.push({ speaker: turn.speaker, start, end });
@@ -137,6 +265,13 @@
         return span;
       }),
     );
+  }
+
+  function renderAll(caret = caretState()) {
+    renderTurns();
+    renderSpeakers();
+    renderTimeline();
+    restoreCaret(caret);
   }
 
   // ---- audio --------------------------------------------------------------------------------
@@ -208,6 +343,7 @@
   // ---- position: time, timeline, Follow -----------------------------------------------------
   let spokenIndex = -1;
   let playingTurn = -1;
+  let lastTypedAt = 0;
   const follow = $("#follow");
 
   function wordAt(t) {
@@ -236,11 +372,8 @@
   function update() {
     const t = audio.currentTime || 0;
     if (range && t >= range.end && !audio.paused) {
-      if (range.loop) {
-        audio.currentTime = range.start;
-      } else {
-        audio.pause();
-      }
+      if (range.loop) audio.currentTime = range.start;
+      else audio.pause();
     }
     $("#time").textContent = clock(t);
     $("#tl-head").style.left = `${(t / duration) * 100}%`;
@@ -257,17 +390,20 @@
     }
     const lit = follow.checked ? idx : -1;
     if (lit !== spokenIndex) {
-      flat[spokenIndex]?.el.classList.remove("is-spoken");
-      flat[lit]?.el.classList.add("is-spoken");
+      flat[spokenIndex]?.el?.classList.remove("is-spoken");
+      flat[lit]?.el?.classList.add("is-spoken");
       spokenIndex = lit;
-      if (lit >= 0 && !audio.paused && !inView(flat[lit].el)) keepInView(lit);
+      // Follow keeps the playing turn in view, but not while you're typing.
+      const typingNow = Date.now() - lastTypedAt < 4000;
+      if (lit >= 0 && !audio.paused && !typingNow && flat[lit].el && !inView(flat[lit].el)) keepInView(lit);
     }
   }
 
   function keepInView(i) {
     const turnEl = turnsEl.children[flat[i].turn];
+    if (!turnEl) return;
     const fits = turnEl.offsetHeight < scroller.clientHeight - 120;
-    (fits ? turnEl : flat[i].el).scrollIntoView({ block: "center", behavior: "smooth" });
+    (fits || !flat[i].el ? turnEl : flat[i].el).scrollIntoView({ block: "center", behavior: "smooth" });
   }
 
   let frame = 0;
@@ -322,17 +458,386 @@
     evt.preventDefault();
   });
 
-  // ---- playing from the text ----------------------------------------------------------------
+  $("#speaker-list").addEventListener("click", (evt) => {
+    const btn = evt.target.closest("[data-sample]");
+    const sample = btn?.closest(".spk-card")._sample;
+    if (sample) playRange(sample.start, sample.start + Math.min(5, sample.len));
+  });
+
+  // ---- undo and redo ------------------------------------------------------------------------
+  const history = { undo: [], redo: [], kind: null, turn: -1, at: 0 };
+  const undoBtn = $("#undo");
+  const redoBtn = $("#redo");
+
+  function snapshot(caret = caretState()) {
+    return {
+      speakers: model.speakers.slice(),
+      names: { ...model.names },
+      turns: model.turns.map((t) => ({ speaker: t.speaker, words: t.words })),
+      caret,
+    };
+  }
+  function updateUndo() {
+    undoBtn.disabled = !history.undo.length;
+    redoBtn.disabled = !history.redo.length;
+  }
+  // Call before changing the model. Typing in one turn groups into one step until a pause.
+  function record(kind, turn = -1) {
+    const now = Date.now();
+    const same = kind === "typing" && history.kind === "typing" && history.turn === turn && now - history.at < 1500;
+    if (!same) {
+      history.undo.push(snapshot());
+      if (history.undo.length > 500) history.undo.shift();
+    }
+    history.redo = [];
+    history.kind = kind;
+    history.turn = turn;
+    history.at = now;
+    updateUndo();
+  }
+  function restore(snap) {
+    model.speakers = snap.speakers.slice();
+    model.names = { ...snap.names };
+    model.turns = snap.turns.map((t) => ({ ...t }));
+    renderAll(snap.caret);
+    changed();
+  }
+  function undo() {
+    if (!history.undo.length) return;
+    hidePopover();
+    history.redo.push(snapshot());
+    restore(history.undo.pop());
+    history.kind = null;
+    updateUndo();
+  }
+  function redo() {
+    if (!history.redo.length) return;
+    hidePopover();
+    history.undo.push(snapshot());
+    restore(history.redo.pop());
+    history.kind = null;
+    updateUndo();
+  }
+  undoBtn.addEventListener("click", undo);
+  redoBtn.addEventListener("click", redo);
+
+  // ---- saving -------------------------------------------------------------------------------
+  const saveState = $("#save-state");
+  let saveTimer = 0;
+  let saving = false;
+  let pending = false;
+  let savedAt = null;
+  let saveError = null;
+
+  function showSaveState() {
+    let text = "";
+    if (saveError) text = `Not saved: ${saveError}`;
+    else if (saving || pending) text = "Saving…";
+    else if (savedAt) {
+      const mins = Math.floor((Date.now() - savedAt) / 60000);
+      text = mins < 1 ? "Saved" : `Saved ${mins} min ago`;
+    }
+    saveState.textContent = text ? ` · ${text}` : "";
+    saveState.classList.toggle("is-error", !!saveError);
+  }
+  setInterval(showSaveState, 30000);
+
+  function payload() {
+    return {
+      speakers: model.speakers,
+      names: model.names,
+      turns: model.turns
+        .filter((t) => t.words.length)
+        .map((t) => ({
+          speaker: t.speaker,
+          words: t.words.map((w) => ({ word: w.text, start: w.start, end: w.end })),
+        })),
+    };
+  }
+  async function save() {
+    clearTimeout(saveTimer);
+    if (saving || !pending) return;
+    saving = true;
+    pending = false;
+    showSaveState();
+    let retry = 0;
+    try {
+      const resp = await fetch(`/jobs/${data.job}/revision`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload()),
+      });
+      if (resp.status === 422) {
+        const body = await resp.json().catch(() => ({}));
+        saveError = `the edit was refused (${body.error || "invalid"}). Undo the last change, then edit again.`;
+      } else if (!resp.ok) {
+        throw new Error(resp.statusText);
+      } else {
+        savedAt = Date.now();
+        saveError = null;
+      }
+    } catch {
+      saveError = "the app isn't answering; trying again.";
+      pending = true;
+      retry = 5000;
+    } finally {
+      saving = false;
+      showSaveState();
+      if (pending) saveTimer = setTimeout(save, retry || 300);
+    }
+  }
+  function changed() {
+    pending = true;
+    showSaveState();
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(save, 1000);
+    renderSpeakers();
+    renderTimeline();
+  }
+  async function flushSaves() {
+    const until = Date.now() + 5000;
+    while ((pending || saving) && Date.now() < until) {
+      if (!saving) await save();
+      else await new Promise((r) => setTimeout(r, 50));
+    }
+  }
+  // Leaving through a link waits for the last save; closing the window asks first.
+  document.addEventListener(
+    "click",
+    async (evt) => {
+      const a = evt.target.closest("a[href]");
+      if (!a || !(pending || saving)) return;
+      evt.preventDefault();
+      evt.stopPropagation();
+      await flushSaves();
+      window.location.href = a.href;
+    },
+    true,
+  );
+  window.addEventListener("beforeunload", (evt) => {
+    if (pending || saving) evt.preventDefault();
+  });
+
+  // ---- typing -------------------------------------------------------------------------------
+  let idleTimer = 0;
+
+  function syncText(p) {
+    const ti = turnIndex(p);
+    const turn = model.turns[ti];
+    if (!editBase.has(ti)) editBase.set(ti, turn.words);
+    const [t0, t1] = window_(ti);
+    turn.words = retime(splitWords(p.innerText), editBase.get(ti), t0, t1);
+    dirty.add(ti);
+    lastTypedAt = Date.now();
+  }
+  // Rebuild the word elements of edited turns once typing pauses, keeping the caret.
+  function flushDirty(force = false) {
+    if (!dirty.size) return;
+    const caret = caretState();
+    const sel = window.getSelection();
+    for (const ti of [...dirty]) {
+      const p = textOf(ti);
+      if (!p) { dirty.delete(ti); continue; }
+      const here = p.contains(sel.focusNode);
+      // Don't swallow a space just typed at the caret, or an open selection.
+      if (here && !force && (!caret || caret.space)) continue;
+      fillText(p, model.turns[ti]);
+      dirty.delete(ti);
+      editBase.delete(ti);
+      if (here && caret) placeCaret(p, caret.ns, caret.space);
+    }
+    reindex();
+  }
+  // A turn left empty is removed when the caret leaves it.
+  function dropEmpty(ti) {
+    if (model.turns[ti] && !model.turns[ti].words.length) {
+      model.turns.splice(ti, 1);
+      turnsEl.children[ti].remove();
+      dirty.delete(ti);
+      // Indexes after the removed turn shift down by one.
+      const shift = (m) => new Map([...m].map(([k, v]) => [k > ti ? k - 1 : k, v]));
+      const d = [...dirty].map((k) => (k > ti ? k - 1 : k));
+      dirty.clear();
+      d.forEach((k) => dirty.add(k));
+      const b = shift(editBase);
+      editBase.clear();
+      b.forEach((v, k) => editBase.set(k, v));
+      reindex();
+      changed();
+    }
+  }
+
+  turnsEl.addEventListener("beforeinput", (evt) => {
+    const p = evt.target.closest?.(".turn-text");
+    if (!p) return;
+    if (evt.inputType === "historyUndo" || evt.inputType === "historyRedo") {
+      evt.preventDefault();
+      if (evt.inputType === "historyUndo") undo();
+      else redo();
+      return;
+    }
+    if (evt.inputType === "insertParagraph" || evt.inputType === "insertLineBreak") {
+      evt.preventDefault(); // Enter splits the turn (keydown)
+      return;
+    }
+    record("typing", turnIndex(p));
+  });
+  turnsEl.addEventListener("input", (evt) => {
+    const p = evt.target.closest?.(".turn-text");
+    if (!p || evt.isComposing) return;
+    syncText(p);
+    changed();
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => flushDirty(), 1000);
+  });
+  turnsEl.addEventListener("compositionend", (evt) => {
+    const p = evt.target.closest?.(".turn-text");
+    if (!p) return;
+    syncText(p);
+    changed();
+  });
+  turnsEl.addEventListener("focusout", (evt) => {
+    const p = evt.target.closest?.(".turn-text");
+    if (!p) return;
+    const ti = turnIndex(p);
+    if (dirty.has(ti)) {
+      fillText(p, model.turns[ti]);
+      dirty.delete(ti);
+      editBase.delete(ti);
+      reindex();
+    }
+    dropEmpty(ti);
+  });
+
+  // ---- splitting, joining, speakers ---------------------------------------------------------
+  function splitTurn(p) {
+    const sel = window.getSelection();
+    if (!sel.rangeCount) return;
+    const ti = turnIndex(p);
+    const turn = model.turns[ti];
+    const r = sel.getRangeAt(0);
+    const head = document.createRange();
+    head.selectNodeContents(p);
+    head.setEnd(r.startContainer, r.startOffset);
+    const tail = document.createRange();
+    tail.selectNodeContents(p);
+    tail.setStart(r.endContainer, r.endOffset);
+    const a = splitWords(head.toString());
+    const b = splitWords(tail.toString());
+    if (!a.length || !b.length) return; // nothing to split off at either end
+    record("split");
+    const [t0, t1] = window_(ti);
+    const timed = retime(a.concat(b), editBase.get(ti) || turn.words, t0, t1);
+    model.turns.splice(ti, 1,
+      { speaker: turn.speaker, words: timed.slice(0, a.length) },
+      { speaker: turn.speaker, words: timed.slice(a.length) });
+    renderAll({ turn: ti + 1, ns: 0, space: false });
+    changed();
+  }
+
+  function joinTurns(ti) {
+    // Joins turn ti + 1 onto turn ti; the joined turn keeps the first one's speaker.
+    const first = model.turns[ti];
+    const second = model.turns[ti + 1];
+    if (!first || !second) return;
+    record("join");
+    const ns = first.words.reduce((n, w) => n + nonSpace(w.text), 0);
+    model.turns.splice(ti, 2, { speaker: first.speaker, words: first.words.concat(second.words) });
+    renderAll({ turn: ti, ns, space: false });
+    changed();
+  }
+
+  function newSpeakerId() {
+    for (let n = 0; ; n++) {
+      const id = `SPEAKER_${pad(n)}`;
+      if (!model.speakers.includes(id)) return id;
+    }
+  }
+  function setSpeaker(ti, id) {
+    const turn = model.turns[ti];
+    if (!turn || turn.speaker === id) return;
+    const caret = caretState();
+    record("speaker");
+    if (!model.speakers.includes(id)) model.speakers.push(id);
+    model.turns[ti] = { speaker: id, words: turn.words };
+    renderAll(caret);
+    changed();
+  }
+
+  // The speaker menu, shared by every turn.
+  let menuTurn = -1;
+  function openMenu(btn) {
+    menuTurn = turnIndex(btn);
+    const current = model.turns[menuTurn].speaker;
+    const items = model.speakers.map((s) => {
+      const b = el("button", "menu-item");
+      b.type = "button";
+      b.setAttribute("role", "menuitemradio");
+      b.setAttribute("aria-checked", String(s === current));
+      b.dataset.speaker = s;
+      b.style.setProperty("--spk", speakerColour(s));
+      b.append(el("span", "menu-dot"), el("span", "", speakerName(s)));
+      return b;
+    });
+    const fresh = el("button", "menu-item", "New speaker");
+    fresh.type = "button";
+    fresh.setAttribute("role", "menuitem");
+    fresh.dataset.speaker = "";
+    menu.replaceChildren(...items, el("hr"), fresh);
+    menu.hidden = false;
+    const r = btn.getBoundingClientRect();
+    const top = Math.min(r.bottom + 4, window.innerHeight - menu.offsetHeight - 8);
+    menu.style.top = `${Math.round(top)}px`;
+    menu.style.left = `${Math.round(r.left)}px`;
+    (menu.querySelector('[aria-checked="true"]') || items[0] || fresh).focus();
+  }
+  function closeMenu(refocus = true) {
+    if (menu.hidden) return;
+    menu.hidden = true;
+    if (refocus) turnsEl.children[menuTurn]?.querySelector(".turn-speaker")?.focus();
+  }
+  menu.addEventListener("click", (evt) => {
+    const item = evt.target.closest(".menu-item");
+    if (!item) return;
+    const ti = menuTurn;
+    closeMenu(false);
+    setSpeaker(ti, item.dataset.speaker || newSpeakerId());
+    turnsEl.children[ti]?.querySelector(".turn-speaker")?.focus();
+  });
+  menu.addEventListener("keydown", (evt) => {
+    const items = [...menu.querySelectorAll(".menu-item")];
+    const i = items.indexOf(document.activeElement);
+    const step = { ArrowDown: 1, ArrowUp: -1 }[evt.key];
+    if (step) {
+      evt.preventDefault();
+      items[(i + step + items.length) % items.length].focus();
+    } else if (evt.key === "Tab") {
+      closeMenu();
+    }
+  });
+  document.addEventListener("pointerdown", (evt) => {
+    if (!menu.hidden && !menu.contains(evt.target) && !evt.target.closest(".turn-speaker")) closeMenu(false);
+  });
+
+  // ---- clicks and keys in the transcript ----------------------------------------------------
   turnsEl.addEventListener("click", (evt) => {
     const time = evt.target.closest(".turn-time");
     if (time) {
-      playFrom(Number(time.dataset.seek));
+      const turn = model.turns[turnIndex(time)];
+      if (turn.words.length) playFrom(turnStart(turn));
       return;
     }
-    const word = evt.target.closest(".w");
-    if (word && (evt.ctrlKey || evt.metaKey)) {
-      evt.preventDefault();
-      playFrom(flat[Number(word.dataset.i)].start);
+    const who = evt.target.closest(".turn-speaker");
+    if (who) {
+      if (!menu.hidden && menuTurn === turnIndex(who)) closeMenu();
+      else openMenu(who);
+      return;
+    }
+    const p = evt.target.closest(".turn-text");
+    if (p && (evt.ctrlKey || evt.metaKey)) {
+      const c = caretState();
+      const turn = model.turns[turnIndex(p)];
+      if (c && turn.words.length) playFrom(turn.words[wordAtNs(turn, c.ns)].start);
     }
   });
   const ctrlClass = (on) => turnsEl.classList.toggle("ctrl-down", on);
@@ -340,41 +845,117 @@
   document.addEventListener("keyup", (evt) => ctrlClass(evt.ctrlKey || evt.metaKey));
   window.addEventListener("blur", () => ctrlClass(false));
 
-  $("#speaker-list").addEventListener("click", (evt) => {
-    const btn = evt.target.closest("[data-sample]");
-    const sample = btn?.closest(".spk-card")._sample;
-    if (sample) playRange(sample.start, sample.start + Math.min(5, sample.len));
+  turnsEl.addEventListener("keydown", (evt) => {
+    const p = evt.target.closest?.(".turn-text");
+    const ti = p ? turnIndex(p) : evt.target.closest?.(".turn-speaker") ? turnIndex(evt.target) : -1;
+    if (ti < 0) return;
+    if (evt.altKey && (evt.key === "ArrowUp" || evt.key === "ArrowDown")) {
+      evt.preventDefault();
+      const list = model.speakers;
+      const at = list.indexOf(model.turns[ti].speaker);
+      setSpeaker(ti, list[(at + (evt.key === "ArrowUp" ? -1 : 1) + list.length) % list.length]);
+      return;
+    }
+    if (!p || evt.ctrlKey || evt.metaKey || evt.altKey) return;
+    const sel = window.getSelection();
+    if (evt.key === "Enter") {
+      evt.preventDefault();
+      if (!evt.shiftKey) splitTurn(p);
+    } else if ((evt.key === "Backspace" || evt.key === "Delete") && sel.isCollapsed) {
+      const r = document.createRange();
+      r.selectNodeContents(p);
+      if (evt.key === "Backspace") r.setEnd(sel.focusNode, sel.focusOffset);
+      else r.setStart(sel.focusNode, sel.focusOffset);
+      if (r.toString().trim()) return;
+      if (evt.key === "Backspace" && ti > 0) {
+        evt.preventDefault();
+        joinTurns(ti - 1);
+      } else if (evt.key === "Delete" && ti < model.turns.length - 1) {
+        evt.preventDefault();
+        joinTurns(ti);
+      }
+    }
   });
 
-  // ---- select and listen --------------------------------------------------------------------
-  let selection = null; // {start, end, count}
+  // ---- select and listen, replace, merge turns ----------------------------------------------
+  // A selection, as words: {from, to (turn indexes), first, last (word indexes), start, end}.
+  let selection = null;
 
   function selectedWords() {
     const sel = window.getSelection();
     if (!sel.rangeCount || sel.isCollapsed) return null;
     const r = sel.getRangeAt(0);
     if (!turnsEl.contains(r.commonAncestorContainer)) return null;
-    const node = (n) => (n.nodeType === Node.ELEMENT_NODE ? n : n.parentElement);
-    const first = node(r.startContainer).closest(".turn");
-    const last = node(r.endContainer).closest(".turn");
-    const from = first ? Number(first.dataset.turn) : 0;
-    const to = last ? Number(last.dataset.turn) : model.turns.length - 1;
-    const picked = [];
-    for (let i = 0; i < flat.length; i++) {
-      const w = flat[i];
-      if (w.turn < from) continue;
-      if (w.turn > to) break;
-      if (!r.intersectsNode(w.el)) continue;
-      // A range that only touches a word's edge doesn't select it.
-      if (w.el.contains(r.startContainer) && r.startOffset >= w.el.textContent.length) continue;
-      if (w.el.contains(r.endContainer) && r.endOffset === 0) continue;
-      picked.push(i);
+    const node = (n) => (n.nodeType === 1 ? n : n.parentElement);
+    const startTurn = node(r.startContainer).closest(".turn");
+    const endTurn = node(r.endContainer).closest(".turn");
+    let from = startTurn ? turnIndex(startTurn) : 0;
+    let to = endTurn ? turnIndex(endTurn) : model.turns.length - 1;
+    // Where the selection starts and ends inside each turn's text, in non-space characters.
+    const startText = node(r.startContainer).closest(".turn-text");
+    const endText = node(r.endContainer).closest(".turn-text");
+    let s = startText ? nsBefore(startText, r.startContainer, r.startOffset) : 0;
+    let e = endText ? nsBefore(endText, r.endContainer, r.endOffset) : Infinity;
+    if (!endText && endTurn && r.endContainer !== endTurn && to > from) {
+      to -= 1; // it ends in the next turn's header, before any of its words
+      e = Infinity;
     }
-    if (!picked.length) return null;
-    const a = flat[picked[0]];
-    const b = flat[picked[picked.length - 1]];
-    return { start: a.start, end: b.end, count: picked.length, rect: r.getBoundingClientRect() };
+    // Skip turns the selection only touches at their very end.
+    const words = (ti) => model.turns[ti].words;
+    const firstIn = (ti, ns) => {
+      let cum = 0;
+      for (let i = 0; i < words(ti).length; i++) {
+        cum += nonSpace(words(ti)[i].text);
+        if (cum > ns) return i;
+      }
+      return -1;
+    };
+    let first = firstIn(from, s);
+    while (first < 0 && from < to) {
+      from += 1;
+      s = 0;
+      first = firstIn(from, 0);
+    }
+    if (first < 0) return null;
+    const lastIn = (ti, ns) => {
+      if (ns === Infinity) return words(ti).length - 1;
+      let cum = 0;
+      let last = -1;
+      for (let i = 0; i < words(ti).length; i++) {
+        if (cum < ns) last = i;
+        cum += nonSpace(words(ti)[i].text);
+      }
+      return last;
+    };
+    let last = lastIn(to, e);
+    while (last < 0 && to > from) {
+      to -= 1;
+      last = words(to).length - 1;
+    }
+    if (last < 0 || (from === to && last < first)) return null;
+    let count = 0;
+    for (let ti = from; ti <= to; ti++) {
+      const a = ti === from ? first : 0;
+      const b = ti === to ? last : words(ti).length - 1;
+      count += b - a + 1;
+    }
+    const picked = [];
+    for (let ti = from; ti <= to; ti++) {
+      const a = ti === from ? first : 0;
+      const b = ti === to ? last : words(ti).length - 1;
+      picked.push(...words(ti).slice(a, b + 1));
+    }
+    return {
+      from, to, first, last, count, picked,
+      start: words(from)[first].start,
+      end: words(to)[last].end,
+      rect: r.getBoundingClientRect(),
+    };
   }
+
+  const replaceInput = $("#sel-replace");
+  const mergeRow = $("#sel-merge");
+  const mergeSpeaker = $("#sel-merge-speaker");
 
   function showPopover() {
     selection = selectedWords();
@@ -383,8 +964,22 @@
       hidePopover(false);
       return;
     }
-    $("#sel-count").textContent = `${selection.count} word${selection.count === 1 ? "" : "s"} selected`;
+    const { count, from, to } = selection;
+    $("#sel-count").textContent = `${count} word${count === 1 ? "" : "s"} selected`;
     $("#sel-range").textContent = `${clock(selection.start, true)} – ${clock(selection.end, true)}`;
+    replaceInput.value = selection.picked.map((w) => w.text).join(" ");
+    mergeRow.hidden = to === from;
+    if (to > from) {
+      $("#sel-merge-label").textContent = `Merge ${to - from + 1} turns into one, said by`;
+      mergeSpeaker.replaceChildren(
+        ...model.speakers.map((s) => {
+          const o = el("option", "", speakerName(s));
+          o.value = s;
+          o.selected = s === model.turns[from].speaker;
+          return o;
+        }),
+      );
+    }
     band.hidden = false;
     band.style.left = `${(selection.start / duration) * 100}%`;
     band.style.width = `max(2px, ${((selection.end - selection.start) / duration) * 100}%)`;
@@ -393,16 +988,22 @@
     const h = pop.offsetHeight;
     const top0 = scroller.getBoundingClientRect().top;
     let top = r.top - h - 10;
-    if (top < top0 + 8) top = r.bottom + 10;
+    if (top < top0 + 8) top = Math.min(r.bottom + 10, window.innerHeight - h - 8);
     pop.style.top = `${Math.round(top)}px`;
     pop.style.left = `${Math.round(Math.min(Math.max(r.left, 16), window.innerWidth - pop.offsetWidth - 16))}px`;
   }
 
   function hidePopover(clearSelection = true) {
+    if (pop.hidden && !selection) return;
+    const refocus = pop.contains(document.activeElement);
     pop.hidden = true;
     selection = null;
     $("#tl-sel").hidden = true;
-    if (clearSelection) window.getSelection().removeAllRanges();
+    if (clearSelection) {
+      const sel = window.getSelection();
+      if (sel.rangeCount && !sel.isCollapsed) sel.collapseToEnd();
+    }
+    if (refocus) document.activeElement.blur();
   }
 
   let selTimer = 0;
@@ -414,7 +1015,7 @@
     }, 120);
   });
   scroller.addEventListener("scroll", () => {
-    if (!pop.hidden) hidePopover(false);
+    if (!pop.hidden && !pop.contains(document.activeElement)) hidePopover(false);
   });
 
   const loop = $("#sel-loop");
@@ -442,6 +1043,48 @@
     });
   }
   $("#sel-play").addEventListener("click", playSelection);
+
+  // Replace the selected words. Across turns, the new words go where the selection starts,
+  // the rest of the last turn stays a turn of its own, and turns in between go.
+  function replaceSelection(text) {
+    const s = selection;
+    if (!s) return;
+    flushDirty(true);
+    record("replace");
+    const fresh = retime(splitWords(text), s.picked, s.start, s.end);
+    const head = model.turns[s.from];
+    const tail = model.turns[s.to];
+    const before = head.words.slice(0, s.first);
+    const updated = [{ speaker: head.speaker, words: before.concat(fresh, s.from === s.to ? head.words.slice(s.last + 1) : []) }];
+    if (s.to > s.from) updated.push({ speaker: tail.speaker, words: tail.words.slice(s.last + 1) });
+    model.turns.splice(s.from, s.to - s.from + 1, ...updated.filter((t) => t.words.length));
+    const ns = before.concat(fresh).reduce((n, w) => n + nonSpace(w.text), 0);
+    hidePopover(false);
+    const at = Math.min(s.from, model.turns.length - 1);
+    renderAll(at >= 0 ? { turn: at, ns, space: false } : null);
+    changed();
+  }
+  $("#sel-replace-btn").addEventListener("click", () => replaceSelection(replaceInput.value));
+  replaceInput.addEventListener("keydown", (evt) => {
+    if (evt.key === "Enter") {
+      evt.preventDefault();
+      replaceSelection(replaceInput.value);
+    }
+  });
+  $("#sel-cancel").addEventListener("click", () => hidePopover());
+
+  function mergeSelection() {
+    const s = selection;
+    if (!s || s.to === s.from) return;
+    flushDirty(true);
+    record("merge");
+    const words = model.turns.slice(s.from, s.to + 1).flatMap((t) => t.words);
+    model.turns.splice(s.from, s.to - s.from + 1, { speaker: mergeSpeaker.value, words });
+    hidePopover(false);
+    renderAll({ turn: s.from, ns: 0, space: false });
+    changed();
+  }
+  $("#sel-merge-btn").addEventListener("click", mergeSelection);
 
   // ---- side panel ---------------------------------------------------------------------------
   const tabs = [...document.querySelectorAll('.tabs [role="tab"]')];
@@ -471,28 +1114,43 @@
   panelToggle.addEventListener("click", () => setPanel(!editor.classList.contains("panel-open")));
 
   // ---- keys ---------------------------------------------------------------------------------
-  // Capture phase, so Esc closes the popover or the panel before app.js leaves full screen.
+  // Capture phase, so Esc closes the menu, popover, or panel before app.js leaves full screen.
   window.addEventListener(
     "keydown",
     (evt) => {
-      if (evt.key === "Escape" && (!pop.hidden || editor.classList.contains("panel-open"))) {
-        if (!pop.hidden) hidePopover();
-        else setPanel(false);
+      const mod = evt.ctrlKey || evt.metaKey;
+      if (evt.key === "Escape") {
+        if (!menu.hidden) closeMenu();
+        else if (!pop.hidden) hidePopover();
+        else if (editor.classList.contains("panel-open")) setPanel(false);
+        else return;
         evt.preventDefault();
         evt.stopImmediatePropagation();
         return;
       }
-      if ((evt.ctrlKey || evt.metaKey) && evt.code === "Space") {
+      const inField = evt.target.closest?.("input, textarea, select");
+      if (mod && evt.code === "Space") {
         evt.preventDefault();
         togglePlay();
-      } else if ((evt.ctrlKey || evt.metaKey) && evt.key.toLowerCase() === "j") {
+      } else if (mod && evt.key.toLowerCase() === "j") {
         evt.preventDefault();
         const i = wordAt(audio.currentTime);
         if (i >= 0) keepInView(i);
         else turnsEl.children[playingTurn]?.scrollIntoView({ block: "center", behavior: "smooth" });
-      } else if (evt.key === " " && !pop.hidden && !typing(evt.target) && !evt.target.closest("button")) {
+      } else if (mod && !inField && evt.key.toLowerCase() === "z") {
         evt.preventDefault();
-        playSelection();
+        if (evt.shiftKey) redo();
+        else undo();
+      } else if (mod && !inField && evt.key.toLowerCase() === "y") {
+        evt.preventDefault();
+        redo();
+      } else if (evt.key === " " && !mod && !pop.hidden && selection && !inField && !evt.target.closest("button")) {
+        // Space plays the selection, even inside the text (it doesn't type over it).
+        const sel = window.getSelection();
+        if (!typing(evt.target) || !sel.isCollapsed) {
+          evt.preventDefault();
+          playSelection();
+        }
       }
     },
     true,
@@ -502,5 +1160,6 @@
   renderTurns();
   renderSpeakers();
   renderTimeline();
+  updateUndo();
   loadAudio();
 })();

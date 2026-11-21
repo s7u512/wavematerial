@@ -387,9 +387,12 @@ html:has(body.page-editor) { scrollbar-gutter: auto; overflow: hidden; }
 .turn-time:hover { color: var(--text); text-decoration: underline; }
 .turn-time:focus:not(:focus-visible), .tabs button:focus:not(:focus-visible) { box-shadow: none; }
 .turn.is-playing .turn-time { color: var(--accent-text); }
-.turn-speaker { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 500; color: var(--spk); margin-bottom: 4px; }
+.turn-speaker { display: inline-flex; align-items: center; gap: 7px; justify-self: start; width: auto; margin: 0 0 4px -6px; padding: 1px 6px; border: 0; border-radius: var(--r-control); background: none; font-size: 13px; font-weight: 500; color: var(--spk); cursor: pointer; }
+.turn-speaker:hover { background: var(--surface-2); }
+.turn-speaker .i { opacity: 0.8; }
 .turn-speaker::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--spk); }
-.turn-text { margin: 0; font-family: var(--font-read); font-size: 17px; line-height: 1.6; color: var(--text); }
+.turn-text { margin: 0; font-family: var(--font-read); font-size: 17px; line-height: 1.6; color: var(--text); outline: none; white-space: pre-wrap; caret-color: var(--accent-text); }
+.turn-text:focus-visible { outline: none; }
 .w.is-spoken { color: var(--accent-text); font-weight: 600; }
 .turns.ctrl-down .w { cursor: pointer; }
 .turns.ctrl-down .w:hover { text-decoration: underline; }
@@ -440,13 +443,26 @@ ul.plain li { list-style: none; margin: 0; }
 .audio-note.is-error { color: var(--danger); }
 
 /* select and listen */
-.sel-pop { position: fixed; z-index: 25; width: 300px; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--r-card); box-shadow: var(--shadow-lg); }
+.sel-pop { position: fixed; z-index: 25; width: 320px; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--r-card); box-shadow: var(--shadow-lg); }
 .sel-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 10px; font-size: 13px; }
 .sel-range { color: var(--text-2); font-size: var(--fs-small); font-variant-numeric: tabular-nums; }
 .sel-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .toggle-chip { margin: 0; width: auto; padding: 4px 10px; border: 1px solid var(--border-strong); border-radius: 999px; background: transparent; color: var(--text-2); font-size: var(--fs-small); cursor: pointer; }
 .toggle-chip[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-text); }
-.sel-hint { margin: 10px 0 0; color: var(--text-2); font-size: var(--fs-small); }
+.sel-label { display: block; margin: 12px 0 4px; color: var(--text-2); font-size: var(--fs-small); }
+.sel-input { margin: 0 !important; height: 32px; font-size: 13px; }
+.sel-merge-row { display: flex; gap: 6px; }
+.sel-merge-row select.select-sm { flex: 1; width: auto; margin: 0; }
+.sel-foot { display: flex; align-items: center; gap: 6px; margin-top: 12px; }
+.sel-hint { flex: 1; color: var(--text-2); font-size: var(--fs-small); }
+.undo-group { display: flex; gap: 2px; }
+.save-state.is-error { color: var(--danger); }
+.spk-menu { position: fixed; z-index: 26; min-width: 200px; padding: 4px; background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: 8px; box-shadow: var(--shadow-lg); }
+.spk-menu hr { margin: 4px 0; border: 0; border-top: 1px solid var(--border-strong); }
+.menu-item { display: flex; align-items: center; gap: 8px; width: 100%; margin: 0; padding: 7px 10px; border: 0; border-radius: 4px; background: none; color: var(--text); font-size: var(--fs-body); text-align: left; cursor: pointer; }
+.menu-item:hover, .menu-item:focus-visible { background: var(--border); outline: none; }
+.menu-item[aria-checked="true"] { font-weight: 600; }
+.menu-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--spk); flex: none; }
 
 /* toast */
 #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 60; }
