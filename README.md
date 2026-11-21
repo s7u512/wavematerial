@@ -1,6 +1,12 @@
-# WaveMaterial
+<p align="center">
+  <img src="design/logo/app-icon.svg" width="160" height="160" alt="WaveMaterial logo">
+</p>
 
-**Offline, Vulkan-first transcription with speaker diarisation and transcript editing.**
+<h1 align="center">WaveMaterial</h1>
+
+<p align="center">
+  <strong>Offline, Vulkan-first transcription with speaker diarisation and transcript editing.</strong>
+</p>
 
 A fully local desktop app that turns audio and video recordings into speaker-attributed
 English transcripts, with an editor to correct them. It runs offline after a one-time model
