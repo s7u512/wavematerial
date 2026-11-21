@@ -18,6 +18,7 @@ from pathlib import Path
 import av
 import numpy as np
 
+from wavematerial._fsutil import replace
 from wavematerial.engine.decode import SAMPLE_RATE, DecodeError, decode
 
 PLAYBACK = "playback.opus"
@@ -45,7 +46,7 @@ def write_playback(audio: np.ndarray, job_dir: Path) -> Path:
                 frame.pts = i
                 out.mux(stream.encode(frame))
             out.mux(stream.encode(None))
-        os.replace(tmp, path)
+        replace(tmp, path)
     except BaseException:
         Path(tmp).unlink(missing_ok=True)
         raise

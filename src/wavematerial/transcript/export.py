@@ -35,9 +35,18 @@ def available() -> list[str]:
     return [f for f in LABELS if f not in _NEEDS or importlib.util.find_spec(_NEEDS[f])]
 
 
+# Names Windows reserves for devices, with or without an extension.
+_RESERVED = {"CON", "PRN", "AUX", "NUL"} | {f"{d}{n}" for d in ("COM", "LPT") for n in range(1, 10)}
+
+
 def file_name(title: str, fmt: str) -> str:
-    """A safe default file name: the recording's title, without characters files can't have."""
-    safe = re.sub(r'[\\/:*?"<>|\x00-\x1f]+', "_", title).strip(" .") or "transcript"
+    """A safe default file name: the recording's title, without characters files can't have.
+
+    It must work on Windows too: no reserved device names, and no trailing dots or spaces.
+    """
+    safe = re.sub(r'[\\/:*?"<>|\x00-\x1f]+', "_", title)[:150].strip(" .") or "transcript"
+    if safe.split(".")[0].upper() in _RESERVED:
+        safe = f"_{safe}"
     return f"{safe}.{fmt}"
 
 

@@ -90,7 +90,7 @@ def test_adding_a_folder_queues_its_media_and_saves_defaults(web):
         with wave.open(str(folder / name), "wb") as w:
             w.setnchannels(1), w.setsampwidth(2), w.setframerate(8000)
             w.writeframes(b"\0" * 8000)
-    (folder / "notes.txt").write_text("not audio")
+    (folder / "notes.txt").write_text("not audio", encoding="utf-8")
 
     listed = _post(client, "/add/files", data={"how": "typed", "dropped": f'["{folder}"]'})
     assert listed.get_data(as_text=True).count('name="paths"') == 2  # the .txt is skipped
@@ -193,7 +193,7 @@ def test_editor_opens_the_current_revision_and_only_for_done_jobs(web):
     assert data["names"] == {"SPEAKER_00": "Armstrong"}
     assert [w[0] for w in data["turns"][0]["words"]] == ["Eagle", "has", "landed"]
 
-    (job_dir / "artifact.json").write_text("{not json")
+    (job_dir / "artifact.json").write_text("{not json", encoding="utf-8")
     broken = _get(client, f"/jobs/{job.id}/edit")
     assert broken.status_code == 200 and "can't be opened" in broken.get_data(as_text=True)
 
@@ -235,7 +235,7 @@ def test_autosave_writes_the_revision_and_outputs_and_refuses_bad_edits(web):
     }
     assert save(good).status_code == 200
     assert (job_dir / "artifact.json").read_bytes() == artifact
-    txt = (job_dir / "outputs" / "transcript.txt").read_text()
+    txt = (job_dir / "outputs" / "transcript.txt").read_text(encoding="utf-8")
     assert txt == "Armstrong: Houston, Tranquility Base\n\nSPEAKER_02: Roger.\n\n"
     assert ctx.store.get(job.id).speakers == 2
 
@@ -247,7 +247,9 @@ def test_autosave_writes_the_revision_and_outputs_and_refuses_bad_edits(web):
     stranger = {**good, "turns": [{"speaker": "SPEAKER_09", "words": words(("hi", 1.0, 1.1))}]}
     for bad in (backwards, spaced, stranger, {"turns": []}, None):
         assert save(bad).status_code == 422
-    assert "Tranquility Base" in (job_dir / "outputs" / "transcript.txt").read_text()  # unchanged
+    assert "Tranquility Base" in (job_dir / "outputs" / "transcript.txt").read_text(
+        encoding="utf-8"
+    )  # unchanged
 
 
 def test_editor_turns_audio_off_where_the_window_would_crash_playing_it(web, monkeypatch):
@@ -336,7 +338,7 @@ def test_export_downloads_in_a_browser_and_saves_through_the_window(web):
     )
     assert _post(client, f"/jobs/{job.id}/export/srt").get_json() == {"path": str(target)}
     assert asked == [("Apollo 11_ _landing_.srt", str(source.parent))]  # starts by the recording
-    assert "Armstrong: Tranquility Base." in target.read_text()
+    assert "Armstrong: Tranquility Base." in target.read_text(encoding="utf-8")
     assert ctx.settings().export_dir == str(target.parent)  # remembered for next time
     ctx.native = NativeHooks(
         pick_files=lambda: [], save_file=lambda name, folder: asked.append(folder)
@@ -356,6 +358,9 @@ def test_docx_and_pdf_exports_carry_the_transcript():
     )
     t = Transcript("en", 3.0, ("SPEAKER_00",), (turn,), speaker_names={"SPEAKER_00": "Interviewer"})
     assert {"docx", "pdf"} <= set(export.available())
+    assert export.file_name("con", "txt") == "_con.txt"  # a Windows device name
+    assert export.file_name("Lpt1.final ", "pdf") == "_Lpt1.final.pdf"
+    assert export.file_name("Interview... ", "txt") == "Interview.txt"
     doc = docx.Document(io.BytesIO(export.render("docx", t, "Interview")))
     assert [p.text for p in doc.paragraphs] == [
         "Interview",

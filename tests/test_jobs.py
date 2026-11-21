@@ -51,7 +51,7 @@ def wait_for(store, job_id, state, timeout=30):
 
 
 def stages_run(sched, job_id):
-    return (sched.job_dir(job_id) / "fake-stages.log").read_text().split()
+    return (sched.job_dir(job_id) / "fake-stages.log").read_text(encoding="utf-8").split()
 
 
 def test_a_job_runs_to_done_in_a_worker(env):
@@ -70,7 +70,7 @@ def test_crashed_job_resumes_from_its_last_saved_stage(env):
     job_dir = sched.job_dir(job.id)
     job_dir.mkdir(parents=True)
     for saved in ("chunks.json", "timings.json"):  # ...after these stages were saved
-        (job_dir / saved).write_text("[]\n")
+        (job_dir / saved).write_text("[]\n", encoding="utf-8")
 
     sched.start()
     wait_for(store, job.id, "done")

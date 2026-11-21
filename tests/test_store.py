@@ -93,3 +93,30 @@ def test_reads_the_bench_artifact_layout(tmp_path):
     (tmp_path / ARTIFACT).write_text(json.dumps(data), encoding="utf-8")
     t = read_artifact(tmp_path)
     assert [turn.text for turn in t.turns] == ["Eagle landed."]
+
+
+def test_replace_waits_out_a_brief_lock_on_windows_only(tmp_path, monkeypatch):
+    import os
+
+    from wavematerial import _fsutil
+
+    src, dst = tmp_path / "new", tmp_path / "old"
+    calls = []
+    real = os.replace
+
+    def flaky(a, b):
+        calls.append(1)
+        if len(calls) < 3:  # e.g. an antivirus scan holds the target for a moment
+            raise PermissionError(13, "in use")
+        real(a, b)
+
+    monkeypatch.setattr(_fsutil.os, "replace", flaky)
+    monkeypatch.setattr(_fsutil.time, "sleep", lambda s: None)
+    src.write_text("x", encoding="utf-8")
+    monkeypatch.setattr(_fsutil.sys, "platform", "linux")
+    with pytest.raises(PermissionError):
+        _fsutil.replace(src, dst)  # elsewhere it's a real error: no retry
+    calls.clear()
+    monkeypatch.setattr(_fsutil.sys, "platform", "win32")
+    _fsutil.replace(src, dst)
+    assert len(calls) == 3 and dst.read_text(encoding="utf-8") == "x"

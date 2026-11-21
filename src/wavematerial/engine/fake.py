@@ -44,7 +44,7 @@ def run(source: Path, job_dir: Path, *, choice: Choice, progress=None, **_) -> T
     def stage(name: str) -> None:
         if opts.get("gpu_fails_at") == name and choice.backend == "vulkan":
             raise GpuFailure("simulated GPU failure")
-        with (job_dir / "fake-stages.log").open("a") as f:
+        with (job_dir / "fake-stages.log").open("a", encoding="utf-8") as f:
             f.write(f"{name}\n")
         for i in range(4):
             time.sleep(opts.get("sleep", 0) / 4)

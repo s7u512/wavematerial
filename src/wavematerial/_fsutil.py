@@ -3,8 +3,28 @@
 
 import contextlib
 import os
+import sys
 import tempfile
+import time
 from pathlib import Path
+
+
+def replace(src: Path | str, dst: Path | str) -> None:
+    """`os.replace`, retried for a moment on Windows.
+
+    There, renaming over a file (or folder) that another process briefly has open, such as
+    an antivirus scan or the search indexer, fails with `PermissionError`.
+    """
+    delay = 0.05
+    for attempt in range(6):
+        try:
+            os.replace(src, dst)
+            return
+        except PermissionError:
+            if sys.platform != "win32" or attempt == 5:
+                raise
+            time.sleep(delay)
+            delay *= 2
 
 
 def write_text_atomic(path: Path, text: str) -> None:
@@ -20,7 +40,7 @@ def write_text_atomic(path: Path, text: str) -> None:
             f.write(text)
             f.flush()
             os.fsync(f.fileno())
-        os.replace(tmp, path)
+        replace(tmp, path)
     except BaseException:
         with contextlib.suppress(FileNotFoundError):
             os.unlink(tmp)

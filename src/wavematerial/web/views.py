@@ -109,7 +109,9 @@ def _job_note(ctx: AppContext, job: Job) -> str:
 
 def _chunks(ctx: AppContext, job: Job) -> int | None:
     try:
-        return len(json.loads((ctx.scheduler.job_dir(job.id) / "chunks.json").read_text()))
+        return len(
+            json.loads((ctx.scheduler.job_dir(job.id) / "chunks.json").read_text(encoding="utf-8"))
+        )
     except (OSError, json.JSONDecodeError):
         return None
 

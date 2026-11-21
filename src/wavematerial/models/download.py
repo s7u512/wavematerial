@@ -21,6 +21,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from wavematerial import __version__
+from wavematerial._fsutil import replace
 from wavematerial.models.manifest import FileSpec, ModelSpec
 
 CHUNK = 1 << 20  # 1 MiB
@@ -175,7 +176,7 @@ def install(
         final = spec.folder(models_dir)
         if final.exists():
             shutil.rmtree(final)
-        staging.replace(final)
+        replace(staging, final)
     except BaseException:
         shutil.rmtree(staging, ignore_errors=True)
         raise

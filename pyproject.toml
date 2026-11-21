@@ -60,6 +60,11 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]
+# Text files must name their encoding: Windows defaults to cp1252, not UTF-8. (The rule
+# only sees calls it can type, so reviews still check the rest.)
+preview = true
+explicit-preview-rules = true
+extend-select = ["PLW1514"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
