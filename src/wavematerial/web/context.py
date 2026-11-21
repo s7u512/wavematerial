@@ -7,6 +7,7 @@ import os
 import subprocess
 import sys
 import threading
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -48,6 +49,9 @@ class AppContext:
     port: int = 0
     fullscreen: bool = False
     playback: PlaybackCopies = field(default_factory=PlaybackCopies)
+    # Browser mode (no window): Quit sets `quit`; any request from a page updates `last_seen`.
+    quit: threading.Event = field(default_factory=threading.Event)
+    last_seen: float = field(default_factory=time.monotonic)
     _settings_lock: threading.Lock = field(default_factory=threading.Lock)
 
     def settings(self) -> Settings:

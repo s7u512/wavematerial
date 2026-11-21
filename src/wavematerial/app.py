@@ -45,6 +45,24 @@ def _setup_logging(paths: Paths) -> None:
     logging.getLogger("waitress").setLevel(logging.WARNING)
 
 
+# Browser mode: how long after the last page stops checking in the app quits by itself.
+IDLE_EXIT = 300
+
+
+def _serve_browser(ctx: AppContext, idle_exit: float = IDLE_EXIT, tick: float = 15) -> str:
+    """Keep serving until Quit, Ctrl+C, or no page has been open for `idle_exit` seconds."""
+    ctx.last_seen = time.monotonic()  # time to open the browser
+    try:
+        while not ctx.quit.wait(tick):
+            if time.monotonic() - ctx.last_seen > idle_exit:
+                log.info("No page has been open for %d s; quitting", idle_exit)
+                return "idle"
+    except KeyboardInterrupt:
+        return "interrupted"
+    log.info("Quit from the browser")
+    return "quit"
+
+
 def _open_window(ctx: AppContext, url: str) -> None:
     """Show the app window; returns when it is closed. Raises if no window can be shown."""
     if sys.platform == "win32":
@@ -163,15 +181,12 @@ def main(argv: list[str] | None = None) -> int:
             ctx.native = NativeHooks()
             print(
                 "The WaveMaterial window could not open, so it opened in your browser.\n"
-                "Keep this terminal open while you use it; press Ctrl+C to quit.",
+                "To quit, use Quit WaveMaterial in its sidebar (or press Ctrl+C here). It also\n"
+                "quits by itself a few minutes after you close its last tab.",
                 file=sys.stderr,
             )
             webbrowser.open(url)
-            try:
-                while True:
-                    time.sleep(3600)
-            except KeyboardInterrupt:
-                pass
+            _serve_browser(ctx)
     finally:
         log.info("Shutting down")
         scheduler.shutdown()

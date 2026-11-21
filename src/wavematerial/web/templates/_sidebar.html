@@ -21,4 +21,9 @@
   <a class="nav-item{% if active == 'settings' %} is-active{% endif %}" href="/settings" title="Settings">
     {{ icon("settings") }}<span class="nav-label">Settings</span>
   </a>
+  {% if not ctx.windowed %}
+  <button type="button" class="nav-item" hx-post="/quit" hx-target="body" hx-swap="innerHTML" hx-confirm="Quit WaveMaterial? A transcription in progress stops and continues next time you start it." title="Quit WaveMaterial">
+    {{ icon("x") }}<span class="nav-label">Quit WaveMaterial</span>
+  </button>
+  {% endif %}
 </nav>

@@ -496,6 +496,10 @@ ul.plain li { list-style: none; margin: 0; }
 .menu-item[aria-checked="true"] { font-weight: 600; }
 .menu-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--spk); flex: none; }
 
+/* browser mode: after Quit */
+.closed { display: grid; place-items: center; align-content: center; gap: 10px; min-height: 100vh; padding: 24px; text-align: center; }
+.closed p { max-width: 460px; }
+
 /* toast */
 #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 60; }
 #toast .toast { background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: 8px; padding: 9px 14px; box-shadow: var(--shadow-lg); }

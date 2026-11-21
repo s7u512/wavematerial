@@ -371,3 +371,17 @@ def test_docx_and_pdf_exports_carry_the_transcript():
     pdf = export.render("pdf", t, "Interview")
     assert pdf.startswith(b"%PDF") and b"NotoSans" in pdf  # the embedded font covers ā and ś
     assert export.render("pdf", t, "Interview") == pdf  # reproducible
+
+
+def test_browser_mode_offers_quit_and_counts_heartbeats(web):
+    ctx, client, _ = web
+    client.set_cookie(COOKIE, "secret-token", domain="127.0.0.1")
+    ctx.installer.all_installed = lambda: True
+    assert "Quit WaveMaterial" in _get(client, "/library").get_data(as_text=True)  # no window
+    ctx.last_seen = 0.0
+    assert _get(client, "/alive").status_code == 204 and ctx.last_seen > 0
+    r = _post(client, "/quit")
+    assert "WaveMaterial has closed" in r.get_data(as_text=True)
+    assert ctx.quit.wait(2)  # the app is told to stop just after answering
+    ctx.native = NativeHooks(pick_files=lambda: [])
+    assert "Quit WaveMaterial" not in _get(client, "/library").get_data(as_text=True)  # window

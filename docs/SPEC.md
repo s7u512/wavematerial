@@ -137,6 +137,8 @@ Paths come from `platformdirs`. Nothing is written inside the install folder.
   leaves full screen for a 1280 × 720 (16:9, 720p) window, and back; Esc also leaves it
   when no dialog or panel is open. The minimum window is
   960 × 720.
+- If no window can open, the app opens in the browser. There the sidebar has **Quit
+  WaveMaterial**, and the app exits 5 minutes after its last page closes.
 
 ## Licence
 

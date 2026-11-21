@@ -49,6 +49,11 @@
     }
   });
 
+  // ---- browser mode: tell the app a page is still open (it exits a while after the last) ---
+  if (document.body.dataset.windowed === "no") {
+    setInterval(() => fetch("/alive", { cache: "no-store" }).catch(() => {}), 30000);
+  }
+
   // ---- drawer and modal --------------------------------------------------------------------
   function closeDrawer() { $("#drawer").replaceChildren(); }
   function closeModal() { $("#modal").replaceChildren(); }

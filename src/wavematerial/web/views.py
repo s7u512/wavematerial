@@ -396,6 +396,18 @@ def register(app: Flask) -> None:
     def job_drawer(job_id: int):
         return render_template("_drawer.html", **_drawer_data(_ctx(), job_id))
 
+    # ---- browser mode: quitting and staying alive -----------------------------------------
+    @app.post("/quit")
+    def quit_app():
+        """Quit from the browser (there is no window to close). Answers, then stops."""
+        ctx = _ctx()
+        threading.Timer(0.3, ctx.quit.set).start()
+        return render_template("_closed.html")
+
+    @app.get("/alive")
+    def alive():
+        return "", 204  # the request itself is the heartbeat (see the guard)
+
     # ---- transcript editor ----------------------------------------------------------------
     @app.get("/jobs/<int:job_id>/edit")
     def editor(job_id: int):

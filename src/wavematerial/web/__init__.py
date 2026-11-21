@@ -10,6 +10,7 @@ cookie keeps other web pages from making requests on the user's behalf.
 from __future__ import annotations
 
 import hmac
+import time
 
 from flask import Flask, abort, g, redirect, request
 
@@ -39,6 +40,7 @@ def create_app(ctx: AppContext) -> Flask:
         if not hmac.compare_digest(request.cookies.get(COOKIE, ""), ctx.token):
             abort(403)
         g.ctx = ctx
+        ctx.last_seen = time.monotonic()
 
     @app.after_request
     def headers(resp):
