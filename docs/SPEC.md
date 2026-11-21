@@ -183,12 +183,12 @@ Paths come from `platformdirs`. Nothing is written inside the install folder.
   from the machine that built it. Its launcher runs the bundled Python with
   bytecode writing off; all bytecode is precompiled. Runtime modules the app doesn't need are
   left out.
-- **Arch Linux first:** a `PKGBUILD` (not published to the AUR), plus a Linux `.tar.gz` of
-  the same bundle with no compatibility guarantees.
-- **`.deb`** for Debian 13 and later.
-- Both Linux packages depend on GStreamer's "good" plugins, which WebKitGTK needs to play
-  audio; without them the app turns playback off and says so.
-- **Flatpak** for other Linux distributions, as a `.flatpak` file on GitHub releases.
+- **1.0.0 ships three files:** the Windows `.exe`, an Arch Linux package, and a Linux
+  `.tar.gz` of the same bundle with no compatibility guarantees. A `.deb` (Debian 13 and
+  later) and a Flatpak come in later versions.
+- **Arch Linux:** a `PKGBUILD` (not published to the AUR). The package depends on
+  GStreamer's "good" plugins, which WebKitGTK needs to play audio; without them the app turns
+  playback off and says so.
 - **Windows `.exe`** installer, per user (no admin rights needed), into
   `%LOCALAPPDATA%\Programs\WaveMaterial`; its shortcuts run the bundled `pythonw.exe -m
   wavematerial`. Inno Setup builds it under Wine (`packaging/windows/build.py`).
