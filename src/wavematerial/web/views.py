@@ -443,6 +443,40 @@ def register(app: Flask) -> None:
         resp.headers["HX-Redirect"] = "/library"
         return resp
 
+    # ---- transcribe again (a passage, as a proposal in the editor) -------------------------
+    @app.get("/jobs/<int:job_id>/passage")
+    def passage_state(job_id: int):
+        ctx = _ctx()
+        _done_job(ctx, job_id)
+        run = ctx.passages.current
+        running = bool(run and run.state == "running")
+        body = {"available": not ctx.scheduler.busy and not running}
+        if run and run.job_id == job_id:
+            body.update(state=run.state, words=run.words, message=run.message)
+        return jsonify(body)
+
+    @app.post("/jobs/<int:job_id>/passage")
+    def passage_start(job_id: int):
+        ctx = _ctx()
+        job = _done_job(ctx, job_id)
+        body = request.get_json(silent=True) or {}
+        try:
+            start, end = float(body["start"]), float(body["end"])
+        except (KeyError, TypeError, ValueError):
+            abort(400)
+        if not 0 <= start < end or end - start > 600:
+            return jsonify(error="Select up to ten minutes of the transcript."), 422
+        terms = [str(t).strip() for t in body.get("key_terms", job.key_terms) if str(t).strip()]
+        why = ctx.passages.start(ctx.scheduler, job, start, end, terms)
+        if why:
+            return jsonify(error=why), 409
+        return jsonify(ok=True)
+
+    @app.post("/jobs/<int:job_id>/passage/cancel")
+    def passage_cancel(job_id: int):
+        _ctx().passages.cancel()
+        return "", 204
+
     @app.get("/sidebar/search")
     def sidebar_search():
         """The sidebar's list for a search: recordings whose title or transcript matches."""

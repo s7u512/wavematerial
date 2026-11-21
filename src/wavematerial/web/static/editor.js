@@ -1011,6 +1011,7 @@
         ctxItem("Play selection", "Space", playSelection, !audioReady || !s),
         ctxItem("Copy", "Ctrl+C", () => navigator.clipboard?.writeText(text)),
         ...(s && s.to > s.from ? [ctxItem(`Merge ${s.to - s.from + 1} turns into one`, "", mergeSelection)] : []),
+        againItem(s),
       ];
     } else {
       // Put the cursor where the click was (keyboard menus keep the cursor where it is).
@@ -1755,6 +1756,114 @@
   $("#restore-original").addEventListener("click", () => restoreFrom(`/jobs/${data.job}/original`, "the original"));
   loadVersions();
 
+  // ---- transcribe a passage again --------------------------------------------------------------
+  // The models run on just the selected stretch; the result is a proposal to accept or not.
+  // Only while no recording is being transcribed (one model at a time).
+  let passageAvailable = false;
+  async function checkPassage() {
+    try {
+      passageAvailable = (await api(`/jobs/${data.job}/passage`)).available;
+    } catch {
+      passageAvailable = false;
+    }
+  }
+  checkPassage();
+  setInterval(checkPassage, 5000);
+  function againItem(s) {
+    const item = ctxItem("Transcribe again", "", () => transcribeAgain(s), !s || !passageAvailable);
+    if (!passageAvailable) item.title = "Available when no recording is being transcribed";
+    checkPassage().then(() => {
+      item.disabled = !s || !passageAvailable;
+      item.title = passageAvailable ? "" : "Available when no recording is being transcribed";
+    });
+    return item;
+  }
+  const passageEl = $("#passage");
+  let passagePoll = 0;
+  function closePassage(cancel = false) {
+    clearTimeout(passagePoll);
+    if (cancel) fetch(`/jobs/${data.job}/passage/cancel`, { method: "POST" }).catch(() => {});
+    passageEl.hidden = true;
+  }
+  async function transcribeAgain(s) {
+    if (!s) return;
+    const snap = { ...s };
+    hidePopover(false);
+    $("#passage-range").textContent = `${clock(s.start, true)} – ${clock(s.end, true)} · ${s.count} word${s.count === 1 ? "" : "s"}`;
+    $("#passage-old").textContent = s.picked.map((w) => w.text).join(" ");
+    $("#passage-busy").hidden = false;
+    $("#passage-result").hidden = true;
+    $("#passage-error").hidden = true;
+    $("#passage-accept").hidden = true;
+    passageEl.hidden = false;
+    $("#passage-cancel").focus();
+    const fail = (msg) => {
+      $("#passage-busy").hidden = true;
+      $("#passage-error").textContent = msg;
+      $("#passage-error").hidden = false;
+    };
+    try {
+      await postJson(`/jobs/${data.job}/passage`, { start: s.start, end: s.end });
+    } catch (exc) {
+      fail(exc.message);
+      return;
+    }
+    const poll = async () => {
+      if (passageEl.hidden) return;
+      let st;
+      try {
+        st = await api(`/jobs/${data.job}/passage`);
+      } catch {
+        passagePoll = setTimeout(poll, 1000);
+        return;
+      }
+      if (st.state === "running") {
+        passagePoll = setTimeout(poll, 500);
+      } else if (st.state === "failed") {
+        fail(st.message);
+      } else if (st.state === "done") {
+        const fresh = st.words.map(([text, start, end]) => ({ text, start, end }));
+        $("#passage-busy").hidden = true;
+        $("#passage-new").textContent = fresh.length ? fresh.map((w) => w.text).join(" ") : "(no speech found)";
+        $("#passage-result").hidden = false;
+        const accept = $("#passage-accept");
+        accept.hidden = false;
+        accept.onclick = () => {
+          closePassage();
+          applyPassage(snap, fresh);
+        };
+        accept.focus();
+      }
+    };
+    poll();
+  }
+  // Put the new words where the selected ones were. Across turns, each new word goes to the
+  // turn its time falls in, so speakers are kept.
+  function applyPassage(s, fresh) {
+    record("transcribe-again");
+    const turns = model.turns.slice();
+    const bounds = [];
+    for (let ti = s.from; ti <= s.to; ti++) {
+      bounds.push(ti === s.from ? -Infinity : turns[ti].words[0].start);
+    }
+    const buckets = bounds.map(() => []);
+    for (const w of fresh) {
+      const mid = (w.start + w.end) / 2;
+      let k = 0;
+      while (k + 1 < bounds.length && bounds[k + 1] <= mid) k++;
+      buckets[k].push(w);
+    }
+    for (let ti = s.from; ti <= s.to; ti++) {
+      const before = ti === s.from ? turns[ti].words.slice(0, s.first) : [];
+      const after = ti === s.to ? turns[ti].words.slice(s.last + 1) : [];
+      turns[ti] = { speaker: turns[ti].speaker, words: before.concat(buckets[ti - s.from], after) };
+    }
+    model.turns = turns.filter((t) => t.words.length);
+    renderAll(null);
+    changed();
+  }
+  $("#passage-cancel").addEventListener("click", () => closePassage(true));
+
   // ---- export -------------------------------------------------------------------------------
   // In the window the server asks where to save (a native dialog); a browser downloads.
   const windowed = document.body.dataset.windowed === "yes";
@@ -1820,6 +1929,7 @@
       const mod = evt.ctrlKey || evt.metaKey;
       if (evt.key === "Escape") {
         if (renaming) endRename(false);
+        else if (!passageEl.hidden) closePassage(true);
         else if (!ctx.hidden) closeCtx();
         else if (!menu.hidden) closeMenu();
         else if (!pop.hidden) hidePopover();

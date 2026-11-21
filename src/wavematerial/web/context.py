@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from wavematerial.config import Paths, Settings, load_settings, save_settings
+from wavematerial.jobs.passage import Passages
 from wavematerial.jobs.playback import PlaybackCopies
 from wavematerial.jobs.scheduler import Scheduler
 from wavematerial.jobs.store import JobStore
@@ -50,6 +51,7 @@ class AppContext:
     port: int = 0
     fullscreen: bool = False
     playback: PlaybackCopies = field(default_factory=PlaybackCopies)
+    passages: Passages = field(default_factory=Passages)
     # Browser mode (no window): Quit sets `quit`; any request from a page updates `last_seen`.
     quit: threading.Event = field(default_factory=threading.Event)
     last_seen: float = field(default_factory=time.monotonic)

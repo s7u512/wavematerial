@@ -498,3 +498,43 @@ def test_transcribe_again_queues_a_new_entry_beside_the_old_one(web):
     source.unlink()
     assert "no longer at" in _get(client, f"/jobs/{job.id}/again").get_data(as_text=True)
     assert _post(client, f"/jobs/{job.id}/again", data={}).status_code == 409
+
+
+def test_a_passage_is_transcribed_again_only_while_the_queue_is_idle(web, monkeypatch):
+    import sys
+
+    from wavematerial.jobs import passage
+
+    ctx, client, tmp = web
+    client.set_cookie(COOKIE, "secret-token", domain="127.0.0.1")
+    source = tmp / "apollo11.wav"
+    source.write_bytes(b"\0")
+    job = ctx.store.add(source, min_speakers=1, max_speakers=2)
+    ctx.scheduler.job_dir(job.id).mkdir(parents=True)
+    ctx.store.set_state(job.id, "done")
+    # A stand-in for the engine: it answers with one word over the selection, after a moment.
+    fake = (
+        "import json, sys, time; s = json.loads(sys.argv[1]); time.sleep(0.3); "
+        "open(s['out'], 'w').write(json.dumps({'words': [['Eagle', s['start'], s['end']]]}))"
+    )
+    monkeypatch.setattr(passage, "RUNNER", [sys.executable, "-c", fake])
+
+    ctx.scheduler._current = 99  # a job is being transcribed
+    r = _post(client, f"/jobs/{job.id}/passage", json={"start": 1.0, "end": 2.0})
+    assert (
+        r.status_code == 409 and not _get(client, f"/jobs/{job.id}/passage").get_json()["available"]
+    )
+    ctx.scheduler._current = None
+
+    assert (
+        _post(client, f"/jobs/{job.id}/passage", json={"start": 1.0, "end": 2.0}).status_code == 200
+    )
+    assert not ctx.scheduler.try_hold()  # the queue is held while it runs
+    state = _get(client, f"/jobs/{job.id}/passage").get_json()
+    deadline = time.monotonic() + 10
+    while state.get("state") == "running" and time.monotonic() < deadline:
+        time.sleep(0.05)
+        state = _get(client, f"/jobs/{job.id}/passage").get_json()
+    assert state["state"] == "done" and state["words"] == [["Eagle", 1.0, 2.0]]
+    assert state["available"] and ctx.scheduler.try_hold()  # released afterwards
+    ctx.scheduler.release_hold()

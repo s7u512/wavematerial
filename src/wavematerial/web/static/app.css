@@ -477,6 +477,16 @@ ul.plain li { list-style: none; margin: 0; }
 .version-auto strong { color: var(--text-2); font-weight: 400; }
 .version-original { margin-top: 14px; border-style: dashed; }
 
+/* transcribe a passage again */
+.passage-back { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; background: #000000a6; padding: 24px; }
+.passage-back[hidden] { display: none; }
+.passage-card { width: min(760px, 100%); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-dialog); box-shadow: var(--shadow-lg); padding: 20px 22px; }
+.passage-card h2 { margin-bottom: 2px; }
+.passage-result { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px; }
+.passage-result .caps { margin: 0 0 6px; }
+.passage-result p { margin: 0; font-family: var(--font-read); font-size: 15px; line-height: 1.55; max-height: 40vh; overflow: auto; }
+.passage-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
 /* player */
 .player { display: flex; align-items: center; gap: 14px; padding: 10px 24px; border-top: 1px solid var(--border); background: var(--sidebar); position: relative; }
 .play-btn { flex: none; display: grid; place-items: center; width: 36px; height: 36px; margin: 0; padding: 0; border: 0; border-radius: 50%; background: var(--accent); color: var(--on-accent); cursor: pointer; }

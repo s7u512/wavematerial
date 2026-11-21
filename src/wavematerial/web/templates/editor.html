@@ -168,6 +168,23 @@
   <div class="spk-menu" id="spk-menu" role="menu" aria-label="Speaker" hidden></div>
   <div class="spk-menu ctx-menu" id="ctx-menu" role="menu" aria-label="Text actions" hidden></div>
 
+  <div class="passage-back" id="passage" hidden>
+    <div class="passage-card" role="dialog" aria-modal="true" aria-labelledby="passage-title">
+      <h2 id="passage-title">Transcribe again</h2>
+      <p class="muted small" id="passage-range"></p>
+      <div id="passage-busy"><progress class="bar"></progress><p class="muted">Transcribing this passage again…</p></div>
+      <div class="passage-result" id="passage-result" hidden>
+        <div><div class="caps">Now</div><p id="passage-old"></p></div>
+        <div><div class="caps">Transcribed again</div><p id="passage-new"></p></div>
+      </div>
+      <p class="error-text" id="passage-error" hidden></p>
+      <footer class="passage-foot">
+        <button type="button" class="btn btn-secondary" id="passage-cancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="passage-accept" hidden>Use the new text</button>
+      </footer>
+    </div>
+  </div>
+
   <audio id="audio" preload="auto"></audio>
   <script type="application/json" id="transcript-data">{{ data | tojson }}</script>
 </div>

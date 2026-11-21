@@ -50,6 +50,8 @@ class Scheduler:
         self._current: int | None = None
         self._stop_requested = False
         self._thread: threading.Thread | None = None
+        self._claimed: int | None = None  # the job being started or run
+        self._held = False  # a passage is being transcribed again: start nothing
 
     # ---- lifecycle -------------------------------------------------------------------
 
@@ -127,17 +129,43 @@ class Scheduler:
     def _loop(self) -> None:
         while True:
             with self._wake:
-                while not self._quit and (self.paused or self.store.next_queued() is None):
+                while not self._quit and (
+                    self.paused or self._held or self.store.next_queued() is None
+                ):
                     self._wake.wait(timeout=1)
                 if self._quit:
                     return
-            job = self.store.next_queued()
+                job = self.store.next_queued()
+                self._claimed = job.id if job else None  # under the lock: see try_hold()
             if job:
                 try:
                     self._run(job)
                 except Exception:
                     log.exception("Job %s failed unexpectedly", job.id)
                     self.store.set_state(job.id, "failed", error="An unexpected error occurred.")
+                finally:
+                    with self._wake:
+                        self._claimed = None
+
+    # ---- holding the queue (one model at a time) ------------------------------------------
+
+    @property
+    def busy(self) -> bool:
+        """True while a job is being transcribed."""
+        return self._claimed is not None or self._current is not None
+
+    def try_hold(self) -> bool:
+        """Keep the queue from starting anything; False if a job is already running."""
+        with self._wake:
+            if self.busy or self._held:
+                return False
+            self._held = True
+            return True
+
+    def release_hold(self) -> None:
+        with self._wake:
+            self._held = False
+            self._wake.notify_all()
 
     def _choice(self) -> Choice:
         return choose(
