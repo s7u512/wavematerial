@@ -17,6 +17,8 @@ the build machine's paths end up in the bundle.
 
 Everything runs on Linux. The Windows bundle is assembled here (uv installs Windows wheels
 on Linux); its compile, licence and smoke steps run its own Python under Wine (see `Wine`).
+It ships none of Microsoft's C++ runtime DLLs: Windows must have the Visual C++
+Redistributable, at least the version BUILD-INFO.txt names (the installer checks).
 """
 
 from __future__ import annotations
@@ -26,7 +28,9 @@ import hashlib
 import io
 import json
 import os
+import re
 import shutil
+import struct
 import subprocess
 import sys
 import tarfile
@@ -192,7 +196,8 @@ class Wine:
 
 def run(*cmd: str | Path, **kw) -> subprocess.CompletedProcess:
     print("+", " ".join(str(c) for c in cmd), flush=True)
-    return subprocess.run([str(c) for c in cmd], check=True, **kw)
+    kw.setdefault("check", True)
+    return subprocess.run([str(c) for c in cmd], **kw)
 
 
 def git(*args: str) -> str:
@@ -249,6 +254,52 @@ def licence_paths(full: Path, present: list[str]) -> list[str]:
         for variant in info["build_info"]["extensions"].get(name, []):
             paths.update(variant.get("license_paths") or [])
     return sorted(paths - PBS_SKIP)
+
+
+# Microsoft's C++ runtime, under its own (proprietary) licence, plus wheels' renamed copies
+# (delvewheel names them like msvcp140-<hash>.dll).
+MSVC_RUNTIME = re.compile(
+    r"(vcruntime140(_1)?|msvcp140(_\w+)?|concrt140|vcomp140)(-[0-9a-f]+)?\.dll", re.IGNORECASE
+)
+
+
+def file_version(path: Path) -> tuple[int, int, int, int]:
+    """A Windows DLL's file version, from its VS_FIXEDFILEINFO."""
+    data = path.read_bytes()
+    i = data.find(struct.pack("<I", 0xFEEF04BD))
+    if i < 0:
+        sys.exit(f"{path} has no version information.")
+    ms, ls = struct.unpack_from("<II", data, i + 8)
+    return (ms >> 16, ms & 0xFFFF, ls >> 16, ls & 0xFFFF)
+
+
+def unvendor_msvc(root: Path) -> tuple[int, int, int, int]:
+    """Remove Microsoft's C++ runtime DLLs; return the newest version removed.
+
+    A renamed copy is removed too: the binaries that import it are pointed at the system
+    DLL instead (the import name is a NUL-terminated string, and the plain name is shorter).
+    """
+    newest = (0, 0, 0, 0)
+    for dll in [p for p in root.rglob("*") if MSVC_RUNTIME.fullmatch(p.name)]:
+        newest = max(newest, file_version(dll))
+        plain = MSVC_RUNTIME.fullmatch(dll.name)
+        if plain.group(4):
+            old = dll.name.encode() + b"\0"
+            new = dll.name.removesuffix(".dll").removesuffix(plain.group(4)).encode() + b".dll"
+            new = new.ljust(len(old), b"\0")
+            users = 0
+            for pe in root.rglob("*"):
+                if pe.suffix.lower() in (".pyd", ".dll") and pe != dll:
+                    data = pe.read_bytes()
+                    if old in data:
+                        if data.count(old) != 1:
+                            sys.exit(f"{pe} names {dll.name} more than once; patch it by hand.")
+                        pe.write_bytes(data.replace(old, new))
+                        users += 1
+            if not users:
+                sys.exit(f"Nothing imports {dll.name}; check before removing it.")
+        dll.unlink()
+    return newest
 
 
 def snapshot(root: Path) -> set[str]:
@@ -326,6 +377,10 @@ def main() -> int:
         (site / "bin").rmdir()
     for record in site.glob("*.dist-info/direct_url.json"):
         record.unlink()
+    needs = ""
+    if windows:
+        vcredist = ".".join(map(str, unvendor_msvc(root)))
+        needs = f"Needs: Microsoft Visual C++ Redistributable (x64) {vcredist} or later\n"
 
     # 3. Isolation and launch.
     if windows:
@@ -374,7 +429,7 @@ def main() -> int:
         f"WaveMaterial {version}\n"
         f"Source commit: {commit}\n"
         f"Python: {PYTHON} (python-build-standalone {PBS_RELEASE}, {target.triple})\n"
-        f"Built: {datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')}\n",
+        f"Built: {datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')}\n" + needs,
         encoding="utf-8",
     )
 

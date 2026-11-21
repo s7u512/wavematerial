@@ -5,7 +5,12 @@
 
 Builds the Windows bundle (packaging/bundle.py --target windows), installs Inno Setup into
 the build bottle if needed, compiles wavematerial.iss, then test-installs the result in the
-bottle: it runs, writes nothing into its install folder, and uninstalls cleanly.
+bottle: it runs on Microsoft's C++ runtime (not Wine's), writes nothing into its install
+folder, and uninstalls cleanly; and an installer that asks for a newer runtime than the
+bottle has refuses to install.
+
+The bottle needs Microsoft's Visual C++ Redistributable (x64), as users' machines do;
+the build stops and says how to install it if it is missing.
 
 Result: dist/WaveMaterial-<version>-windows-x86_64-setup.exe
 """
@@ -28,6 +33,9 @@ INNO = "6.7.4"
 INNO_SHA256 = "a549929319f9120716677c685535ca4671e4b937b5fdc87e2585f32d8eb30e8c"
 INNO_URL = f"https://github.com/jrsoftware/issrc/releases/download/is-{INNO.replace('.', '_')}"
 INNO_DIR = "C:\\wm\\innosetup"
+VCREDIST_KEY = "HKLM\\SOFTWARE\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\x64"
+# Load Microsoft's runtime DLLs (installed by its redistributable), never Wine's own.
+MS_RUNTIME = "msvcp140,msvcp140_1,msvcp140_2,vcruntime140,vcruntime140_1,concrt140=n"
 
 
 def numeric(version: str) -> str:
@@ -58,14 +66,28 @@ def main() -> int:
     bundle = REPO / "dist" / "bundle" / f"wavematerial-{version}-windows-x86_64"
     out = REPO / "dist"
 
+    info = (bundle / "BUILD-INFO.txt").read_text(encoding="utf-8")
+    min_vcredist = re.search(r"Redistributable \(x64\) ([\d.]+) or later", info).group(1)
+
     wine = Wine()
+    has = wine.run("reg", "query", VCREDIST_KEY, capture_output=True, text=True, check=False)
+    if has.returncode != 0:
+        sys.exit(
+            "The build bottle lacks Microsoft's Visual C++ Redistributable (x64), which the test "
+            f"install needs. Download vc_redist.x64.exe from Microsoft and run it with\n"
+            f"  WINEPREFIX={wine.prefix} {wine.wine} vc_redist.x64.exe /install /quiet /norestart"
+        )
     iscc = ensure_inno(wine)
-    wine.run(
-        iscc, "/Q",
-        f"/DAppVersion={version}", f"/DNumericVersion={numeric(version)}",
-        f"/DBundleDir={Wine.path(bundle)}", f"/DRepoDir={Wine.path(REPO)}",
-        f"/DOutputDir={Wine.path(out)}", HERE / "wavematerial.iss",
-    )  # fmt: skip
+
+    def compile_installer(*defines: str) -> None:
+        wine.run(
+            iscc, "/Q",
+            f"/DAppVersion={version}", f"/DNumericVersion={numeric(version)}",
+            f"/DBundleDir={Wine.path(bundle)}", f"/DRepoDir={Wine.path(REPO)}",
+            f"/DOutputDir={Wine.path(out)}", *defines, HERE / "wavematerial.iss",
+        )  # fmt: skip
+
+    compile_installer(f"/DMinVCRedist={min_vcredist}")
     setup = out / f"WaveMaterial-{version}-windows-x86_64-setup.exe"
 
     # Test install into the bottle's per-user programs folder, then uninstall.
@@ -76,12 +98,14 @@ def main() -> int:
     app = user / "AppData" / "Local" / "Programs" / "WaveMaterial"
     if app.exists():
         shutil.rmtree(app)
+    wine.env["WINEDLLOVERRIDES"] += ";" + MS_RUNTIME
     wine.run(setup, "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART")
     if not (app / "python" / "pythonw.exe").exists():
         sys.exit(f"The installer did not install into {app}.")
     before = snapshot(app)
-    wine.run(app / "python" / "python.exe", "-m", "wavematerial", "--version")
-    wine.run(app / "python" / "python.exe", "-c", "import av, webview, sherpa_onnx, docx")
+    python = app / "python" / "python.exe"
+    wine.run(python, "-m", "wavematerial", "--version")
+    wine.run(python, "-c", "import av, numpy.fft, webview, sherpa_onnx, transcribe_cpp, docx")
     written = snapshot(app) - before
     if written:
         sys.exit(f"Running the installed app wrote into its folder: {sorted(written)[:10]}")
@@ -89,6 +113,15 @@ def main() -> int:
     subprocess.run([wine.wine.parent / "wineserver", "-w"], env=wine.env, check=False)
     if app.exists() and any(app.iterdir()):
         sys.exit(f"Uninstalling left files in {app}: {sorted(snapshot(app))[:10]}")
+
+    # An installer that needs a newer runtime than the bottle has must refuse to install.
+    probe = f"WaveMaterial-{version}-vcredist-check"
+    compile_installer("/DMinVCRedist=99.0.0.0", "/DCompression=none", f"/DOutputName={probe}")
+    refused = wine.run(out / f"{probe}.exe", "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART",
+                       check=False)  # fmt: skip
+    (out / f"{probe}.exe").unlink()
+    if refused.returncode == 0 or app.exists() and any(app.iterdir()):
+        sys.exit("The installer did not refuse to install without the required C++ runtime.")
     wine.stop()
 
     print(f"\nInstaller: {setup} ({setup.stat().st_size / 1e6:.0f} MB)")

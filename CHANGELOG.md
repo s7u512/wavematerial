@@ -8,7 +8,8 @@ Every user-visible change is recorded here. The format follows
 
 ### Added
 - A Windows installer: per user, no admin rights needed. It is built and tested only
-  under Wine.
+  under Wine. Windows needs Microsoft's Visual C++ Redistributable (x64), which the
+  installer checks for.
 - The app window: first-run model download (resumable, with pause), the library with
   filters and search, adding recordings (files, folders, or drag and drop) with speaker
   range and key terms, job details with stages and log, settings, and licences and credits.

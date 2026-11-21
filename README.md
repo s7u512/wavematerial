@@ -18,6 +18,14 @@ Radeon 660M, 14 GB RAM, Arch Linux) and with one recording. Windows builds are m
 tested only under Wine (Bottles), never on real Windows. Everything else will be
 "untested, should work".
 
+## Windows needs one thing first
+
+WaveMaterial's Windows installer doesn't include Microsoft's Visual C++ runtime, because
+its licence isn't a free-software licence. Windows must have the **Microsoft Visual C++
+Redistributable (x64)**, in a recent version; many PCs already do. The installer checks,
+names the version it needs, and offers Microsoft's download page if it's missing. Installing
+the redistributable needs administrator rights; WaveMaterial itself doesn't.
+
 ## Development
 
 You need [uv](https://docs.astral.sh/uv/); `uv sync` fetches Python 3.12 if you don't have it.

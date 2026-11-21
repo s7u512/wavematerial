@@ -4,7 +4,13 @@
 ; the defines below.
 
 #ifndef AppVersion
-  #error Pass /DAppVersion, /DNumericVersion, /DBundleDir, /DRepoDir and /DOutputDir.
+  #error Pass /DAppVersion, /DNumericVersion, /DMinVCRedist, /DBundleDir, /DRepoDir and /DOutputDir.
+#endif
+#ifndef Compression
+  #define Compression "lzma2/max"
+#endif
+#ifndef OutputName
+  #define OutputName "WaveMaterial-" + AppVersion + "-windows-x86_64-setup"
 #endif
 
 [Setup]
@@ -29,8 +35,8 @@ SetupIconFile={#RepoDir}\design\logo\app-icon.ico
 UninstallDisplayIcon={app}\wavematerial.ico
 UninstallDisplayName=WaveMaterial
 OutputDir={#OutputDir}
-OutputBaseFilename=WaveMaterial-{#AppVersion}-windows-x86_64-setup
-Compression=lzma2/max
+OutputBaseFilename={#OutputName}
+Compression={#Compression}
 SolidCompression=yes
 WizardStyle=modern
 
@@ -50,3 +56,39 @@ Name: "{autodesktop}\WaveMaterial"; Filename: "{app}\python\pythonw.exe"; Parame
 
 [Run]
 Filename: "{app}\python\pythonw.exe"; Parameters: "-m wavematerial"; WorkingDir: "{app}"; Description: "{cm:LaunchProgram,WaveMaterial}"; Flags: nowait postinstall skipifsilent
+
+[Code]
+// The bundle ships none of Microsoft's C++ runtime DLLs, so Windows must have the Visual C++
+// Redistributable. It is found the way Microsoft documents: its registry key.
+const
+  VCRedistKey = 'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64';
+  VCRedistPage = 'https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist';
+
+function HasVCRedist(): Boolean;
+var
+  Installed, Major, Minor, Bld: Cardinal;
+  Need: Int64;
+begin
+  Result := RegQueryDWordValue(HKLM64, VCRedistKey, 'Installed', Installed) and (Installed = 1)
+    and RegQueryDWordValue(HKLM64, VCRedistKey, 'Major', Major)
+    and RegQueryDWordValue(HKLM64, VCRedistKey, 'Minor', Minor)
+    and RegQueryDWordValue(HKLM64, VCRedistKey, 'Bld', Bld)
+    and StrToVersion('{#MinVCRedist}', Need)
+    and (ComparePackedVersion(PackVersionComponents(Major, Minor, Bld, 0), Need) >= 0);
+end;
+
+function InitializeSetup(): Boolean;
+var
+  ErrorCode: Integer;
+begin
+  Result := HasVCRedist();
+  if not Result then begin
+    Log('Visual C++ Redistributable (x64) {#MinVCRedist} or later not found.');
+    if SuppressibleMsgBox('WaveMaterial needs the Microsoft Visual C++ Redistributable (x64), '
+      + 'version {#MinVCRedist} or later, and it is not installed.' + #13#10#13#10
+      + 'Installing it needs administrator rights. Open Microsoft''s download page now? '
+      + 'After installing it, run this installer again.',
+      mbError, MB_YESNO, IDNO) = IDYES then
+      ShellExec('open', VCRedistPage, '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
+  end;
+end;

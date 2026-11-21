@@ -192,6 +192,9 @@ Paths come from `platformdirs`. Nothing is written inside the install folder.
 - **Windows `.exe`** installer, per user (no admin rights needed), into
   `%LOCALAPPDATA%\Programs\WaveMaterial`; its shortcuts run the bundled `pythonw.exe -m
   wavematerial`. Inno Setup builds it under Wine (`packaging/windows/build.py`).
+- The Windows bundle ships none of Microsoft's C++ runtime (wheels' private copies included).
+  The installer requires the Visual C++ Redistributable (x64) at the newest version the
+  bundled files were built with, and offers Microsoft's download page if it is missing.
 - Everything is built locally; there is no CI. Nothing is signed. Each release carries
   SHA256 checksums.
 
