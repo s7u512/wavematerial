@@ -28,6 +28,7 @@ before building it. Visual design: [`design/DESIGN.md`](../design/DESIGN.md).
 | Merge | Each word goes to the speaker it overlaps most; speakers numbered `SPEAKER_00`… in order of appearance | Python |
 
 - Only one model is loaded at a time.
+- CJK characters (such as the filler 嗯) are removed from each chunk's English text.
 - **Key terms:** each job may carry a list of names and jargon that is passed to Qwen as
   vocabulary, with a default list in Settings. It is a best-effort hint, untested.
 
@@ -164,6 +165,8 @@ Paths come from `platformdirs`. Nothing is written inside the install folder.
 - **Arch Linux first:** a `PKGBUILD` (not published to the AUR), plus a Linux `.tar.gz` of
   the same bundle with no compatibility guarantees.
 - **`.deb`** for Debian 13 and later.
+- Both Linux packages depend on GStreamer's "good" plugins, which WebKitGTK needs to play
+  audio; without them the app turns playback off and says so.
 - **Flatpak** for other Linux distributions, as a `.flatpak` file on GitHub releases.
 - **Windows `.exe`** installer, per user (no admin rights needed).
 - Everything is built locally; there is no CI. Nothing is signed. Each release carries
