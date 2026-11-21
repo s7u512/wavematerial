@@ -17,6 +17,7 @@ from wavematerial.jobs.store import JobStore
 from wavematerial.models.installer import Installer
 from wavematerial.models.manifest import load_manifest
 from wavematerial.preflight import Device
+from wavematerial.transcript.render import write_outputs
 from wavematerial.transcript.schema import Transcript, Turn, Word
 from wavematerial.transcript.store import save_revision, write_artifact
 from wavematerial.updates import UpdateChecker
@@ -401,3 +402,26 @@ def test_interface_preferences_are_saved_and_bad_values_ignored(web):
     s = ctx.settings()
     assert s.dismissed_tips == ["shift-select"]
     assert (s.sidebar_width, s.panel_width) == (300, 0)  # 9999 is out of range: ignored
+
+
+def test_sidebar_search_finds_titles_and_transcript_text(web):
+    ctx, client, tmp = web
+    client.set_cookie(COOKIE, "secret-token", domain="127.0.0.1")
+    for name, word in (("apollo11.wav", "Tranquility"), ("gemini4.wav", "spacewalk")):
+        source = tmp / name
+        source.write_bytes(b"\0")
+        job = ctx.store.add(source, min_speakers=1, max_speakers=2)
+        job_dir = ctx.scheduler.job_dir(job.id)
+        job_dir.mkdir(parents=True)
+        t = Transcript("en", 3.0, ("SPEAKER_00",), (Turn("SPEAKER_00", (Word(word, 1.0, 1.5),)),))
+        write_artifact(job_dir, t)
+        write_outputs(job_dir, t)
+        ctx.store.set_state(job.id, "done")
+
+    def found(q):
+        return _get(client, "/sidebar/search", query_string={"q": q}).get_data(as_text=True)
+
+    assert "gemini4" in found("GEMINI") and "apollo11" not in found("GEMINI")  # title
+    assert "apollo11" in found("tranquil") and "gemini4" not in found("tranquil")  # text
+    assert "No matches" in found("zzz")
+    assert "Recent" in found("")

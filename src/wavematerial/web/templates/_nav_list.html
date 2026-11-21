@@ -1,0 +1,19 @@
+{# SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0 #}
+{# The sidebar's list: Recent, or the matches for a search (titles and transcript text). #}
+{% from "_macros.html" import icon %}
+{% if q is defined and q %}
+<div class="nav-section">{{ "Matches" if found else "No matches" }}</div>
+{% for j in found %}
+<a class="nav-recent" href="{{ '/jobs/%d/edit' % j.id if j.state == 'done' else '/library?q=' ~ (q | urlencode) }}" title="{{ j.name }}">
+  {{ icon("file", 14) }}<span class="nav-label">{{ title_of(j) }}</span>
+</a>
+{% endfor %}
+{% if more %}<a class="nav-recent nav-more" href="/library?q={{ q | urlencode }}"><span class="nav-label">All matches in the library</span></a>{% endif %}
+{% elif recent %}
+<div class="nav-section">Recent</div>
+{% for j in recent %}
+<a class="nav-recent{% if job is defined and job.id == j.id %} is-active{% endif %}" href="/jobs/{{ j.id }}/edit" title="{{ j.name }}"{% if job is defined and job.id == j.id %} aria-current="page"{% endif %}>
+  {{ icon("file", 14) }}<span class="nav-label">{{ title_of(j) }}</span>
+</a>
+{% endfor %}
+{% endif %}

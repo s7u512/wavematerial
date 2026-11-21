@@ -8,14 +8,12 @@
   <a class="nav-item{% if active == 'library' %} is-active{% endif %}" href="/library" title="Library">
     {{ icon("library") }}<span class="nav-label">Library</span>{{ nav_library_count(library_count) }}
   </a>
-  {% if recent %}
-  <div class="nav-section">Recent</div>
-  {% for j in recent %}
-  <a class="nav-recent{% if job is defined and job.id == j.id %} is-active{% endif %}" href="/jobs/{{ j.id }}/edit" title="{{ j.name }}"{% if job is defined and job.id == j.id %} aria-current="page"{% endif %}>
-    {{ icon("file", 14) }}<span class="nav-label">{{ title_of(j) }}</span>
-  </a>
-  {% endfor %}
-  {% endif %}
+  <form class="nav-search" action="/library" method="get">
+    {{ icon("search", 14) }}
+    <input type="search" name="q" placeholder="Search recordings" aria-label="Search recordings by title or text" autocomplete="off"
+           hx-get="/sidebar/search" hx-trigger="input changed delay:250ms, search" hx-target="#nav-list">
+  </form>
+  <div id="nav-list">{% include "_nav_list.html" %}</div>
   <div class="sidebar-spacer"></div>
   {% include "_engine.html" %}
   <a class="nav-item{% if active == 'settings' %} is-active{% endif %}" href="/settings" title="Settings">

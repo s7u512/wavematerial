@@ -396,6 +396,20 @@ def register(app: Flask) -> None:
     def job_drawer(job_id: int):
         return render_template("_drawer.html", **_drawer_data(_ctx(), job_id))
 
+    @app.get("/sidebar/search")
+    def sidebar_search():
+        """The sidebar's list for a search: recordings whose title or transcript matches."""
+        ctx = _ctx()
+        q = request.args.get("q", "").strip()
+        if not q:
+            return render_template("_nav_list.html", recent=_recent(ctx))
+        found = [
+            j
+            for j in sorted(ctx.store.all(), key=lambda j: j.created_at, reverse=True)
+            if _matches(ctx, j, q)
+        ]
+        return render_template("_nav_list.html", q=q, found=found[:8], more=len(found) > 8)
+
     @app.post("/settings/ui")
     def settings_ui():
         """Interface preferences: a dismissed tip, or a dragged width. Bad values are ignored."""
