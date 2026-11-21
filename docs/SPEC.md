@@ -147,7 +147,8 @@ Paths come from `platformdirs`. Nothing is written inside the install folder.
   when no dialog or panel is open. The minimum window is
   960 × 720.
 - The app opens on a landing screen: the logo, the name, the tagline "Offline, Vulkan-first
-  transcription with speaker diarisation and transcript editing", and Open library.
+  transcription with speaker diarisation and transcript editing", Open library, Add
+  recordings (straight from there), and Quit. The sidebar's logo returns to it.
 - The sidebar has **Quit WaveMaterial** and a search over titles and transcript text. If no
   window can open, the app opens in the browser and exits 5 minutes after its last page
   closes.

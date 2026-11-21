@@ -1,5 +1,6 @@
 {# SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0 #}
 {% extends "base.html" %}
+{% from "_macros.html" import icon %}
 {% block title %}WaveMaterial{% endblock %}
 {% block body_class %}page-landing{% endblock %}
 {% block body %}
@@ -8,7 +9,10 @@
   <img class="landing-logo" src="/static/img/app-icon.svg" alt="" width="168" height="168">
   <h1>WaveMaterial</h1>
   <p class="landing-tagline">{{ tagline }}</p>
-  <a class="btn btn-primary landing-go" href="/library" autofocus>Open library</a>
-  <p class="landing-version">Version {{ version }}</p>
+  <div class="landing-actions">
+    <a class="btn btn-primary landing-go" href="/library" autofocus>Open library</a>
+    <button type="button" class="btn btn-secondary landing-go" hx-get="/add" hx-target="#modal">{{ icon("plus", 14) }} Add recordings…</button>
+  </div>
+  <p class="landing-version">Version {{ version }} · <button type="button" class="link landing-quit" hx-post="/quit" hx-target="body" hx-swap="innerHTML" hx-confirm="Quit WaveMaterial? A transcription in progress stops and continues next time you start it.">Quit</button></p>
 </main>
 {% endblock %}

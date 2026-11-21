@@ -31,7 +31,7 @@ The mock-ups are generated, so change `tools/build_mockups.py`, not the FigCraft
 
 | # | Screen |
 |---|---|
-| 00 | Landing: the logo large in the middle, the name, the tagline, and Open library; nothing else |
+| 00 | Landing: the logo large in the middle, the name, the tagline, Open library, Add recordings, and Quit; the sidebar logo returns to it |
 | 01 | First run: device detection and the one-time model download |
 | 02 | Library: every recording, with filter chips (All, In progress, Done, Failed) and search |
 | 03 | Add recordings (dialog): files or a folder, speaker range, key terms |

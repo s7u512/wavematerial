@@ -10,7 +10,7 @@ import threading
 import webbrowser
 from dataclasses import dataclass, replace
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 from flask import (
     Flask,
@@ -871,6 +871,8 @@ def register(app: Flask) -> None:
             )
         resp = make_response("")
         resp.headers["HX-Trigger"] = json.dumps({"refresh": None, "close-modal": None})
+        if urlparse(request.headers.get("HX-Current-URL", "")).path == "/":
+            resp.headers["HX-Redirect"] = "/library"  # quick start from the landing screen
         return resp
 
     # settings

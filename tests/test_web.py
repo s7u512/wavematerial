@@ -558,3 +558,8 @@ def test_the_app_opens_on_the_landing_screen_once_set_up(web):
     page = _get(client, "/").get_data(as_text=True)
     assert "Vulkan-first transcription" in page and 'href="/library"' in page
     assert 'class="sidebar"' not in page  # minimal: no sidebar
+    assert 'hx-get="/add"' in page and 'hx-post="/quit"' in page  # quick start, and Quit
+    landing = {"HX-Current-URL": "http://127.0.0.1:5555/"}
+    assert _post(client, "/add", data={}, headers=landing).headers.get("HX-Redirect") == "/library"
+    library = {"HX-Current-URL": "http://127.0.0.1:5555/library"}
+    assert "HX-Redirect" not in _post(client, "/add", data={}, headers=library).headers

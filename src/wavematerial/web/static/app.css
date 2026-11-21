@@ -286,7 +286,9 @@ progress.bar-ok::-moz-progress-bar { background: var(--ok); }
 .landing-logo { width: 168px; height: 168px; border-radius: 36px; margin-bottom: 26px; }
 .landing h1 { font-size: 34px; font-weight: 650; letter-spacing: -0.01em; margin: 0 0 8px; }
 .landing-tagline { max-width: 560px; margin: 0 0 30px; color: var(--text-2); font-size: var(--fs-section); line-height: 1.5; }
+.landing-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 .landing-go { padding: 9px 22px; font-size: var(--fs-section); }
+.landing-quit { color: var(--text-2); font-size: var(--fs-small); }
 .landing-version { margin: 22px 0 0; color: var(--text-3); font-size: var(--fs-small); }
 
 /* drawer */
