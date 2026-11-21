@@ -31,6 +31,7 @@ from wavematerial.web.context import AppContext, NativeHooks
 log = logging.getLogger("wavematerial")
 
 WINDOWED = (1280, 720)  # the window size outside full screen: 16:9, 720p
+APP_ID = "io.github.s7u512.WaveMaterial"  # desktop entry name; also the Flatpak app ID
 
 
 def _setup_logging(paths: Paths) -> None:
@@ -73,6 +74,13 @@ def _open_window(ctx: AppContext, url: str) -> None:
 
         if winforms.renderer != "edgechromium":
             raise RuntimeError(f"WebView2 is not available (pywebview chose {winforms.renderer})")
+    elif sys.platform == "linux":
+        # The window's app ID (Wayland) and WM_CLASS (X11) come from the program name, which
+        # would otherwise be "python3.12"; docks match it to io.github.s7u512.WaveMaterial.desktop.
+        from gi.repository import GLib
+
+        GLib.set_prgname(APP_ID)
+        GLib.set_application_name("WaveMaterial")
     import webview
     from webview.dom import DOMEventHandler
 
