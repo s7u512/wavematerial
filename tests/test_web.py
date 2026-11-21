@@ -19,7 +19,7 @@ from wavematerial.transcript.schema import Transcript, Turn, Word
 from wavematerial.transcript.store import save_revision, write_artifact
 from wavematerial.updates import UpdateChecker
 from wavematerial.web import COOKIE, create_app
-from wavematerial.web.context import AppContext
+from wavematerial.web.context import AppContext, NativeHooks
 
 CPU = Device("cpu", "cpu", "Test CPU", None)
 
@@ -247,3 +247,27 @@ def test_autosave_writes_the_revision_and_outputs_and_refuses_bad_edits(web):
     for bad in (backwards, spaced, stranger, {"turns": []}, None):
         assert save(bad).status_code == 422
     assert "Tranquility Base" in (job_dir / "outputs" / "transcript.txt").read_text()  # unchanged
+
+
+def test_editor_turns_audio_off_where_the_window_would_crash_playing_it(web, monkeypatch):
+    ctx, client, tmp = web
+    client.set_cookie(COOKIE, "secret-token", domain="127.0.0.1")
+    source = tmp / "apollo11.wav"
+    source.write_bytes(b"\0")
+    job = ctx.store.add(source, min_speakers=1, max_speakers=2)
+    job_dir = ctx.scheduler.job_dir(job.id)
+    job_dir.mkdir(parents=True)
+    turn = Turn("SPEAKER_00", (Word("Eagle", 1.0, 1.4),))
+    write_artifact(job_dir, Transcript("en", 3.0, ("SPEAKER_00",), (turn,)))
+    ctx.store.set_state(job.id, "done")
+    monkeypatch.setattr("wavematerial.web.views.window_audio_problem", lambda: "no audio sink")
+
+    def audio_problem():
+        page = _get(client, f"/jobs/{job.id}/edit").get_data(as_text=True)
+        return json.loads(page.split('id="transcript-data">', 1)[1].split("</script>", 1)[0])[
+            "audio_problem"
+        ]
+
+    assert audio_problem() is None  # a browser plays audio its own way
+    ctx.native = NativeHooks(pick_files=lambda: [])  # the app window (WebKitGTK on Linux)
+    assert audio_problem() == "no audio sink"

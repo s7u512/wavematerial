@@ -41,6 +41,7 @@ from wavematerial.updates import RELEASES_PAGE
 from wavematerial.web import credits, format
 from wavematerial.web.context import AppContext, open_path
 from wavematerial.web.icons import FILLED, ICONS
+from wavematerial.web.media import window_audio_problem
 
 log = logging.getLogger(__name__)
 
@@ -411,6 +412,8 @@ def register(app: Flask) -> None:
             )
         data = {
             "job": job.id,
+            # Only the app window needs this check; a browser plays audio its own way.
+            "audio_problem": window_audio_problem() if ctx.windowed else None,
             "duration": t.duration,
             "speakers": list(t.speakers),
             "names": dict(t.speaker_names),

@@ -438,7 +438,7 @@ ul.plain li { list-style: none; margin: 0; }
 .speed { min-width: 52px; justify-content: center; }
 .follow { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 13px; color: var(--text); white-space: nowrap; }
 .follow input { margin: 0; }
-.audio-note { position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); margin-bottom: 8px; font-size: var(--fs-small); color: var(--text-2); background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: 6px; padding: 4px 10px; white-space: nowrap; }
+.audio-note { position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); margin-bottom: 8px; font-size: var(--fs-small); color: var(--text-2); background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: 6px; padding: 4px 10px; width: max-content; max-width: min(640px, calc(100% - 32px)); text-align: center; }
 .audio-note:empty { display: none; }
 .audio-note.is-error { color: var(--danger); }
 

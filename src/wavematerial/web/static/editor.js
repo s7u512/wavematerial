@@ -285,6 +285,10 @@
   }
 
   async function loadAudio() {
+    if (data.audio_problem) {
+      setNote(data.audio_problem, true); // loading audio would crash the window
+      return;
+    }
     try {
       const resp = await fetch(`/jobs/${data.job}/audio/state`);
       if (!resp.ok) throw new Error(resp.statusText);
@@ -1144,7 +1148,7 @@
       } else if (mod && !inField && evt.key.toLowerCase() === "y") {
         evt.preventDefault();
         redo();
-      } else if (evt.key === " " && !mod && !pop.hidden && selection && !inField && !evt.target.closest("button")) {
+      } else if (evt.key === " " && !mod && !pop.hidden && selection && !inField && !evt.target.closest?.("button")) {
         // Space plays the selection, even inside the text (it doesn't type over it).
         const sel = window.getSelection();
         if (!typing(evt.target) || !sel.isCollapsed) {
