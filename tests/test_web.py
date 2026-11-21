@@ -83,6 +83,18 @@ def test_licence_viewer_stays_inside_its_folder(web):
     assert _get(client, "/credits/licence/static/../../config.py").status_code == 404
 
 
+def test_packaged_runtime_shows_its_built_in_libraries_licences(tmp_path, monkeypatch):
+    from wavematerial.web import credits
+
+    (tmp_path / "licenses").mkdir()
+    for name, text in [("openssl-3", "Apache"), ("cpython", "PSF"), ("zlib", "zlib")]:
+        (tmp_path / "licenses" / f"LICENSE.{name}.txt").write_text(text, encoding="utf-8")
+    monkeypatch.setattr(credits.sys, "base_prefix", str(tmp_path))
+    text = credits.licence_text("python")
+    assert text.index("LICENSE.cpython.txt") < text.index("LICENSE.openssl-3.txt")
+    assert "Apache" in text and "zlib" in text
+
+
 def test_adding_a_folder_queues_its_media_and_saves_defaults(web):
     ctx, client, tmp = web
     client.set_cookie(COOKIE, "secret-token", domain="127.0.0.1")

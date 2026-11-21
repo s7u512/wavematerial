@@ -10,8 +10,10 @@ from __future__ import annotations
 import importlib.metadata as md
 import re
 import sys
+import sysconfig
 from dataclasses import dataclass
 from importlib.resources import files
+from pathlib import Path
 
 _LICENCE_FILE = re.compile(r"(^|/)(LICEN[CS]E|COPYING|NOTICE|AUTHORS)[^/]*$", re.IGNORECASE)
 
@@ -48,7 +50,12 @@ def software() -> list[Component]:
 
 # Not Python packages, or bundled inside one; their licence files ship in static/.
 BUNDLED = [
-    Component(f"Python {sys.version.split()[0]}", "", "PSF-2.0", "python"),
+    Component(
+        f"Python {sys.version.split()[0]} and the libraries built into it",
+        "",
+        "PSF-2.0; OpenSSL Apache-2.0; others (see text)",
+        "python",
+    ),
     Component(
         "FFmpeg and codec libraries (inside PyAV)",
         "",
@@ -62,6 +69,26 @@ BUNDLED = [
 ]
 
 
+def _python_licences() -> str:
+    """CPython's licence, plus those of the libraries built into the runtime.
+
+    Packages ship them in `<runtime>/licenses/` (collected by packaging/bundle.py); a
+    development runtime has only CPython's own `LICENSE.txt`.
+    """
+    shipped = Path(sys.base_prefix) / "licenses"
+    paths = sorted(
+        shipped.glob("LICENSE.*.txt"), key=lambda p: (p.name != "LICENSE.cpython.txt", p.name)
+    )
+    if not paths:
+        own = Path(sysconfig.get_paths()["stdlib"]) / "LICENSE.txt"
+        paths = [own] if own.is_file() else []
+    texts = [f"== {p.name} ==\n\n{p.read_text(encoding='utf-8', errors='replace')}" for p in paths]
+    return "\n\n".join(texts) or (
+        "Python is distributed under the Python Software Foundation License Version 2.\n"
+        "See https://docs.python.org/3/license.html"
+    )
+
+
 def licence_text(key: str) -> str | None:
     if key == "app":
         for f in md.distribution("wavematerial").files or []:
@@ -69,10 +96,7 @@ def licence_text(key: str) -> str | None:
                 return f.read_text(encoding="utf-8")
         return None
     if key == "python":
-        return (
-            "Python is distributed under the Python Software Foundation License Version 2.\n"
-            "See https://docs.python.org/3/license.html"
-        )
+        return _python_licences()
     if key.startswith("static/"):
         rel = key.removeprefix("static/")
         if ".." in rel.split("/"):

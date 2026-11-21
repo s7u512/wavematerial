@@ -15,16 +15,31 @@ and their licences). The build fails if a component's licence is missing or not 
 from __future__ import annotations
 
 import argparse
+import hashlib
+import io
+import json
 import os
 import shutil
 import subprocess
 import sys
+import tarfile
 import tomllib
 from datetime import UTC, datetime
 from pathlib import Path
 
 PYTHON = "3.12.13"
 PYVER = "3.12"
+# The python-build-standalone release uv installs for PYTHON. Its "full" archive is fetched
+# only for the licence texts of the libraries built into the runtime (the install-only one
+# uv uses leaves them out).
+PBS_RELEASE = "20260807"
+PBS_FULL = f"cpython-{PYTHON}+{PBS_RELEASE}-x86_64-unknown-linux-gnu-pgo+lto-full.tar.zst"
+PBS_FULL_SHA256 = "5e69a659d2c126e0760ef951d052509f845a9d55f119ab03a3863811c58a5f49"
+PBS_URL = "https://github.com/astral-sh/python-build-standalone/releases/download"
+# Listed in PYTHON.json but not shipped: this runtime links OpenSSL 3, not 1.1; and zlib-ng's
+# file is missing from the archive (it is under the zlib licence, which asks for its notice
+# only in source distributions).
+PBS_SKIP = {"licenses/LICENSE.openssl-1.1.txt", "licenses/LICENSE.zlib-ng.txt"}
 REPO = Path(__file__).resolve().parent.parent
 HERE = Path(__file__).resolve().parent
 
@@ -102,6 +117,47 @@ def remove(root: Path, pattern: str) -> None:
             path.unlink()
 
 
+def runtime_licences(work: Path) -> Path:
+    """Unpack PYTHON.json and licenses/ from the full archive (downloaded once, verified)."""
+    archive = REPO / "dist" / "cache" / PBS_FULL
+    if not archive.exists():
+        archive.parent.mkdir(parents=True, exist_ok=True)
+        url = f"{PBS_URL}/{PBS_RELEASE}/{PBS_FULL.replace('+', '%2B')}"
+        run("curl", "-fsSL", "--output", archive.with_suffix(".part"), url)
+        archive.with_suffix(".part").rename(archive)
+    digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+    if digest != PBS_FULL_SHA256:
+        sys.exit(f"{archive} has sha256 {digest}, expected {PBS_FULL_SHA256}; delete it.")
+    out = work / "pbs-full"
+    out.mkdir()
+    tar = subprocess.run(["zstd", "-dc", archive], check=True, capture_output=True).stdout
+    with tarfile.open(fileobj=io.BytesIO(tar)) as tf:
+        wanted = [
+            m
+            for m in tf.getmembers()
+            if m.name == "python/PYTHON.json" or m.name.startswith("python/licenses/")
+        ]
+        tf.extractall(out, members=wanted, filter="data")
+    return out / "python"
+
+
+def copy_runtime_licences(full: Path, py: Path, dest: Path) -> None:
+    """Copy CPython's licence and those of the libraries in the modules this runtime still has."""
+    info = json.loads((full / "PYTHON.json").read_text(encoding="utf-8"))
+    paths = {info["license_path"]}
+    extensions = info["build_info"]["extensions"]
+    probe = "import importlib.util as u, sys; print(*(m for m in sys.argv[1:] if u.find_spec(m)))"
+    present = subprocess.run(
+        [py, "-I", "-c", probe, *extensions], check=True, capture_output=True, text=True
+    ).stdout.split()
+    for name in present:
+        for variant in extensions[name]:
+            paths.update(variant.get("license_paths") or [])
+    dest.mkdir()
+    for rel in sorted(paths - PBS_SKIP):
+        shutil.copy2(full / rel, dest / Path(rel).name)
+
+
 def snapshot(root: Path) -> set[str]:
     return {str(p.relative_to(root)) for p in root.rglob("*")}
 
@@ -158,7 +214,10 @@ def main() -> int:
     run(py, "-m", "compileall", "-q", "-j0", "--invalidation-mode", "unchecked-hash",
         bundle / "python" / "lib" / f"python{PYVER}")  # fmt: skip
 
-    # 4. Launcher and build record.
+    # 4. Licence texts for what the runtime has built in (OpenSSL, SQLite, libffi, ...).
+    copy_runtime_licences(runtime_licences(work), py, bundle / "python" / "licenses")
+
+    # 5. Launcher and build record.
     (bundle / "bin").mkdir()
     launcher = bundle / "bin" / "wavematerial"
     launcher.write_text(LAUNCHER.format(pyver=PYVER), encoding="utf-8")
@@ -172,14 +231,16 @@ def main() -> int:
         encoding="utf-8",
     )
 
-    # 5. Licence guard, run inside the bundle so it sees exactly what ships.
+    # 6. Licence guard, run inside the bundle so it sees exactly what ships.
     components = out / f"{name}.components.txt"
     run(py, "-I", "-B", HERE / "licence_check.py", components)
 
-    # 6. Smoke test: it starts, imports the native parts, and writes nothing into itself.
+    # 7. Smoke test: it starts, imports the native parts, and writes nothing into itself.
     before = snapshot(bundle)
     run(launcher, "--version")
     run(py, "-B", "-c", "import av, gi, webview, sherpa_onnx, transcribe_cpp, docx, reportlab")
+    # The runtime licences assume OpenSSL 3 (see PBS_SKIP).
+    run(py, "-B", "-c", "import ssl; assert ssl.OPENSSL_VERSION.startswith('OpenSSL 3')")
     written = snapshot(bundle) - before
     if written:
         sys.exit(f"Running the bundle wrote into it: {sorted(written)[:10]}")
