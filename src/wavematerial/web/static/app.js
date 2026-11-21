@@ -31,7 +31,7 @@
     });
   });
 
-  // ---- full screen (F11) -------------------------------------------------------------------
+  // ---- full screen (F11; Esc leaves it when there is nothing else to close) ----------------
   document.addEventListener("keydown", (evt) => {
     if (evt.key === "F11") {
       const hint = $("#f11");
@@ -43,6 +43,9 @@
     if (evt.key === "Escape") {
       if ($("#modal").children.length) closeModal();
       else if ($("#drawer").children.length) closeDrawer();
+      else if ($("#f11")?.dataset.full === "yes" && !evt.target.closest("input, textarea, select, [contenteditable]")) {
+        $("#f11").click();
+      }
     }
   });
 

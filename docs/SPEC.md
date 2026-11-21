@@ -127,7 +127,8 @@ Paths come from `platformdirs`. Nothing is written inside the install folder.
 - Server-rendered HTML with htmx; live updates come from polling small fragments. All
   front-end assets are vendored, so nothing is fetched at run time.
 - Pico.css v2 plus our own stylesheet. Dark only. Fullscreen 1920 × 1080 by default; F11
-  leaves full screen for a 1280 × 720 (16:9, 720p) window, and back. The minimum window is
+  leaves full screen for a 1280 × 720 (16:9, 720p) window, and back; Esc also leaves it
+  when no dialog or panel is open. The minimum window is
   960 × 720.
 
 ## Licence
