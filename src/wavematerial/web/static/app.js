@@ -15,6 +15,15 @@
     }
   });
 
+  // Open a row menu upwards when there isn't room for it below.
+  document.addEventListener("toggle", (evt) => {
+    const menu = evt.target;
+    if (!menu.matches?.("details.menu") || !menu.open) return;
+    menu.classList.remove("menu-up");
+    const list = menu.querySelector("ul");
+    if (list && list.getBoundingClientRect().bottom > window.innerHeight - 8) menu.classList.add("menu-up");
+  }, true);
+
   // Close an open row menu when clicking elsewhere or after choosing an item.
   document.addEventListener("click", (evt) => {
     document.querySelectorAll("details.menu[open]").forEach((d) => {

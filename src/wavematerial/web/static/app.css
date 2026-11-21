@@ -207,7 +207,12 @@ progress.bar-ok::-moz-progress-bar { background: var(--ok); }
 .search { position: relative; width: 240px; margin: 0; }
 .search .i { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-2); pointer-events: none; }
 .search input { margin: 0; padding-left: 32px !important; height: 32px; font-size: var(--fs-body); }
-.jobs { width: 100%; border: 1px solid var(--border); border-radius: var(--r-card); border-collapse: separate; border-spacing: 0; overflow: hidden; background: var(--surface); margin: 0; }
+.jobs { width: 100%; border: 1px solid var(--border); border-radius: var(--r-card); border-collapse: separate; border-spacing: 0; background: var(--surface); margin: 0; }
+/* No overflow clipping (it would cut off the row menus), so round the corner cells instead. */
+.jobs thead th:first-child { border-top-left-radius: var(--r-card); }
+.jobs thead th:last-child { border-top-right-radius: var(--r-card); }
+.jobs tbody tr:last-child td:first-child { border-bottom-left-radius: var(--r-card); }
+.jobs tbody tr:last-child td:last-child { border-bottom-right-radius: var(--r-card); }
 .jobs th { background: var(--surface-2); color: var(--text-2); font-size: var(--fs-caps); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 10px 18px; border-bottom: 1px solid var(--border); text-align: left; }
 .jobs td { padding: 11px 18px; border-bottom: 1px solid var(--border); background: var(--surface); color: var(--text); vertical-align: middle; }
 .jobs tbody tr:last-child td { border-bottom: 0; }
@@ -231,6 +236,7 @@ progress.bar-ok::-moz-progress-bar { background: var(--ok); }
 .menu summary::after { display: none !important; }
 .menu summary:hover { background: var(--surface-2); color: var(--text); }
 .menu ul { position: absolute; right: 0; top: 100%; z-index: 20; min-width: 180px; margin: 4px 0 0; padding: 4px; list-style: none; background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: 8px; box-shadow: var(--shadow-lg); }
+.menu.menu-up ul { top: auto; bottom: 100%; margin: 0 0 4px; }
 .menu li { list-style: none; margin: 0; padding: 0; }
 .menu li button { display: block; width: 100%; margin: 0; padding: 7px 10px; background: none; border: 0; border-radius: 4px; text-align: left; color: var(--text); font-size: var(--fs-body); cursor: pointer; }
 .menu li button:hover { background: var(--border); }

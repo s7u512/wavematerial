@@ -30,6 +30,8 @@ from wavematerial.web.context import AppContext, NativeHooks
 
 log = logging.getLogger("wavematerial")
 
+WINDOWED = (1280, 720)  # the window size outside full screen: 16:9, 720p
+
 
 def _setup_logging(paths: Paths) -> None:
     paths.logs_dir.mkdir(parents=True, exist_ok=True)
@@ -51,6 +53,8 @@ def _open_window(ctx: AppContext, url: str) -> None:
     window = webview.create_window(
         "WaveMaterial",
         url,
+        width=WINDOWED[0],
+        height=WINDOWED[1],
         fullscreen=True,
         min_size=(960, 720),
         background_color="#111214",
@@ -61,6 +65,14 @@ def _open_window(ctx: AppContext, url: str) -> None:
     def toggle_fullscreen() -> bool:
         window.toggle_fullscreen()
         state["full"] = not state["full"]
+        if not state["full"]:  # leaving full screen: a 16:9 720p window, centred if allowed
+            window.resize(*WINDOWED)
+            if webview.screens:
+                screen = webview.screens[0]
+                window.move(
+                    max(0, (screen.width - WINDOWED[0]) // 2),
+                    max(0, (screen.height - WINDOWED[1]) // 2),
+                )
         return state["full"]
 
     def pick_files() -> list[str]:
