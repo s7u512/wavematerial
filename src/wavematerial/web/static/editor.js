@@ -47,7 +47,13 @@
     if (tenths) s += "." + (total % 10);
     return h ? `${h}:${pad(m)}:${s}` : `${pad(m)}:${s}`;
   }
-  const speakerColour = (id) => `var(--spk-${(Math.max(0, model.speakers.indexOf(id)) % 6) + 1})`;
+  // A speaker keeps its colour: it follows the number in its id (SPEAKER_02 -> the third
+  // colour), so merging one speaker away doesn't recolour the others.
+  function speakerColour(id) {
+    const n = /(\d+)$/.exec(id);
+    const k = n ? Number(n[1]) : Math.max(0, model.speakers.indexOf(id));
+    return `var(--spk-${(k % 6) + 1})`;
+  }
   const speakerName = (id) => model.names[id] || id;
   const typing = (target) => target.closest?.("input, textarea, select, [contenteditable]");
   const nonSpace = (text) => text.replace(/\s+/g, "").length;
@@ -234,12 +240,30 @@
           play.innerHTML = '<svg class="i i-fill" width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3l8 5-8 5z"/></svg>';
           play.append(" Play sample");
           play.disabled = !audioReady;
-          row.append(play, el("span", "spk-stats", `${st.turns} turn${st.turns === 1 ? "" : "s"} · ${pct}%`));
+          const merge = el("button", "btn btn-ghost btn-sm spk-merge", "Merge into…");
+          merge.type = "button";
+          merge.dataset.merge = s;
+          merge.setAttribute("aria-haspopup", "menu");
+          merge.disabled = used < 2;
+          merge.title = "Move all of this speaker's turns to another speaker";
+          row.append(play, merge);
           const bar = el("div", "spk-bar");
           const fill = el("span");
           fill.style.width = `${pct}%`;
           bar.append(fill);
-          card.append(el("div", "spk-name", speakerName(s)), row, bar);
+          const foot = el("div", "spk-foot");
+          foot.append(bar, el("span", "spk-stats", `${st.turns} turn${st.turns === 1 ? "" : "s"} · ${pct}%`));
+          const head = el("label", "spk-name");
+          const name = el("input", "spk-input");
+          name.type = "text";
+          name.value = model.names[s] || "";
+          name.placeholder = s;
+          name.dataset.speaker = s;
+          name.autocomplete = "off";
+          name.spellcheck = false;
+          name.setAttribute("aria-label", `Name for ${s}`);
+          head.append(name);
+          card.append(head, row, foot);
           card._sample = st.longest;
           return card;
         }),
@@ -488,7 +512,8 @@
   // Call before changing the model. Typing in one turn groups into one step until a pause.
   function record(kind, turn = -1) {
     const now = Date.now();
-    const same = kind === "typing" && history.kind === "typing" && history.turn === turn && now - history.at < 1500;
+    const grouped = kind === "typing" || kind === "rename";
+    const same = grouped && history.kind === kind && history.turn === turn && now - history.at < 1500;
     if (!same) {
       history.undo.push(snapshot());
       if (history.undo.length > 500) history.undo.shift();
@@ -590,12 +615,12 @@
       if (pending) saveTimer = setTimeout(save, retry || 300);
     }
   }
-  function changed() {
+  function changed({ speakers = true } = {}) {
     pending = true;
     showSaveState();
     clearTimeout(saveTimer);
     saveTimer = setTimeout(save, 1000);
-    renderSpeakers();
+    if (speakers) renderSpeakers();
     renderTimeline();
   }
   async function flushSaves() {
@@ -768,45 +793,111 @@
     changed();
   }
 
-  // The speaker menu, shared by every turn.
-  let menuTurn = -1;
-  function openMenu(btn) {
-    menuTurn = turnIndex(btn);
-    const current = model.turns[menuTurn].speaker;
-    const items = model.speakers.map((s) => {
+  // ---- the speakers panel: names and merging --------------------------------------------
+  function renameSpeaker(id, value) {
+    record("rename", model.speakers.indexOf(id));
+    const names = { ...model.names };
+    if (value.trim()) names[id] = value;
+    else delete names[id];
+    model.names = names;
+    // Relabel in place, so the name box keeps focus while you type.
+    model.turns.forEach((turn, ti) => {
+      if (turn.speaker !== id) return;
+      const label = turnsEl.children[ti]?.querySelector(".turn-speaker span");
+      if (label) label.textContent = speakerName(id);
+    });
+    changed({ speakers: false });
+  }
+  function mergeSpeakers(from, into) {
+    if (from === into) return;
+    record("merge-speaker");
+    model.turns = model.turns.map((t) => (t.speaker === from ? { speaker: into, words: t.words } : t));
+    model.speakers = model.speakers.filter((sp) => sp !== from);
+    const names = { ...model.names };
+    delete names[from];
+    model.names = names;
+    renderAll();
+    changed();
+    $(`#speaker-list .spk-card [data-merge="${CSS.escape(into)}"]`)?.closest(".spk-card")?.querySelector(".spk-input")?.focus();
+  }
+  const speakerList = $("#speaker-list");
+  speakerList.addEventListener("input", (evt) => {
+    const box = evt.target.closest(".spk-input");
+    if (box) renameSpeaker(box.dataset.speaker, box.value);
+  });
+  speakerList.addEventListener("keydown", (evt) => {
+    if (evt.target.closest(".spk-input") && evt.key === "Enter") evt.target.blur();
+  });
+  speakerList.addEventListener("click", (evt) => {
+    const btn = evt.target.closest(".spk-merge");
+    if (!btn) return;
+    const from = btn.dataset.merge;
+    const used = new Set(model.turns.filter((t) => t.words.length).map((t) => t.speaker));
+    if (!menu.hidden && menuBack === btn) {
+      closeMenu();
+      return;
+    }
+    openMenu(btn, {
+      speakers: model.speakers.filter((sp) => sp !== from && used.has(sp)),
+      onPick: (into) => mergeSpeakers(from, into),
+    });
+  });
+
+  // One floating menu of speakers, used by a turn's speaker button and by "Merge into…".
+  let menuPick = null;
+  let menuBack = null;
+  function openMenu(anchor, { speakers, current = null, fresh = false, onPick }) {
+    const items = speakers.map((sp) => {
       const b = el("button", "menu-item");
       b.type = "button";
-      b.setAttribute("role", "menuitemradio");
-      b.setAttribute("aria-checked", String(s === current));
-      b.dataset.speaker = s;
-      b.style.setProperty("--spk", speakerColour(s));
-      b.append(el("span", "menu-dot"), el("span", "", speakerName(s)));
+      b.setAttribute("role", current === null ? "menuitem" : "menuitemradio");
+      if (current !== null) b.setAttribute("aria-checked", String(sp === current));
+      b.dataset.speaker = sp;
+      b.style.setProperty("--spk", speakerColour(sp));
+      b.append(el("span", "menu-dot"), el("span", "", speakerName(sp)));
       return b;
     });
-    const fresh = el("button", "menu-item", "New speaker");
-    fresh.type = "button";
-    fresh.setAttribute("role", "menuitem");
-    fresh.dataset.speaker = "";
-    menu.replaceChildren(...items, el("hr"), fresh);
+    const extra = [];
+    if (fresh) {
+      const b = el("button", "menu-item", "New speaker");
+      b.type = "button";
+      b.setAttribute("role", "menuitem");
+      b.dataset.speaker = "";
+      extra.push(el("hr"), b);
+    }
+    menu.replaceChildren(...items, ...extra);
+    menuPick = onPick;
+    menuBack = anchor;
     menu.hidden = false;
-    const r = btn.getBoundingClientRect();
+    const r = anchor.getBoundingClientRect();
     const top = Math.min(r.bottom + 4, window.innerHeight - menu.offsetHeight - 8);
     menu.style.top = `${Math.round(top)}px`;
-    menu.style.left = `${Math.round(r.left)}px`;
-    (menu.querySelector('[aria-checked="true"]') || items[0] || fresh).focus();
+    menu.style.left = `${Math.round(Math.min(r.left, window.innerWidth - menu.offsetWidth - 8))}px`;
+    (menu.querySelector('[aria-checked="true"]') || menu.querySelector(".menu-item")).focus();
   }
   function closeMenu(refocus = true) {
     if (menu.hidden) return;
     menu.hidden = true;
-    if (refocus) turnsEl.children[menuTurn]?.querySelector(".turn-speaker")?.focus();
+    if (refocus && menuBack?.isConnected) menuBack.focus();
+  }
+  function openTurnMenu(btn) {
+    const ti = turnIndex(btn);
+    openMenu(btn, {
+      speakers: model.speakers,
+      current: model.turns[ti].speaker,
+      fresh: true,
+      onPick: (id) => {
+        setSpeaker(ti, id || newSpeakerId());
+        turnsEl.children[ti]?.querySelector(".turn-speaker")?.focus();
+      },
+    });
   }
   menu.addEventListener("click", (evt) => {
     const item = evt.target.closest(".menu-item");
     if (!item) return;
-    const ti = menuTurn;
+    const pick = menuPick;
     closeMenu(false);
-    setSpeaker(ti, item.dataset.speaker || newSpeakerId());
-    turnsEl.children[ti]?.querySelector(".turn-speaker")?.focus();
+    pick(item.dataset.speaker);
   });
   menu.addEventListener("keydown", (evt) => {
     const items = [...menu.querySelectorAll(".menu-item")];
@@ -820,7 +911,7 @@
     }
   });
   document.addEventListener("pointerdown", (evt) => {
-    if (!menu.hidden && !menu.contains(evt.target) && !evt.target.closest(".turn-speaker")) closeMenu(false);
+    if (!menu.hidden && !menu.contains(evt.target) && !evt.target.closest(".turn-speaker, .spk-merge")) closeMenu(false);
   });
 
   // ---- clicks and keys in the transcript ----------------------------------------------------
@@ -833,8 +924,8 @@
     }
     const who = evt.target.closest(".turn-speaker");
     if (who) {
-      if (!menu.hidden && menuTurn === turnIndex(who)) closeMenu();
-      else openMenu(who);
+      if (!menu.hidden && menuBack === who) closeMenu();
+      else openTurnMenu(who);
       return;
     }
     const p = evt.target.closest(".turn-text");

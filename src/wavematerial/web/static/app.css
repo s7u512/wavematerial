@@ -406,7 +406,16 @@ html:has(body.page-editor) { scrollbar-gutter: auto; overflow: hidden; }
 .spk-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-card); padding: 12px 14px; display: grid; gap: 10px; }
 .spk-name { display: flex; align-items: center; gap: 10px; font-weight: 500; }
 .spk-name::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--spk); }
-.spk-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.spk-row { display: flex; align-items: center; gap: 6px; }
+.spk-row .btn { white-space: nowrap; }
+.spk-foot { display: flex; align-items: center; gap: 10px; }
+.spk-foot .spk-bar { flex: 1; }
+.spk-stats { white-space: nowrap; }
+.spk-name { margin: 0; cursor: text; }
+.spk-input { flex: 1; margin: 0 !important; height: 32px; font-size: 14px; font-weight: 500; }
+.spk-merge { padding-left: 8px; padding-right: 8px; color: var(--text-2); }
+.spk-merge:hover { color: var(--text); }
+.spk-merge:disabled { display: none; }
 .spk-stats { color: var(--text-2); font-size: var(--fs-small); font-variant-numeric: tabular-nums; }
 .spk-bar { height: 3px; border-radius: 2px; background: var(--border); overflow: hidden; }
 .spk-bar span { display: block; height: 100%; background: var(--spk); }

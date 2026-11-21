@@ -20,6 +20,8 @@ Every user-visible change is recorded here. The format follows
   Alt+↑/↓, including a new speaker), replace selected words, merge neighbouring turns
   into one, and undo and redo. Edits save automatically and update every output file;
   the model's original output is kept unchanged.
+- Naming speakers in the editor's Speakers panel (every turn and output follows), and
+  "Merge into…" for when one person was split into two speakers.
 - Each transcription keeps a small Ogg Opus copy of its audio for playback, so the player
   works with any input format and after the original is moved.
 - Transcription runs in the background, one recording at a time, resumes after a crash or
