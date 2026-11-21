@@ -74,6 +74,12 @@ before building it. Visual design: [`design/DESIGN.md`](../design/DESIGN.md).
   words plays exactly that audio, with Loop, 0.75× speed, and a Replace field. Clicking a
   timestamp plays from there, and Follow highlights the spoken word. Edits autosave.
   There are no review flags.
+- Speakers: renaming one relabels every turn and output; "Merge into…" moves all of one
+  speaker's turns to another; a turn's speaker menu offers "New speaker". A selection
+  spanning neighbouring turns can merge them into one turn with a chosen speaker.
+- The editor plays `playback.opus`, a mono Ogg Opus copy (~32 kbit/s) of the audio that
+  the decode stage writes into the job folder (made once by the worker for older jobs).
+- Export offers docx and pdf only when their optional libraries are installed.
 
 ## Data and settings
 

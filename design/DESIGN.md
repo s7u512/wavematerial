@@ -42,6 +42,10 @@ The mock-ups are generated, so change `tools/build_mockups.py`, not the FigCraft
 The shell is a 248 px sidebar (logo, Library, Recent, the engine card, and Settings). Below
 about 1280 px wide it becomes a 60 px icon rail.
 
+In the editor's Speakers tab each speaker has its own "Merge into…" action, in place of the
+mock-up's single "Merge or split speakers…" link. A selection across neighbouring turns adds
+"Merge N turns into one" with a speaker menu to the select-and-listen popover.
+
 ## Colour tokens
 
 Dark only. Text meets 4.5:1 and graphics meet 3:1; `tools/contrast.py` checks every pair.
