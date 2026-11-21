@@ -92,7 +92,9 @@ def test_adding_a_folder_queues_its_media_and_saves_defaults(web):
             w.writeframes(b"\0" * 8000)
     (folder / "notes.txt").write_text("not audio", encoding="utf-8")
 
-    listed = _post(client, "/add/files", data={"how": "typed", "dropped": f'["{folder}"]'})
+    listed = _post(
+        client, "/add/files", data={"how": "typed", "dropped": json.dumps([str(folder)])}
+    )
     assert listed.get_data(as_text=True).count('name="paths"') == 2  # the .txt is skipped
 
     r = _post(

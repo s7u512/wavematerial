@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import shutil
 import subprocess
 import sys
@@ -181,6 +182,7 @@ class Scheduler:
             "job_dir": str(job_dir),
             "models_dir": str(self.paths.models_dir(settings)),
             "choice": asdict(choice),
+            "parent_pid": os.getpid(),
             "settings": {
                 "min_speakers": job.min_speakers,
                 "max_speakers": job.max_speakers,

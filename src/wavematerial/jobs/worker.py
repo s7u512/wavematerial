@@ -9,7 +9,8 @@ object per line on its original stdout:
 Native libraries print to stdout too, so the worker first points file descriptor 1 at
 stderr (the job's log) and keeps a private copy of the original for these messages.
 
-The worker exits as soon as its stdin closes: if the app dies, its worker dies with it.
+The worker exits as soon as the app does (its stdin closes, or on Windows its parent exits):
+if the app dies, its worker dies with it.
 """
 
 from __future__ import annotations
@@ -25,13 +26,38 @@ from pathlib import Path
 from wavematerial.preflight import Choice
 
 
-def _exit_when_parent_goes() -> None:
-    def watch() -> None:
-        try:
-            while sys.stdin.buffer.read(4096):
-                pass
-        finally:
+def _exit_when_parent_goes(parent_pid: int | None) -> None:
+    """Exit as soon as the app does, so a crashed app never leaves a worker running.
+
+    On Linux the worker waits for its stdin to close. On Windows it waits on the parent
+    process instead: there, a thread blocked reading a pipe makes other calls on that
+    handle wait, and loading a DLL checks the standard handles, so the worker froze at its
+    first native import (numpy) under the stdin watch.
+    """
+    if sys.platform == "win32":
+        import psutil
+
+        try:  # the app passes its pid (os.getppid() needs a newer API than some systems have)
+            parent = psutil.Process(parent_pid or os.getppid())
+        except psutil.Error:
             os._exit(3)
+
+        def watch() -> None:
+            try:
+                parent.wait()
+            except psutil.Error:
+                pass
+            finally:
+                os._exit(3)
+
+    else:
+
+        def watch() -> None:
+            try:
+                while sys.stdin.buffer.read(4096):
+                    pass
+            finally:
+                os._exit(3)
 
     threading.Thread(target=watch, daemon=True).start()
 
@@ -41,12 +67,12 @@ def main(argv: list[str]) -> int:
     os.dup2(2, 1)
     sys.stdout = sys.stderr
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    _exit_when_parent_goes()
 
     def emit(**event) -> None:
         channel.write(json.dumps(event) + "\n")
 
     spec = json.loads(argv[0])
+    _exit_when_parent_goes(spec.get("parent_pid"))
     choice = Choice(**spec["choice"])
     source, job_dir = Path(spec["source"]), Path(spec["job_dir"])
 
