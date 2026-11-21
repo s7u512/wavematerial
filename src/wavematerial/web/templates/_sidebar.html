@@ -11,9 +11,9 @@
   {% if recent %}
   <div class="nav-section">Recent</div>
   {% for j in recent %}
-  <button type="button" class="nav-recent" hx-get="/jobs/{{ j.id }}" hx-target="#drawer" title="{{ j.name }}">
+  <a class="nav-recent{% if job is defined and job.id == j.id %} is-active{% endif %}" href="/jobs/{{ j.id }}/edit" title="{{ j.name }}"{% if job is defined and job.id == j.id %} aria-current="page"{% endif %}>
     {{ icon("file", 14) }}<span class="nav-label">{{ j.name.rsplit('.', 1)[0] }}</span>
-  </button>
+  </a>
   {% endfor %}
   {% endif %}
   <div class="sidebar-spacer"></div>

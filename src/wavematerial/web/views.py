@@ -28,7 +28,8 @@ from wavematerial.jobs.events import STAGE_LABELS, read_events, stage_times
 from wavematerial.jobs.store import Job
 from wavematerial.models.download import is_installed, verify
 from wavematerial.preflight import choose, usable_gpus
-from wavematerial.transcript.store import REVISION
+from wavematerial.transcript.schema import TranscriptError
+from wavematerial.transcript.store import REVISION, read_current
 from wavematerial.updates import RELEASES_PAGE
 from wavematerial.web import credits, format
 from wavematerial.web.context import AppContext, open_path
@@ -382,6 +383,52 @@ def register(app: Flask) -> None:
     @app.get("/jobs/<int:job_id>")
     def job_drawer(job_id: int):
         return render_template("_drawer.html", **_drawer_data(_ctx(), job_id))
+
+    # ---- transcript editor ----------------------------------------------------------------
+    @app.get("/jobs/<int:job_id>/edit")
+    def editor(job_id: int):
+        ctx = _ctx()
+        try:
+            job = ctx.store.get(job_id)
+        except KeyError:
+            abort(404)
+        if job.state != "done":
+            return redirect("/library")
+        job_dir = ctx.scheduler.job_dir(job.id)
+        try:
+            t = read_current(job_dir)
+        except (OSError, TranscriptError) as exc:
+            log.warning("Can't open the transcript of job %s: %s", job.id, exc)
+            return render_template(
+                "editor_error.html", **_shell(ctx, "library"), job=job, title=job.name
+            )
+        data = {
+            "job": job.id,
+            "duration": t.duration,
+            "speakers": list(t.speakers),
+            "names": dict(t.speaker_names),
+            # [text, start, end] per word keeps the page small for long recordings.
+            "turns": [
+                {"speaker": turn.speaker, "words": [[w.text, w.start, w.end] for w in turn.words]}
+                for turn in t.turns
+            ],
+        }
+        stages = [st for st in _drawer_data(ctx, job.id)["stages"] if st["note"]]
+        models = [t.engine[k] for k in ("text", "timings", "diarization") if k in t.engine]
+        return render_template(
+            "editor.html",
+            **_shell(ctx, "library"),
+            job=job,
+            title=job.name.rsplit(".", 1)[0] if "." in job.name else job.name,
+            length=format.length(t.duration),
+            n_speakers=len(t.speakers),
+            language={"en": "English"}.get(t.language, t.language),
+            device=format.device_label(job.device),
+            models=models,
+            finished=format.added(job.finished_at),
+            stages=stages,
+            data=data,
+        )
 
     # ---- editor audio ---------------------------------------------------------------------
     def _done_job(ctx: AppContext, job_id: int) -> Job:

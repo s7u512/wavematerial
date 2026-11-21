@@ -19,7 +19,11 @@
   {% for r in rows %}
     <tr class="job-row{% if r.status == 'running' %} is-running{% endif %}">
       <td class="name">
+        {% if r.status == "done" %}
+        <a class="row-open" href="/jobs/{{ r.job.id }}/edit">{{ icon("file", 14) }}<span>{{ r.job.name }}</span></a>
+        {% else %}
         <button type="button" class="row-open" hx-get="/jobs/{{ r.job.id }}" hx-target="#drawer">{{ icon("file", 14) }}<span>{{ r.job.name }}</span></button>
+        {% endif %}
       </td>
       <td class="num">{{ r.length }}</td>
       <td class="num">{{ r.speakers }}</td>

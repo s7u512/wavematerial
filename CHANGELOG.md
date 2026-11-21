@@ -10,6 +10,13 @@ Every user-visible change is recorded here. The format follows
 - The app window: first-run model download (resumable, with pause), the library with
   filters and search, adding recordings (files, folders, or drag and drop) with speaker
   range and key terms, job details with stages and log, settings, and licences and credits.
+  F11 or Esc leaves full screen.
+- Opening a finished recording shows its transcript with a player: play from any
+  timestamp or Ctrl+click a word, Follow highlights the spoken word, and selecting words
+  plays exactly that audio (with Loop and 0.75×). The side panel lists the speakers with a
+  sample of each, and the recording's details. Editing comes next.
+- Each transcription keeps a small Ogg Opus copy of its audio for playback, so the player
+  works with any input format and after the original is moved.
 - Transcription runs in the background, one recording at a time, resumes after a crash or
   a stop, and moves to the processor if the graphics card fails.
 - Command line: `wavematerial models` (download or verify the models) and

@@ -1,8 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0
 """The local web app: its access checks and the add-recordings flow (no window, no models)."""
 
+import json
 import time
 import wave
+from dataclasses import replace
 
 import av
 import pytest
@@ -13,6 +15,8 @@ from wavematerial.jobs.store import JobStore
 from wavematerial.models.installer import Installer
 from wavematerial.models.manifest import load_manifest
 from wavematerial.preflight import Device
+from wavematerial.transcript.schema import Transcript, Turn, Word
+from wavematerial.transcript.store import save_revision, write_artifact
 from wavematerial.updates import UpdateChecker
 from wavematerial.web import COOKIE, create_app
 from wavematerial.web.context import AppContext
@@ -160,3 +164,34 @@ def test_editor_audio_is_made_once_for_older_jobs_and_seekable(web):
     ctx.store.set_state(gone.id, "done")
     state = _get(client, f"/jobs/{gone.id}/audio/state").get_json()
     assert state["state"] == "failed" and "no longer at" in state["message"]
+
+
+def test_editor_opens_the_current_revision_and_only_for_done_jobs(web):
+    ctx, client, tmp = web
+    client.set_cookie(COOKIE, "secret-token", domain="127.0.0.1")
+    source = tmp / "apollo11.wav"
+    source.write_bytes(b"\0")
+    job = ctx.store.add(source, min_speakers=1, max_speakers=2)
+    assert _get(client, f"/jobs/{job.id}/edit").status_code == 302  # still queued
+
+    job_dir = ctx.scheduler.job_dir(job.id)
+    job_dir.mkdir(parents=True)
+    turn = Turn("SPEAKER_00", (Word("Eagle", 1.0, 1.4), Word("landed", 1.5, 2.0)))
+    original = Transcript("en", 3.0, ("SPEAKER_00",), (turn,))
+    write_artifact(job_dir, original)
+    edited = Turn(
+        "SPEAKER_00", (Word("Eagle", 1.0, 1.4), Word("has", 1.5, 1.7), Word("landed", 1.7, 2.0))
+    )
+    save_revision(
+        job_dir, replace(original, turns=(edited,), speaker_names={"SPEAKER_00": "Armstrong"})
+    )
+    ctx.store.set_state(job.id, "done")
+
+    page = _get(client, f"/jobs/{job.id}/edit").get_data(as_text=True)
+    data = json.loads(page.split('id="transcript-data">', 1)[1].split("</script>", 1)[0])
+    assert data["names"] == {"SPEAKER_00": "Armstrong"}
+    assert [w[0] for w in data["turns"][0]["words"]] == ["Eagle", "has", "landed"]
+
+    (job_dir / "artifact.json").write_text("{not json")
+    broken = _get(client, f"/jobs/{job.id}/edit")
+    assert broken.status_code == 200 and "can't be opened" in broken.get_data(as_text=True)

@@ -1,0 +1,97 @@
+{# SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0 #}
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}{{ title }} · WaveMaterial{% endblock %}
+{% block body_class %}page-editor{% endblock %}
+{% block scripts %}<script src="/static/editor.js" defer></script>{% endblock %}
+{% block main %}
+<div class="editor" id="editor">
+  <header class="ed-top">
+    <a class="ed-back" href="/library">{{ icon("back", 14) }} Library</a>
+    <div class="ed-title">
+      <h1 title="{{ job.name }}">{{ title }}</h1>
+      <p class="ed-meta">{{ length }} · {{ n_speakers }} speaker{{ "" if n_speakers == 1 else "s" }} · {{ language }}</p>
+    </div>
+    <div class="ed-actions">
+      <button type="button" class="icon-btn ed-panel-toggle" id="panel-toggle" aria-controls="ed-panel" aria-expanded="false" title="Speakers and details">{{ icon("speaker") }}<span class="visually-hidden">Speakers and details</span></button>
+      {% include "_f11.html" %}
+    </div>
+  </header>
+
+  <div class="ed-body">
+    <div class="ed-scroll" id="ed-scroll">
+      <div class="ed-column">
+        <div id="turns" class="turns" aria-label="Transcript"></div>
+      </div>
+    </div>
+
+    <aside class="ed-panel" id="ed-panel" aria-label="Speakers and details">
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" id="tab-btn-speakers" aria-controls="tab-speakers" aria-selected="true">Speakers</button>
+        <button type="button" role="tab" id="tab-btn-details" aria-controls="tab-details" aria-selected="false" tabindex="-1">Details</button>
+      </div>
+      <section id="tab-speakers" role="tabpanel" aria-labelledby="tab-btn-speakers">
+        <div id="speaker-list" class="speaker-list"></div>
+        {% if job.key_terms %}
+        <h3 class="caps">Key terms</h3>
+        <div class="term-chips">{% for t in job.key_terms %}<span class="term">{{ t }}</span>{% endfor %}</div>
+        {% endif %}
+        <h3 class="caps">Keys</h3>
+        <dl class="keys">
+          <div><dt>Play / pause</dt><dd><kbd>Ctrl+Space</kbd></dd></div>
+          <div><dt>Jump to playing</dt><dd><kbd>Ctrl+J</kbd></dd></div>
+          <div><dt>Play from a word</dt><dd><kbd>Ctrl+click</kbd></dd></div>
+          <div><dt>Listen to a passage</dt><dd><kbd>Select words</kbd></dd></div>
+          <div><dt>Play the selection</dt><dd><kbd>Space</kbd></dd></div>
+        </dl>
+      </section>
+      <section id="tab-details" role="tabpanel" aria-labelledby="tab-btn-details" hidden>
+        <dl class="facts">
+          <div><dt>Original file</dt><dd class="path">{{ job.source }}</dd></div>
+          <div><dt>Length</dt><dd>{{ length }}</dd></div>
+          <div><dt>Language</dt><dd>{{ language }}</dd></div>
+          <div><dt>Speakers</dt><dd>{{ n_speakers }} (asked for {{ job.min_speakers }}{% if job.max_speakers != job.min_speakers %}–{{ job.max_speakers }}{% endif %})</dd></div>
+          {% if device %}<div><dt>Device</dt><dd>{{ device }}</dd></div>{% endif %}
+          {% if finished %}<div><dt>Transcribed</dt><dd>{{ finished }}</dd></div>{% endif %}
+        </dl>
+        {% if models %}
+        <h3 class="caps">Models</h3>
+        <ul class="plain">{% for m in models %}<li>{{ m }}</li>{% endfor %}</ul>
+        {% endif %}
+        {% if stages %}
+        <h3 class="caps">Time per stage</h3>
+        <dl class="facts">{% for st in stages %}<div><dt>{{ st.label }}</dt><dd>{{ st.note }}</dd></div>{% endfor %}</dl>
+        {% endif %}
+      </section>
+    </aside>
+  </div>
+
+  <footer class="player" aria-label="Player">
+    <button type="button" class="icon-btn" id="rewind" title="Back 5 seconds" disabled>{{ icon("rewind") }}<span class="visually-hidden">Back 5 seconds</span></button>
+    <button type="button" class="play-btn" id="play" title="Play (Ctrl+Space)" disabled>{{ icon("play", 16, "i-play") }}{{ icon("pause", 16, "i-pause") }}<span class="visually-hidden" id="play-label">Play</span></button>
+    <span class="time" id="time">0:00</span>
+    <div class="timeline" id="timeline" role="slider" tabindex="0" aria-label="Position" aria-valuemin="0" aria-valuemax="{{ data.duration | round(1) }}" aria-valuenow="0" aria-valuetext="0:00">
+      <div class="tl-segs" id="tl-segs"></div>
+      <div class="tl-sel" id="tl-sel" hidden></div>
+      <div class="tl-head" id="tl-head"></div>
+    </div>
+    <span class="time time-dur">{{ length }}</span>
+    <button type="button" class="btn btn-secondary btn-sm speed" id="speed" title="Playback speed">1.0×</button>
+    <label class="follow"><input type="checkbox" role="switch" id="follow" checked> Follow</label>
+    <span class="audio-note" id="audio-note" role="status"></span>
+  </footer>
+
+  <div class="sel-pop" id="sel-pop" role="dialog" aria-label="Selected words" hidden>
+    <div class="sel-head"><strong id="sel-count"></strong><span id="sel-range" class="sel-range"></span></div>
+    <div class="sel-actions">
+      <button type="button" class="btn btn-secondary btn-sm" id="sel-play">{{ icon("play", 12) }} Play selection</button>
+      <button type="button" class="toggle-chip" id="sel-loop" aria-pressed="false">Loop</button>
+      <button type="button" class="toggle-chip" id="sel-slow" aria-pressed="false">0.75×</button>
+    </div>
+    <p class="sel-hint">Space plays · Esc closes</p>
+  </div>
+
+  <audio id="audio" preload="auto"></audio>
+  <script type="application/json" id="transcript-data">{{ data | tojson }}</script>
+</div>
+{% endblock %}

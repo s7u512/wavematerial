@@ -1,0 +1,16 @@
+{# SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0 #}
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}{{ title }} · WaveMaterial{% endblock %}
+{% block main %}
+<header class="page-head">
+  <div>
+    <a class="back-link" href="/library">{{ icon("back", 14) }} Library</a>
+    <h1>{{ title }}</h1>
+  </div>
+</header>
+<div class="banner banner-danger" role="alert">
+  {{ icon("alert") }}
+  <div><strong>This transcript can't be opened.</strong> Its files in the job folder are missing or damaged; the app log has the details. To transcribe the recording again, add it again.</div>
+</div>
+{% endblock %}
