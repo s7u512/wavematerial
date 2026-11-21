@@ -396,6 +396,24 @@ def register(app: Flask) -> None:
     def job_drawer(job_id: int):
         return render_template("_drawer.html", **_drawer_data(_ctx(), job_id))
 
+    @app.post("/settings/ui")
+    def settings_ui():
+        """Interface preferences: a dismissed tip, or a dragged width. Bad values are ignored."""
+        ctx = _ctx()
+        body = request.get_json(silent=True) or {}
+        s = ctx.settings()
+        changes: dict = {}
+        tip = body.get("dismiss_tip")
+        if isinstance(tip, str) and tip and tip not in s.dismissed_tips:
+            changes["dismissed_tips"] = [*s.dismissed_tips, tip[:40]]
+        for key, lo, hi in (("sidebar_width", 160, 480), ("panel_width", 260, 640)):
+            v = body.get(key)
+            if isinstance(v, int) and not isinstance(v, bool) and (v == 0 or lo <= v <= hi):
+                changes[key] = v
+        if changes:
+            ctx.save_settings(replace(s, **changes))
+        return "", 204
+
     # ---- browser mode: quitting and staying alive -----------------------------------------
     @app.post("/quit")
     def quit_app():
@@ -433,6 +451,7 @@ def register(app: Flask) -> None:
             "job": job.id,
             # Only the app window needs this check; a browser plays audio its own way.
             "audio_problem": window_audio_problem() if ctx.windowed else None,
+            "tips_dismissed": ctx.settings().dismissed_tips,
             "duration": t.duration,
             "speakers": list(t.speakers),
             "names": dict(t.speaker_names),

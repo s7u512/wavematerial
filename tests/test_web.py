@@ -390,3 +390,14 @@ def test_quit_closes_the_window_or_stops_the_browser_mode_and_heartbeats_count(w
     assert "Quit WaveMaterial" in _get(client, "/library").get_data(as_text=True)
     _post(client, "/quit")
     assert closed.wait(2)  # in the window, Quit closes it (the app then shuts down)
+
+
+def test_interface_preferences_are_saved_and_bad_values_ignored(web):
+    ctx, client, _ = web
+    client.set_cookie(COOKIE, "secret-token", domain="127.0.0.1")
+    body = {"dismiss_tip": "shift-select", "sidebar_width": 300, "panel_width": 9999}
+    assert _post(client, "/settings/ui", json=body).status_code == 204
+    _post(client, "/settings/ui", json={"dismiss_tip": "shift-select"})  # no duplicate
+    s = ctx.settings()
+    assert s.dismissed_tips == ["shift-select"]
+    assert (s.sidebar_width, s.panel_width) == (300, 0)  # 9999 is out of range: ignored

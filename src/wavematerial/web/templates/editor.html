@@ -47,6 +47,10 @@
             <button type="button" class="icon-btn" id="find-next" title="Next (Enter)" aria-label="Next match">{{ icon("down", 14) }}</button>
             <button type="button" class="btn btn-ghost btn-sm" id="find-toggle" aria-expanded="false" aria-controls="replace-row">Replace</button>
           </div>
+          <div class="tip" id="sel-tip" role="note" hidden>
+            <span><strong>Tip:</strong> <kbd>Shift</kbd>+click in another turn to select across turns. Right-click the text for more actions.</span>
+            <button type="button" class="icon-btn icon-btn-sm" id="sel-tip-close" title="Got it" aria-label="Dismiss the tip">{{ icon("x", 12) }}</button>
+          </div>
           <div class="find-row" id="replace-row" hidden>
             <label class="find-field"><input type="text" id="find-replace" placeholder="Replace with" aria-label="Replace with" autocomplete="off" spellcheck="false"></label>
             <button type="button" class="btn btn-secondary btn-sm" id="replace-one">Replace</button>
@@ -75,7 +79,11 @@
           <div><dt>Play from a word</dt><dd><kbd>Ctrl+click</kbd></dd></div>
           <div><dt>Listen to a passage</dt><dd><kbd>Select words</kbd></dd></div>
           <div><dt>Play the selection</dt><dd><kbd>Space</kbd></dd></div>
+          <div><dt>Select across turns</dt><dd><kbd>Shift+click</kbd></dd></div>
+          <div><dt>More actions</dt><dd><kbd>Right-click</kbd></dd></div>
           <div><dt>Split turn here</dt><dd><kbd>Enter</kbd></dd></div>
+          <div><dt>Move rest to next turn</dt><dd><kbd>Alt+Shift+↓</kbd></dd></div>
+          <div><dt>Move start to previous turn</dt><dd><kbd>Alt+Shift+↑</kbd></dd></div>
           <div><dt>Join with turn above</dt><dd><kbd>Backspace</kbd> at start</dd></div>
           <div><dt>Change speaker</dt><dd><kbd>Alt+↑ / ↓</kbd></dd></div>
           <div><dt>Find / replace</dt><dd><kbd>Ctrl+F</kbd> <kbd>Ctrl+H</kbd></dd></div>
@@ -142,6 +150,7 @@
   </div>
 
   <div class="spk-menu" id="spk-menu" role="menu" aria-label="Speaker" hidden></div>
+  <div class="spk-menu ctx-menu" id="ctx-menu" role="menu" aria-label="Text actions" hidden></div>
 
   <audio id="audio" preload="auto"></audio>
   <script type="application/json" id="transcript-data">{{ data | tojson }}</script>

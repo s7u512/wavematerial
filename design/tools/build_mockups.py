@@ -40,6 +40,7 @@ ACCENT_TEXT = "#D75647"  # same hue, lighter: for red TEXT (>= 4.5:1 on every da
 ON_ACCENT = "#FFFFFF"  # text/icons on red fills (5.9:1)
 ACCENT_SOFT = "#2A0D08"  # accent-text on it: 4.58:1
 ACCENT_TINT = "#1C1210"  # playing turn; accent-text on it: 4.65:1
+SELECTION = "#2D4F7C"  # a Shift+click selection across turns (the editor)
 WARN = "#F0B04A"
 WARN_SOFT = "#33270F"
 DANGER = "#FF8A80"  # errors: lighter salmon + icon, so they don't read as "brand red"

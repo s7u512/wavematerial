@@ -190,6 +190,7 @@
     const frag = document.createDocumentFragment();
     for (const turn of model.turns) frag.append(renderTurn(turn));
     turnsEl.replaceChildren(frag);
+    if (typeof clearVirtual === "function" && virtual) clearVirtual();
     dirty.clear();
     editBase.clear();
     reindex();
@@ -757,9 +758,10 @@
   });
 
   // ---- splitting, joining, speakers ---------------------------------------------------------
-  function splitTurn(p) {
+  // A turn cut in two at the cursor: the words before it and from it, timed.
+  function cutAtCaret(p) {
     const sel = window.getSelection();
-    if (!sel.rangeCount) return;
+    if (!sel.rangeCount || !p.contains(sel.anchorNode)) return null;
     const ti = turnIndex(p);
     const turn = model.turns[ti];
     const r = sel.getRangeAt(0);
@@ -771,15 +773,61 @@
     tail.setStart(r.endContainer, r.endOffset);
     const a = splitWords(head.toString());
     const b = splitWords(tail.toString());
-    if (!a.length || !b.length) return; // nothing to split off at either end
-    record("split");
     const [t0, t1] = window_(ti);
     const timed = retime(a.concat(b), editBase.get(ti) || turn.words, t0, t1);
-    model.turns.splice(ti, 1,
-      { speaker: turn.speaker, words: timed.slice(0, a.length) },
-      { speaker: turn.speaker, words: timed.slice(a.length) });
-    renderAll({ turn: ti + 1, ns: 0, space: false });
+    return { ti, speaker: turn.speaker, head: timed.slice(0, a.length), tail: timed.slice(a.length) };
+  }
+  const nsOf = (words) => words.reduce((n, w) => n + nonSpace(w.text), 0);
+
+  function splitTurn(p) {
+    const cut = cutAtCaret(p);
+    if (!cut || !cut.head.length || !cut.tail.length) return; // nothing to split off at an end
+    record("split");
+    model.turns.splice(cut.ti, 1,
+      { speaker: cut.speaker, words: cut.head },
+      { speaker: cut.speaker, words: cut.tail });
+    renderAll({ turn: cut.ti + 1, ns: 0, space: false });
     changed();
+  }
+
+  // Move the text from the cursor to the end into the next turn (or, at the last turn, into
+  // a new turn whose speaker is chosen), or the text up to the cursor into the previous one.
+  function moveText(p, direction) {
+    const cut = cutAtCaret(p);
+    if (!cut) return;
+    const { ti, speaker, head, tail } = cut;
+    const moving = direction === "next" ? tail : head;
+    const staying = direction === "next" ? head : tail;
+    if (!moving.length) return;
+    const near = direction === "next" ? ti + 1 : ti - 1;
+    const apply = (newSpeaker) => {
+      record("move");
+      if (newSpeaker && !model.speakers.includes(newSpeaker)) model.speakers.push(newSpeaker);
+      const turns = model.turns.slice();
+      turns[ti] = { speaker, words: staying };
+      let caret;
+      if (!newSpeaker) {
+        const other = turns[near];
+        const words = direction === "next" ? moving.concat(other.words) : other.words.concat(moving);
+        turns[near] = { speaker: other.speaker, words };
+        caret = { turn: near, ns: direction === "next" ? 0 : nsOf(other.words) };
+      } else {
+        turns.splice(direction === "next" ? ti + 1 : ti, 0, { speaker: newSpeaker, words: moving });
+        caret = { turn: direction === "next" ? ti + 1 : ti, ns: 0 };
+      }
+      const gone = !staying.length && caret.turn > ti ? 1 : 0; // the cut turn emptied out
+      model.turns = turns.filter((t) => t.words.length);
+      renderAll({ turn: caret.turn - gone, ns: caret.ns, space: false });
+      changed();
+    };
+    if (near >= 0 && near < model.turns.length) apply(null);
+    else {
+      openMenu(turnsEl.children[ti].querySelector(".turn-speaker"), {
+        speakers: model.speakers.filter((sp) => sp !== speaker),
+        fresh: true,
+        onPick: (id) => apply(id || newSpeakerId()),
+      });
+    }
   }
 
   function joinTurns(ti) {
@@ -932,6 +980,91 @@
     if (!menu.hidden && !menu.contains(evt.target) && !evt.target.closest(".turn-speaker, .spk-merge")) closeMenu(false);
   });
 
+  // ---- the right-click menu in the text -----------------------------------------------------
+  const ctx = $("#ctx-menu");
+  function closeCtx() {
+    ctx.hidden = true;
+  }
+  function ctxItem(label, key, action, disabled = false) {
+    const b = el("button", "menu-item");
+    b.type = "button";
+    b.setAttribute("role", "menuitem");
+    b.append(el("span", "", label));
+    if (key) b.append(el("span", "menu-key", key));
+    b.disabled = disabled;
+    b._action = action;
+    return b;
+  }
+  turnsEl.addEventListener("contextmenu", (evt) => {
+    const p = evt.target.closest(".turn-text");
+    if (!p) return;
+    evt.preventDefault();
+    closeMenu(false);
+    const live = window.getSelection();
+    const inText = live.rangeCount && !live.isCollapsed && turnsEl.contains(live.anchorNode);
+    let items;
+    if (virtual || inText) {
+      if (!selection) showPopover();
+      const s = selection;
+      const text = s ? s.picked.map((w) => w.text).join(" ") : live.toString();
+      items = [
+        ctxItem("Play selection", "Space", playSelection, !audioReady || !s),
+        ctxItem("Copy", "Ctrl+C", () => navigator.clipboard?.writeText(text)),
+        ...(s && s.to > s.from ? [ctxItem(`Merge ${s.to - s.from + 1} turns into one`, "", mergeSelection)] : []),
+      ];
+    } else {
+      // Put the cursor where the click was (keyboard menus keep the cursor where it is).
+      // A right-clicked word counts from its start: "from here" means from this word.
+      const pos = evt.clientX || evt.clientY ? pointPos(evt.clientX, evt.clientY) : null;
+      if (pos) {
+        const words = model.turns[pos.turn].words;
+        const wi = words.length ? wordAtNs(model.turns[pos.turn], pos.ns) : 0;
+        placeCaret(textOf(pos.turn), nsOf(words.slice(0, wi)));
+      }
+      const here = textOf(pos ? pos.turn : turnIndex(p));
+      const ti = turnIndex(here);
+      items = [
+        ctxItem("Play from here", "Ctrl+click", () => {
+          const c = caretState();
+          const turn = model.turns[ti];
+          if (c && turn.words.length) playFrom(turn.words[wordAtNs(turn, c.ns)].start);
+        }, !audioReady),
+        ctxItem("Split turn here", "Enter", () => splitTurn(here)),
+        ctxItem("Move rest to next turn", "Alt+Shift+↓", () => moveText(here, "next")),
+        ctxItem("Move start to previous turn", "Alt+Shift+↑", () => moveText(here, "previous")),
+      ];
+    }
+    ctx.replaceChildren(...items);
+    ctx.hidden = false;
+    let x = evt.clientX;
+    let y = evt.clientY;
+    if (!x && !y) {
+      const c = window.getSelection().rangeCount ? window.getSelection().getRangeAt(0).getBoundingClientRect() : p.getBoundingClientRect();
+      [x, y] = [c.left, c.bottom];
+    }
+    ctx.style.left = `${Math.round(Math.min(x, window.innerWidth - ctx.offsetWidth - 8))}px`;
+    ctx.style.top = `${Math.round(Math.min(y, window.innerHeight - ctx.offsetHeight - 8))}px`;
+    ctx.querySelector(".menu-item:not(:disabled)")?.focus();
+  });
+  ctx.addEventListener("click", (evt) => {
+    const item = evt.target.closest(".menu-item");
+    if (!item || item.disabled) return;
+    closeCtx();
+    item._action();
+  });
+  ctx.addEventListener("keydown", (evt) => {
+    const items = [...ctx.querySelectorAll(".menu-item:not(:disabled)")];
+    const i = items.indexOf(document.activeElement);
+    const step = { ArrowDown: 1, ArrowUp: -1 }[evt.key];
+    if (step) {
+      evt.preventDefault();
+      items[(i + step + items.length) % items.length].focus();
+    } else if (evt.key === "Tab") closeCtx();
+  });
+  document.addEventListener("pointerdown", (evt) => {
+    if (!ctx.hidden && !ctx.contains(evt.target)) closeCtx();
+  });
+
   // ---- clicks and keys in the transcript ----------------------------------------------------
   turnsEl.addEventListener("click", (evt) => {
     const time = evt.target.closest(".turn-time");
@@ -962,6 +1095,14 @@
     const p = evt.target.closest?.(".turn-text");
     const ti = p ? turnIndex(p) : evt.target.closest?.(".turn-speaker") ? turnIndex(evt.target) : -1;
     if (ti < 0) return;
+    if (virtual && !["Shift", "Control", "Alt", "Meta", " ", "Escape"].includes(evt.key)) {
+      hidePopover(false); // typing ends a selection across turns
+    }
+    if (evt.altKey && evt.shiftKey && p && (evt.key === "ArrowUp" || evt.key === "ArrowDown")) {
+      evt.preventDefault();
+      moveText(p, evt.key === "ArrowDown" ? "next" : "previous");
+      return;
+    }
     if (evt.altKey && (evt.key === "ArrowUp" || evt.key === "ArrowDown")) {
       evt.preventDefault();
       const list = model.speakers;
@@ -1013,6 +1154,11 @@
       to -= 1; // it ends in the next turn's header, before any of its words
       e = Infinity;
     }
+    return wordsBetween(from, s, to, e, r.getBoundingClientRect());
+  }
+
+  // The words from non-space offset `s` in turn `from` to offset `e` in turn `to`.
+  function wordsBetween(from, s, to, e, rect) {
     // Skip turns the selection only touches at their very end.
     const words = (ti) => model.turns[ti].words;
     const firstIn = (ti, ns) => {
@@ -1062,16 +1208,111 @@
       from, to, first, last, count, picked,
       start: words(from)[first].start,
       end: words(to)[last].end,
-      rect: r.getBoundingClientRect(),
+      rect,
     };
   }
+
+  // Shift+click in another turn: turns are separate editable boxes, and browsers won't drag a
+  // selection across them, so the editor makes one itself, from where the last selection or
+  // cursor started to the click, and paints it with a CSS highlight.
+  let anchorPos = null; // {turn, ns} where the last selection in the text started
+  let virtual = null; // {from, s, to, e} while a selection across turns is shown
+  const crossHl = window.CSS && CSS.highlights && window.Highlight ? new Highlight() : null;
+  if (crossHl) CSS.highlights.set("wm-selection", crossHl);
+
+  function pointPos(x, y) {
+    let node;
+    let offset;
+    if (document.caretPositionFromPoint) {
+      const c = document.caretPositionFromPoint(x, y);
+      if (!c) return null;
+      [node, offset] = [c.offsetNode, c.offset];
+    } else if (document.caretRangeFromPoint) {
+      const r = document.caretRangeFromPoint(x, y);
+      if (!r) return null;
+      [node, offset] = [r.startContainer, r.startOffset];
+    } else return null;
+    const p = (node.nodeType === 1 ? node : node.parentElement)?.closest(".turn-text");
+    if (!p || !turnsEl.contains(p)) return null;
+    return { turn: turnIndex(p), ns: nsBefore(p, node, offset), node, offset };
+  }
+  // The DOM position after `ns` non-space characters of `p` (Infinity: the end).
+  function nsPoint(p, ns) {
+    const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT);
+    let count = 0;
+    let node;
+    let last = null;
+    while ((node = walker.nextNode())) {
+      last = node;
+      for (let i = 0; i < node.data.length; i++) {
+        if (count === ns && !/\s/.test(node.data[i])) return { node, offset: i };
+        if (!/\s/.test(node.data[i])) count++;
+      }
+    }
+    return last ? { node: last, offset: last.data.length } : { node: p, offset: p.childNodes.length };
+  }
+  function paintVirtual() {
+    if (!crossHl) return;
+    crossHl.clear();
+    if (!virtual) return;
+    for (let ti = virtual.from; ti <= virtual.to; ti++) {
+      const p = textOf(ti);
+      if (!p) continue;
+      const a = nsPoint(p, ti === virtual.from ? virtual.s : 0);
+      const b = nsPoint(p, ti === virtual.to ? virtual.e : Infinity);
+      const r = document.createRange();
+      r.setStart(a.node, a.offset);
+      r.setEnd(b.node, b.offset);
+      crossHl.add(r);
+    }
+  }
+  function clearVirtual() {
+    virtual = null;
+    crossHl?.clear();
+  }
+  turnsEl.addEventListener("mousedown", (evt) => {
+    if (evt.button !== 0) return;
+    if (!evt.shiftKey) {
+      if (virtual) hidePopover(false);
+      return;
+    }
+    const here = pointPos(evt.clientX, evt.clientY);
+    if (!here || !anchorPos || here.turn === anchorPos.turn) {
+      clearVirtual(); // within one turn the browser's own Shift+click works
+      return;
+    }
+    evt.preventDefault();
+    const [a, b] = here.turn > anchorPos.turn ? [anchorPos, here] : [here, anchorPos];
+    virtual = { from: a.turn, s: a.ns, to: b.turn, e: b.ns };
+    paintVirtual();
+    showPopover({ left: evt.clientX, right: evt.clientX, top: evt.clientY - 10, bottom: evt.clientY + 10 });
+    dismissTip(); // learnt
+  });
+
+  // The tip, shown on the first selection until dismissed (or Shift+click is used).
+  const tip = $("#sel-tip");
+  let tipDismissed = (data.tips_dismissed || []).includes("shift-select");
+  function dismissTip() {
+    tip.hidden = true;
+    if (tipDismissed) return;
+    tipDismissed = true;
+    fetch("/settings/ui", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dismiss_tip: "shift-select" }),
+    }).catch(() => {});
+  }
+  $("#sel-tip-close").addEventListener("click", dismissTip);
 
   const replaceInput = $("#sel-replace");
   const mergeRow = $("#sel-merge");
   const mergeSpeaker = $("#sel-merge-speaker");
 
-  function showPopover() {
-    selection = selectedWords();
+  function showPopover(at = null) {
+    selection = virtual
+      ? wordsBetween(virtual.from, virtual.s, virtual.to, virtual.e, at || selection?.rect)
+      : selectedWords();
+    if (selection && !virtual && !tipDismissed) tip.hidden = false;
     const band = $("#tl-sel");
     if (!selection) {
       hidePopover(false);
@@ -1107,6 +1348,7 @@
   }
 
   function hidePopover(clearSelection = true) {
+    clearVirtual();
     if (pop.hidden && !selection) return;
     const refocus = pop.contains(document.activeElement);
     pop.hidden = true;
@@ -1121,6 +1363,12 @@
 
   let selTimer = 0;
   document.addEventListener("selectionchange", () => {
+    if (virtual) return; // a selection across turns is the editor's own
+    const live = window.getSelection();
+    if (live.rangeCount && turnsEl.contains(live.anchorNode)) {
+      const p = (live.anchorNode.nodeType === 1 ? live.anchorNode : live.anchorNode.parentElement).closest(".turn-text");
+      if (p) anchorPos = { turn: turnIndex(p), ns: nsBefore(p, live.anchorNode, live.anchorOffset) };
+    }
     const c = caretState();
     if (c && audio.paused) {
       const turn = model.turns[c.turn];
@@ -1132,8 +1380,12 @@
       showPopover();
     }, 120);
   });
+  // Scrolling hides the popover (it would float off its words) but keeps the selection.
   scroller.addEventListener("scroll", () => {
-    if (!pop.hidden && !pop.contains(document.activeElement)) hidePopover(false);
+    if (!pop.hidden && !pop.contains(document.activeElement)) {
+      pop.hidden = true;
+      $("#tl-sel").hidden = true;
+    }
   });
 
   const loop = $("#sel-loop");
@@ -1167,6 +1419,7 @@
   function replaceSelection(text) {
     const s = selection;
     if (!s) return;
+    clearVirtual();
     flushDirty(true);
     record("replace");
     const fresh = retime(splitWords(text), s.picked, s.start, s.end);
@@ -1194,6 +1447,7 @@
   function mergeSelection() {
     const s = selection;
     if (!s || s.to === s.from) return;
+    clearVirtual();
     flushDirty(true);
     record("merge");
     const words = model.turns.slice(s.from, s.to + 1).flatMap((t) => t.words);
@@ -1488,6 +1742,7 @@
       const mod = evt.ctrlKey || evt.metaKey;
       if (evt.key === "Escape") {
         if (renaming) endRename(false);
+        else if (!ctx.hidden) closeCtx();
         else if (!menu.hidden) closeMenu();
         else if (!pop.hidden) hidePopover();
         else if (editor.classList.contains("panel-open")) setPanel(false);
@@ -1538,7 +1793,7 @@
       } else if (evt.key === " " && !mod && !pop.hidden && selection && !inField && !evt.target.closest?.("button")) {
         // Space plays the selection, even inside the text (it doesn't type over it).
         const sel = window.getSelection();
-        if (!typing(evt.target) || !sel.isCollapsed) {
+        if (!typing(evt.target) || !sel.isCollapsed || virtual) {
           evt.preventDefault();
           playSelection();
         }

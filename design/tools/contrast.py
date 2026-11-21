@@ -35,6 +35,7 @@ if __name__ == "__main__":
         ("accent-text on sidebar", t.ACCENT_TEXT, t.SIDEBAR),
         ("accent-text on accent-soft (pills, chips)", t.ACCENT_TEXT, t.ACCENT_SOFT),
         ("accent-text on accent-tint (playing turn)", t.ACCENT_TEXT, t.ACCENT_TINT),
+        ("text on selection (selection across turns)", t.TEXT, t.SELECTION),
         ("white on accent (primary buttons)", t.ON_ACCENT, t.ACCENT),
         ("text on bg", t.TEXT, t.BG),
         ("text-2 on surface", t.TEXT_2, t.SURFACE),

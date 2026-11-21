@@ -88,6 +88,10 @@ class Settings:
     update_check: bool = True
     models_dir: str = ""
     export_dir: str = ""
+    # Interface: tips the user has dismissed, and dragged widths (0 means the default).
+    dismissed_tips: list[str] = field(default_factory=list)
+    sidebar_width: int = 0
+    panel_width: int = 0
 
 
 def _is_int(value: Any) -> bool:
@@ -103,6 +107,9 @@ _VALID = {
     "update_check": lambda v: isinstance(v, bool),
     "models_dir": lambda v: isinstance(v, str),
     "export_dir": lambda v: isinstance(v, str),
+    "dismissed_tips": lambda v: isinstance(v, list) and all(isinstance(t, str) for t in v),
+    "sidebar_width": lambda v: _is_int(v) and (v == 0 or 160 <= v <= 480),
+    "panel_width": lambda v: _is_int(v) and (v == 0 or 260 <= v <= 640),
 }
 
 
