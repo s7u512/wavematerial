@@ -359,8 +359,17 @@
     seek(start, true);
     audio.play();
   }
+  // Where the cursor was last put in the text. Play starts there if it moved since playback
+  // last stopped; otherwise Play resumes.
+  let cursorWord = null;
   function togglePlay() {
     if (!audioReady) return;
+    if (audio.paused && cursorWord) {
+      const at = cursorWord.start;
+      cursorWord = null;
+      playFrom(at);
+      return;
+    }
     if (audio.paused) {
       if (range && audio.currentTime >= range.end) audio.currentTime = range.start;
       audio.play();
@@ -441,6 +450,7 @@
     frame = audio.paused ? 0 : requestAnimationFrame(tick);
   }
   audio.addEventListener("play", () => {
+    cursorWord = null;
     player.classList.add("is-playing");
     $("#play-label").textContent = "Pause";
     $("#play").title = "Pause (Ctrl+Space)";
@@ -1111,6 +1121,11 @@
 
   let selTimer = 0;
   document.addEventListener("selectionchange", () => {
+    const c = caretState();
+    if (c && audio.paused) {
+      const turn = model.turns[c.turn];
+      if (turn && turn.words.length) cursorWord = turn.words[wordAtNs(turn, c.ns)];
+    }
     clearTimeout(selTimer);
     selTimer = setTimeout(() => {
       if (pop.contains(document.activeElement)) return; // using the popover keeps it open
@@ -1476,6 +1491,7 @@
         else if (!menu.hidden) closeMenu();
         else if (!pop.hidden) hidePopover();
         else if (editor.classList.contains("panel-open")) setPanel(false);
+        else if (!audio.paused) audio.pause();
         else if (evt.target === findInput || evt.target === replInput) {
           findInput.value = "";
           search();

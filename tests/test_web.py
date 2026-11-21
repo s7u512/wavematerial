@@ -3,6 +3,7 @@
 
 import io
 import json
+import threading
 import time
 import wave
 from dataclasses import replace
@@ -129,9 +130,10 @@ def test_library_poll_keeps_the_counts_current(web):
 
     # The poll swaps only the table; the counts outside it ride along out of band.
     table = _get(client, "/library/table?filter=all").get_data(as_text=True)
-    assert table.count('hx-swap-oob="true"') == 3
+    assert table.count('hx-swap-oob="true"') == 6  # summary, 4 chip counts, sidebar count
+    assert '<a class="chip' not in table  # the chip links themselves are never replaced
     assert "2 recordings · 1 in progress" in table
-    assert 'Done <span class="chip-count">1</span>' in table
+    assert 'id="chip-count-done" class="chip-count" hx-swap-oob="true">1<' in table
     assert 'id="nav-library-count" class="nav-count" hx-swap-oob="true">2<' in table
 
 
@@ -373,7 +375,7 @@ def test_docx_and_pdf_exports_carry_the_transcript():
     assert export.render("pdf", t, "Interview") == pdf  # reproducible
 
 
-def test_browser_mode_offers_quit_and_counts_heartbeats(web):
+def test_quit_closes_the_window_or_stops_the_browser_mode_and_heartbeats_count(web):
     ctx, client, _ = web
     client.set_cookie(COOKIE, "secret-token", domain="127.0.0.1")
     ctx.installer.all_installed = lambda: True
@@ -383,5 +385,8 @@ def test_browser_mode_offers_quit_and_counts_heartbeats(web):
     r = _post(client, "/quit")
     assert "WaveMaterial has closed" in r.get_data(as_text=True)
     assert ctx.quit.wait(2)  # the app is told to stop just after answering
-    ctx.native = NativeHooks(pick_files=lambda: [])
-    assert "Quit WaveMaterial" not in _get(client, "/library").get_data(as_text=True)  # window
+    closed = threading.Event()
+    ctx.native = NativeHooks(pick_files=lambda: [], close=closed.set)  # the app window
+    assert "Quit WaveMaterial" in _get(client, "/library").get_data(as_text=True)
+    _post(client, "/quit")
+    assert closed.wait(2)  # in the window, Quit closes it (the app then shuts down)

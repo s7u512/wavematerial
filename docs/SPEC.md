@@ -81,6 +81,15 @@ before building it. Visual design: [`design/DESIGN.md`](../design/DESIGN.md).
 - The editor plays `playback.opus`, a mono Ogg Opus copy (~32 kbit/s) of the audio that
   the decode stage writes into the job folder (made once by the worker for older jobs).
 - Export offers docx and pdf only when their optional libraries are installed.
+- Shift+click extends a selection into another turn. A right-click menu in the text offers
+  Play from here, Split turn here, Move rest to next turn, Move start to previous turn, and
+  for a selection Play selection, Copy, Merge turns, and Transcribe again.
+- History: named versions to restore (undoably), the original transcript, and the last 3
+  automatic versions saved when a transcript is opened.
+- Transcribe again: a whole recording becomes a new entry in the queue; a passage is
+  re-transcribed in place as a proposal to accept, when no transcription is running.
+- Play starts at the cursor's word if the cursor was placed since playback stopped. Esc
+  pauses playback. The dividers between sidebar, transcript, and side panel can be dragged.
 
 ## Data and settings
 
@@ -137,8 +146,9 @@ Paths come from `platformdirs`. Nothing is written inside the install folder.
   leaves full screen for a 1280 × 720 (16:9, 720p) window, and back; Esc also leaves it
   when no dialog or panel is open. The minimum window is
   960 × 720.
-- If no window can open, the app opens in the browser. There the sidebar has **Quit
-  WaveMaterial**, and the app exits 5 minutes after its last page closes.
+- The sidebar has **Quit WaveMaterial** and a search over titles and transcript text. If no
+  window can open, the app opens in the browser and exits 5 minutes after its last page
+  closes.
 
 ## Licence
 

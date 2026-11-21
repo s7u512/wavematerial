@@ -126,7 +126,7 @@ def _open_window(ctx: AppContext, url: str) -> None:
         window.dom.document.events.drop += DOMEventHandler(on_drop, True, True)
 
     window.events.loaded += on_loaded
-    ctx.native = NativeHooks(pick_files, pick_folder, toggle_fullscreen, save_file)
+    ctx.native = NativeHooks(pick_files, pick_folder, toggle_fullscreen, save_file, window.destroy)
     ctx.fullscreen = True
     webview.start(private_mode=True)
 

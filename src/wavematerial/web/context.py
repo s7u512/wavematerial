@@ -31,6 +31,7 @@ class NativeHooks:
     toggle_fullscreen: Callable[[], bool] | None = None  # returns True if now fullscreen
     # (suggested file name, folder to start in) -> the chosen path, or None if cancelled
     save_file: Callable[[str, str], str | None] | None = None
+    close: Callable[[], None] | None = None  # close the window (the app then shuts down)
 
 
 @dataclass

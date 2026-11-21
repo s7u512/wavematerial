@@ -399,9 +399,9 @@ def register(app: Flask) -> None:
     # ---- browser mode: quitting and staying alive -----------------------------------------
     @app.post("/quit")
     def quit_app():
-        """Quit from the browser (there is no window to close). Answers, then stops."""
+        """Quit WaveMaterial: answer, then close the window (or, in a browser, stop serving)."""
         ctx = _ctx()
-        threading.Timer(0.3, ctx.quit.set).start()
+        threading.Timer(0.3, ctx.native.close or ctx.quit.set).start()
         return render_template("_closed.html")
 
     @app.get("/alive")
