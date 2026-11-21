@@ -321,7 +321,7 @@
       const st = await resp.json();
       if (st.state === "ready") {
         setNote("");
-        audio.src = `/jobs/${data.job}/audio`;
+        audio.src = `/jobs/${data.job}/audio?v=${st.version}`;
       } else if (st.state === "making") {
         setNote("Preparing the audio for playback…");
         setTimeout(loadAudio, 1000);
@@ -336,8 +336,17 @@
     audioReady = true;
     for (const b of document.querySelectorAll("#play, #rewind, [data-sample], #sel-play")) b.disabled = false;
   });
+  // A failed load is retried once (it can race the copy being made) before it's reported.
+  let audioRetried = false;
   audio.addEventListener("error", () => {
-    if (audio.getAttribute("src")) setNote("The audio can't be played in this window.", true);
+    if (!audio.getAttribute("src")) return;
+    if (!audioRetried) {
+      audioRetried = true;
+      audio.removeAttribute("src");
+      setTimeout(loadAudio, 1000);
+      return;
+    }
+    setNote("The audio can't be played in this window.", true);
   });
 
   function applyRate() {
@@ -1978,7 +1987,7 @@
       } else if (mod && !inField && evt.key.toLowerCase() === "y") {
         evt.preventDefault();
         redo();
-      } else if (evt.key === " " && !mod && !pop.hidden && selection && !inField && !evt.target.closest?.("button")) {
+      } else if (evt.key === " " && !mod && selection && !inField && !evt.target.closest?.("button")) {
         // Space plays the selection, even inside the text (it doesn't type over it).
         const sel = window.getSelection();
         if (!typing(evt.target) || !sel.isCollapsed || virtual) {

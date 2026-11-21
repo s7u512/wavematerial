@@ -737,8 +737,11 @@ def register(app: Flask) -> None:
     def audio_state(job_id: int):
         ctx = _ctx()
         job = _done_job(ctx, job_id)
-        st = ctx.playback.ensure(job.id, job.source, ctx.scheduler.job_dir(job.id))
-        return jsonify(state=st.state, message=st.message)
+        job_dir = ctx.scheduler.job_dir(job.id)
+        st = ctx.playback.ensure(job.id, job.source, job_dir)
+        # The copy's version goes into the audio URL, so no cache can serve an older answer.
+        version = int((job_dir / PLAYBACK).stat().st_mtime) if st.state == "ready" else 0
+        return jsonify(state=st.state, message=st.message, version=version)
 
     @app.get("/jobs/<int:job_id>/audio")
     def audio(job_id: int):
