@@ -28,9 +28,9 @@ PYVER = "3.12"
 REPO = Path(__file__).resolve().parent.parent
 HERE = Path(__file__).resolve().parent
 
-# Parts of the standalone runtime the app never uses. `_dbm` is also a licence problem: it
-# embeds Berkeley DB 6.0.19, which is AGPL-3.0. `_crypt` needs libcrypt.so.1, which many
-# distributions no longer ship.
+# Parts of the standalone runtime the app never uses. `_dbm` embeds Berkeley DB 6.0.19
+# (Sleepycat licence), whose binaries must come with an offer of its source; leaving it out
+# avoids that. `_crypt` needs libcrypt.so.1, which many distributions no longer ship.
 DROP = [
     "bin/2to3",
     f"bin/2to3-{PYVER}",

@@ -179,7 +179,7 @@ Paths come from `platformdirs`. Nothing is written inside the install folder.
   and its locked dependencies. Models are not bundled.
 - The bundle is built by `packaging/bundle.py`. Its launcher runs the bundled Python with
   bytecode writing off; all bytecode is precompiled. Runtime modules the app doesn't need are
-  left out, including `_dbm` (it embeds AGPL-licensed Berkeley DB).
+  left out.
 - **Arch Linux first:** a `PKGBUILD` (not published to the AUR), plus a Linux `.tar.gz` of
   the same bundle with no compatibility guarantees.
 - **`.deb`** for Debian 13 and later.
