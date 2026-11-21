@@ -1,8 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0
 """The local web app: its access checks and the add-recordings flow (no window, no models)."""
 
+import time
 import wave
 
+import av
 import pytest
 
 from wavematerial.config import Paths, load_settings
@@ -124,3 +126,37 @@ def test_library_poll_keeps_the_counts_current(web):
     assert "2 recordings · 1 in progress" in table
     assert 'Done <span class="chip-count">1</span>' in table
     assert 'id="nav-library-count" class="nav-count" hx-swap-oob="true">2<' in table
+
+
+def test_editor_audio_is_made_once_for_older_jobs_and_seekable(web):
+    ctx, client, tmp = web
+    client.set_cookie(COOKIE, "secret-token", domain="127.0.0.1")
+    source = tmp / "apollo11.wav"
+    with wave.open(str(source), "wb") as w:
+        w.setnchannels(1), w.setsampwidth(2), w.setframerate(16000)
+        w.writeframes(b"\0\1" * 32000)  # 2 s
+    job = ctx.store.add(source, min_speakers=1, max_speakers=2)
+    assert _get(client, f"/jobs/{job.id}/audio/state").status_code == 404  # not done yet
+    ctx.store.set_state(job.id, "done")
+    ctx.scheduler.job_dir(job.id).mkdir(parents=True)
+
+    state = _get(client, f"/jobs/{job.id}/audio/state").get_json()
+    deadline = time.monotonic() + 30
+    while state["state"] == "making" and time.monotonic() < deadline:
+        time.sleep(0.1)
+        state = _get(client, f"/jobs/{job.id}/audio/state").get_json()
+    assert state["state"] == "ready", state
+
+    with av.open(str(ctx.scheduler.job_dir(job.id) / "playback.opus")) as c:
+        assert c.streams.audio[0].codec_context.name == "opus"
+        assert c.duration / 1e6 == pytest.approx(2.0, abs=0.05)
+    part = _get(client, f"/jobs/{job.id}/audio", headers={"Range": "bytes=100-199"})
+    assert part.status_code == 206 and len(part.data) == 100  # the web views seek this way
+
+    moved = tmp / "moved.wav"
+    moved.write_bytes(source.read_bytes())
+    gone = ctx.store.add(moved, min_speakers=1, max_speakers=2)
+    moved.unlink()
+    ctx.store.set_state(gone.id, "done")
+    state = _get(client, f"/jobs/{gone.id}/audio/state").get_json()
+    assert state["state"] == "failed" and "no longer at" in state["message"]

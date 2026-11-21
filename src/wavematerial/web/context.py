@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from wavematerial.config import Paths, Settings, load_settings, save_settings
+from wavematerial.jobs.playback import PlaybackCopies
 from wavematerial.jobs.scheduler import Scheduler
 from wavematerial.jobs.store import JobStore
 from wavematerial.models.installer import Installer
@@ -44,6 +45,7 @@ class AppContext:
     native: NativeHooks = field(default_factory=NativeHooks)
     port: int = 0
     fullscreen: bool = False
+    playback: PlaybackCopies = field(default_factory=PlaybackCopies)
     _settings_lock: threading.Lock = field(default_factory=threading.Lock)
 
     def settings(self) -> Settings:

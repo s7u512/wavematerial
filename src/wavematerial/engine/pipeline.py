@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0
 """Run the whole pipeline for one file, saving each stage's result in the job folder.
 
-Stages and their saved files: decode (nothing; re-decoding is cheap), VAD (`chunks.json`),
+Stages and their saved files: decode (`playback.opus`, the editor's audio; the decoded audio
+itself is not saved, re-decoding is cheap), VAD (`chunks.json`),
 timings (`timings.json`), text (`text.jsonl`, one line per chunk), diarise
 (`diarization.json`), align + merge (`artifact.json`), render (`outputs/`). A rerun skips
 every stage whose file exists, and the text stage resumes at the first missing chunk, so a
@@ -23,6 +24,7 @@ from wavematerial.engine.align import AlignStats, align_chunk
 from wavematerial.engine.decode import SAMPLE_RATE, decode
 from wavematerial.engine.diarize import diarize
 from wavematerial.engine.merge import SpeakerSegment, merge
+from wavematerial.engine.playback import PLAYBACK, write_playback
 from wavematerial.engine.text import transcribe_chunks
 from wavematerial.engine.timings import word_timings
 from wavematerial.engine.vad import speech_chunks
@@ -106,6 +108,8 @@ def run(
     report("decode", 0.0)
     audio = decode(source)
     duration = len(audio) / SAMPLE_RATE
+    if not (job_dir / PLAYBACK).exists():
+        write_playback(audio, job_dir)
     report("decode", 1.0)
 
     if (job_dir / CHUNKS).exists():

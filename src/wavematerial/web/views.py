@@ -11,8 +11,19 @@ import webbrowser
 from dataclasses import dataclass, replace
 from pathlib import Path
 
-from flask import Flask, abort, g, make_response, redirect, render_template, request
+from flask import (
+    Flask,
+    abort,
+    g,
+    jsonify,
+    make_response,
+    redirect,
+    render_template,
+    request,
+    send_file,
+)
 
+from wavematerial.engine.playback import PLAYBACK
 from wavematerial.jobs.events import STAGE_LABELS, read_events, stage_times
 from wavematerial.jobs.store import Job
 from wavematerial.models.download import is_installed, verify
@@ -371,6 +382,32 @@ def register(app: Flask) -> None:
     @app.get("/jobs/<int:job_id>")
     def job_drawer(job_id: int):
         return render_template("_drawer.html", **_drawer_data(_ctx(), job_id))
+
+    # ---- editor audio ---------------------------------------------------------------------
+    def _done_job(ctx: AppContext, job_id: int) -> Job:
+        try:
+            job = ctx.store.get(job_id)
+        except KeyError:
+            abort(404)
+        if job.state != "done":
+            abort(404)
+        return job
+
+    @app.get("/jobs/<int:job_id>/audio/state")
+    def audio_state(job_id: int):
+        ctx = _ctx()
+        job = _done_job(ctx, job_id)
+        st = ctx.playback.ensure(job.id, job.source, ctx.scheduler.job_dir(job.id))
+        return jsonify(state=st.state, message=st.message)
+
+    @app.get("/jobs/<int:job_id>/audio")
+    def audio(job_id: int):
+        ctx = _ctx()
+        path = ctx.scheduler.job_dir(_done_job(ctx, job_id).id) / PLAYBACK
+        if not path.exists():
+            abort(404)
+        # conditional=True answers Range requests, which the web views use to seek.
+        return send_file(path, mimetype="audio/ogg", conditional=True, max_age=0)
 
     @app.get("/jobs/<int:job_id>/body")
     def job_drawer_body(job_id: int):

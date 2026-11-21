@@ -159,6 +159,7 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         log.info("Shutting down")
         scheduler.shutdown()
+        ctx.playback.shutdown()
         server.close()
         lock.release()
     return 0
