@@ -179,7 +179,8 @@ Paths come from `platformdirs`. Nothing is written inside the install folder.
 
 - Python 3.12. Every package wraps the same bundle: a standalone Python runtime with the app
   and its locked dependencies. Models are not bundled.
-- The bundle is built by `packaging/bundle.py`. Its launcher runs the bundled Python with
+- The bundle is built by `packaging/bundle.py`, for Linux or Windows, and holds no paths
+  from the machine that built it. Its launcher runs the bundled Python with
   bytecode writing off; all bytecode is precompiled. Runtime modules the app doesn't need are
   left out.
 - **Arch Linux first:** a `PKGBUILD` (not published to the AUR), plus a Linux `.tar.gz` of
@@ -188,7 +189,9 @@ Paths come from `platformdirs`. Nothing is written inside the install folder.
 - Both Linux packages depend on GStreamer's "good" plugins, which WebKitGTK needs to play
   audio; without them the app turns playback off and says so.
 - **Flatpak** for other Linux distributions, as a `.flatpak` file on GitHub releases.
-- **Windows `.exe`** installer, per user (no admin rights needed).
+- **Windows `.exe`** installer, per user (no admin rights needed), into
+  `%LOCALAPPDATA%\Programs\WaveMaterial`; its shortcuts run the bundled `pythonw.exe -m
+  wavematerial`. Inno Setup builds it under Wine (`packaging/windows/build.py`).
 - Everything is built locally; there is no CI. Nothing is signed. Each release carries
   SHA256 checksums.
 
