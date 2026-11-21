@@ -15,6 +15,16 @@ from dataclasses import dataclass
 from wavematerial.transcript.schema import Word
 
 _NON_WORD = re.compile(r"[^\w']+")
+# CJK ideographs, kana, hangul, and CJK and fullwidth punctuation.
+_CJK = re.compile(
+    "[\u2e80-\u2fdf\u3000-\u303f\u3040-\u30ff\u3100-\u31ff\u3400-\u4dbf"
+    "\u4e00-\u9fff\uac00-\ud7af\uf900-\ufaff\uff00-\uffef]+"
+)
+
+
+def drop_cjk(text: str) -> str:
+    """English text without CJK characters, which Qwen sometimes writes for fillers (嗯)."""
+    return " ".join(_CJK.sub(" ", text).split())
 
 
 def normalise(word: str) -> str:

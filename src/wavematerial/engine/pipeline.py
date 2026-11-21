@@ -20,7 +20,7 @@ from typing import Any
 
 from wavematerial import __version__
 from wavematerial._fsutil import write_text_atomic
-from wavematerial.engine.align import AlignStats, align_chunk
+from wavematerial.engine.align import AlignStats, align_chunk, drop_cjk
 from wavematerial.engine.decode import SAMPLE_RATE, decode
 from wavematerial.engine.diarize import diarize
 from wavematerial.engine.merge import SpeakerSegment, merge
@@ -167,6 +167,8 @@ def run(
 
     report("merge", 0.0)
     stats = AlignStats()
+    # text.jsonl keeps the model's raw text; CJK fillers are dropped here (English only).
+    texts = [drop_cjk(t) for t in texts]
     words = [w for i in range(n) for w in align_chunk(texts[i], timed[i], chunks[i], stats)]
     speakers, turns = merge(words, segments)
     log.info("Alignment: %s", asdict(stats))

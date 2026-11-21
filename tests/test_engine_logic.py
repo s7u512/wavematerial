@@ -4,7 +4,7 @@
 Sample text is from NASA's Apollo 11 air-to-ground transcript (public domain).
 """
 
-from wavematerial.engine.align import AlignStats, align_chunk
+from wavematerial.engine.align import AlignStats, align_chunk, drop_cjk
 from wavematerial.engine.merge import SpeakerSegment, merge
 from wavematerial.engine.timings import tokens_to_words
 from wavematerial.engine.vad import pad_chunks
@@ -76,3 +76,10 @@ def test_merge_assigns_by_overlap_and_names_speakers_in_order():
         ("SPEAKER_00", "Contact light. Shutdown."),
         ("SPEAKER_01", "Roger, Eagle."),
     ]
+
+
+def test_cjk_fillers_are_dropped_without_gluing_words_together():
+    assert drop_cjk("嗯 white spectre commission") == "white spectre commission"
+    assert drop_cjk("Roger，嗯，copy that.") == "Roger copy that."
+    assert drop_cjk("the Voelcker report嗯.") == "the Voelcker report ."
+    assert drop_cjk("Tranquility Base, 1969: café naïve") == "Tranquility Base, 1969: café naïve"
