@@ -466,6 +466,8 @@ html:has(body.page-editor) { scrollbar-gutter: auto; overflow: hidden; }
 .term-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .term { padding: 3px 10px; border-radius: 999px; background: var(--surface-2); font-size: 13px; }
 .keys, .facts { margin: 0; display: grid; gap: 6px; }
+/* The drawer's .facts is a two-column grid of dt/dd; the panel's is one row per item. */
+.ed-panel .facts { grid-template-columns: 1fr; }
 .keys > div, .facts > div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .keys dt, .facts dt { font-weight: 400; color: var(--text-2); font-size: 13px; margin: 0; }
 .keys dd, .facts dd { margin: 0; font-size: 13px; text-align: right; }
