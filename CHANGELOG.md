@@ -24,6 +24,9 @@ Every user-visible change is recorded here. The format follows
   "Merge into…" for when one person was split into two speakers.
 - Find and replace in the editor (Ctrl+F, Ctrl+H), renaming a recording from its title,
   and "Restore original transcript" (undoable).
+- Export from the editor: plain text, SRT and WebVTT subtitles, JSON with word timings,
+  and, with the optional `export` extra, .docx and PDF. In the window a Save dialog asks
+  where, starting in the last folder used.
 - Each transcription keeps a small Ogg Opus copy of its audio for playback, so the player
   works with any input format and after the original is moved.
 - Transcription runs in the background, one recording at a time, resumes after a crash or

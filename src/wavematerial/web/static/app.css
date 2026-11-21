@@ -416,6 +416,9 @@ html:has(body.page-editor) { scrollbar-gutter: auto; overflow: hidden; }
 .ed-name:hover .i { color: var(--text); }
 .ed-name-input { margin: 0 !important; height: 26px; padding: 2px 8px !important; font-size: var(--fs-section); font-weight: 600; max-width: 480px; }
 .ed-actions .menu summary { padding: 6px; }
+.ed-actions .export-menu summary.btn { display: inline-flex; padding: 4px 10px; line-height: 1.3; color: var(--text); }
+.export-menu ul { min-width: 240px; }
+#toast .toast-error { color: var(--danger); }
 
 /* side panel */
 .ed-panel { border-left: 1px solid var(--border); background: var(--bg); overflow-y: auto; padding: 16px 18px 24px; min-height: 0; }
@@ -522,4 +525,5 @@ ul.plain li { list-style: none; margin: 0; }
   .ed-column { padding: 18px 20px 100px; }
   .find-bar { margin-top: -18px; }
   .follow { font-size: 0; gap: 0; }
+  .export-label { display: none; }
 }

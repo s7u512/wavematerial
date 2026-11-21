@@ -1408,6 +1408,36 @@
     }
   });
 
+  // ---- export -------------------------------------------------------------------------------
+  // In the window the server asks where to save (a native dialog); a browser downloads.
+  const windowed = document.body.dataset.windowed === "yes";
+  function toast(text, error = false) {
+    const box = el("div", "toast" + (error ? " toast-error" : ""), text);
+    $("#toast").replaceChildren(box);
+    setTimeout(() => box.remove(), 5000);
+  }
+  $("#export-menu").addEventListener("click", async (evt) => {
+    const btn = evt.target.closest("[data-export]");
+    if (!btn) return;
+    $("#export-menu").removeAttribute("open");
+    flushDirty(true);
+    await flushSaves(); // export what's on screen
+    const url = `/jobs/${data.job}/export/${btn.dataset.export}`;
+    if (!windowed) {
+      window.location.href = url;
+      return;
+    }
+    try {
+      const resp = await fetch(url, { method: "POST" });
+      const body = await resp.json().catch(() => ({}));
+      if (body.cancelled) return;
+      if (!resp.ok) throw new Error(body.error || "The file could not be saved.");
+      toast(`Saved ${body.path}`);
+    } catch (exc) {
+      toast(exc.message, true);
+    }
+  });
+
   // ---- side panel ---------------------------------------------------------------------------
   const tabs = [...document.querySelectorAll('.tabs [role="tab"]')];
   function selectTab(tab) {

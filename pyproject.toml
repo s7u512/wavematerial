@@ -38,6 +38,12 @@ Repository = "https://github.com/s7u512/wavematerial"
 [project.scripts]
 wavematerial = "wavematerial.__main__:main"
 
+[project.optional-dependencies]
+export = [
+    "python-docx>=1,<2",
+    "reportlab>=4,<5",
+]
+
 [dependency-groups]
 dev = ["pytest>=8", "ruff>=0.8"]
 

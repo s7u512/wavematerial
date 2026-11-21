@@ -19,6 +19,12 @@
         <button type="button" class="btn btn-ghost btn-sm" id="redo" title="Redo (Ctrl+Shift+Z)" disabled>Redo</button>
       </div>
       <button type="button" class="icon-btn ed-panel-toggle" id="panel-toggle" aria-controls="ed-panel" aria-expanded="false" title="Speakers and details">{{ icon("speaker") }}<span class="visually-hidden">Speakers and details</span></button>
+      <details class="menu export-menu" id="export-menu">
+        <summary class="btn btn-secondary btn-sm" title="Export the transcript">{{ icon("export", 14) }}<span class="export-label">Export</span></summary>
+        <ul>
+          {% for fmt, label in exports %}<li><button type="button" data-export="{{ fmt }}">{{ label }}</button></li>{% endfor %}
+        </ul>
+      </details>
       <details class="menu" id="more-menu">
         <summary title="More" aria-label="More">{{ icon("more") }}</summary>
         <ul>

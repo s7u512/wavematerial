@@ -10,6 +10,7 @@ import threading
 import webbrowser
 from dataclasses import dataclass, replace
 from pathlib import Path
+from urllib.parse import quote
 
 from flask import (
     Flask,
@@ -28,6 +29,7 @@ from wavematerial.jobs.events import STAGE_LABELS, read_events, stage_times
 from wavematerial.jobs.store import Job
 from wavematerial.models.download import is_installed, verify
 from wavematerial.preflight import choose, usable_gpus
+from wavematerial.transcript import export
 from wavematerial.transcript.render import write_outputs
 from wavematerial.transcript.schema import TranscriptError
 from wavematerial.transcript.store import (
@@ -440,6 +442,7 @@ def register(app: Flask) -> None:
             models=models,
             finished=format.added(job.finished_at),
             stages=stages,
+            exports=[(f, export.LABELS[f]) for f in export.available()],
             data=data,
         )
 
@@ -493,6 +496,46 @@ def register(app: Flask) -> None:
                 for turn in t.turns
             ],
         )
+
+    def _export(ctx: AppContext, job: Job, fmt: str) -> tuple[bytes, str]:
+        if fmt not in export.available():
+            abort(404)
+        t = read_current(ctx.scheduler.job_dir(job.id))
+        title = format.title(job.name, job.source)
+        return export.render(fmt, t, title), export.file_name(title, fmt)
+
+    @app.get("/jobs/<int:job_id>/export/<fmt>")
+    def export_download(job_id: int, fmt: str):
+        """Export as a download, for the browser (the window saves through a dialog)."""
+        ctx = _ctx()
+        content, name = _export(ctx, _done_job(ctx, job_id), fmt)
+        resp = make_response(content)
+        resp.headers["Content-Type"] = "application/octet-stream"
+        resp.headers["Content-Disposition"] = f"attachment; filename*=UTF-8''{quote(name)}"
+        return resp
+
+    @app.post("/jobs/<int:job_id>/export/<fmt>")
+    def export_save(job_id: int, fmt: str):
+        """Export in the window: ask where to save, write the file, remember the folder."""
+        ctx = _ctx()
+        if not ctx.native.save_file:
+            abort(400)
+        job = _done_job(ctx, job_id)
+        content, name = _export(ctx, job, fmt)
+        s = ctx.settings()
+        folder = (
+            s.export_dir if s.export_dir and Path(s.export_dir).is_dir() else str(job.source.parent)
+        )
+        chosen = ctx.native.save_file(name, folder)
+        if not chosen:
+            return jsonify(cancelled=True)
+        path = Path(chosen)
+        try:
+            path.write_bytes(content)
+        except OSError as exc:
+            return jsonify(error=f"The file could not be saved: {exc.strerror or exc}."), 500
+        ctx.save_settings(replace(ctx.settings(), export_dir=str(path.parent)))
+        return jsonify(path=str(path))
 
     # ---- editor audio ---------------------------------------------------------------------
     def _done_job(ctx: AppContext, job_id: int) -> Job:

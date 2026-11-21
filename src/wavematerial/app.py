@@ -82,6 +82,14 @@ def _open_window(ctx: AppContext, url: str) -> None:
         chosen = window.create_file_dialog(webview.FileDialog.FOLDER)
         return chosen[0] if chosen else None
 
+    def save_file(name: str, folder: str) -> str | None:
+        chosen = window.create_file_dialog(
+            webview.FileDialog.SAVE, directory=folder, save_filename=name
+        )
+        if isinstance(chosen, (list, tuple)):  # some platforms return a one-item tuple
+            chosen = chosen[0] if chosen else None
+        return chosen or None
+
     def on_drop(event: dict) -> None:
         files = event.get("dataTransfer", {}).get("files", [])
         paths = [f["pywebviewFullPath"] for f in files if f.get("pywebviewFullPath")]
@@ -92,7 +100,7 @@ def _open_window(ctx: AppContext, url: str) -> None:
         window.dom.document.events.drop += DOMEventHandler(on_drop, True, True)
 
     window.events.loaded += on_loaded
-    ctx.native = NativeHooks(pick_files, pick_folder, toggle_fullscreen)
+    ctx.native = NativeHooks(pick_files, pick_folder, toggle_fullscreen, save_file)
     ctx.fullscreen = True
     webview.start(private_mode=True)
 

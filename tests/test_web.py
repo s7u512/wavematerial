@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0
 """The local web app: its access checks and the add-recordings flow (no window, no models)."""
 
+import io
 import json
 import time
 import wave
@@ -302,3 +303,64 @@ def test_renaming_a_recording_and_fetching_its_original_transcript(web):
 
     orig = _get(client, f"/jobs/{job.id}/original").get_json()
     assert orig["turns"][0]["words"][0][0] == "Eagle" and orig["names"] == {}
+
+
+def test_export_downloads_in_a_browser_and_saves_through_the_window(web):
+    ctx, client, tmp = web
+    client.set_cookie(COOKIE, "secret-token", domain="127.0.0.1")
+    source = tmp / "media" / "apollo11.wav"
+    source.parent.mkdir()
+    source.write_bytes(b"\0")
+    job = ctx.store.add(source, min_speakers=1, max_speakers=2)
+    job_dir = ctx.scheduler.job_dir(job.id)
+    job_dir.mkdir(parents=True)
+    turn = Turn("SPEAKER_00", (Word("Tranquility", 1.0, 1.6), Word("Base.", 1.6, 2.0)))
+    t = Transcript("en", 3.0, ("SPEAKER_00",), (turn,))
+    write_artifact(job_dir, t)
+    save_revision(job_dir, replace(t, speaker_names={"SPEAKER_00": "Armstrong"}))
+    ctx.store.set_state(job.id, "done")
+    ctx.store.update(job.id, name='Apollo 11: "landing"')
+
+    r = _get(client, f"/jobs/{job.id}/export/txt")
+    assert r.data == b"Armstrong: Tranquility Base.\n\n"
+    assert "Apollo%2011_%20_landing_.txt" in r.headers["Content-Disposition"]  # safe file name
+    assert _get(client, f"/jobs/{job.id}/export/exe").status_code == 404
+
+    assert _post(client, f"/jobs/{job.id}/export/srt").status_code == 400  # no window
+    asked = []
+    target = tmp / "out" / "landing.srt"
+    target.parent.mkdir()
+    ctx.native = NativeHooks(
+        pick_files=lambda: [],
+        save_file=lambda name, folder: asked.append((name, folder)) or str(target),
+    )
+    assert _post(client, f"/jobs/{job.id}/export/srt").get_json() == {"path": str(target)}
+    assert asked == [("Apollo 11_ _landing_.srt", str(source.parent))]  # starts by the recording
+    assert "Armstrong: Tranquility Base." in target.read_text()
+    assert ctx.settings().export_dir == str(target.parent)  # remembered for next time
+    ctx.native = NativeHooks(
+        pick_files=lambda: [], save_file=lambda name, folder: asked.append(folder)
+    )
+    assert _post(client, f"/jobs/{job.id}/export/vtt").get_json() == {"cancelled": True}
+    assert asked[-1] == str(target.parent)
+
+
+def test_docx_and_pdf_exports_carry_the_transcript():
+    docx = pytest.importorskip("docx")
+    pytest.importorskip("reportlab")
+    from wavematerial.transcript import export
+
+    turn = Turn(
+        "SPEAKER_00",
+        (Word("Jawaharlal", 1.0, 1.6), Word("Nehru,", 1.6, 2.0), Word("Śāstrī.", 2.0, 2.5)),
+    )
+    t = Transcript("en", 3.0, ("SPEAKER_00",), (turn,), speaker_names={"SPEAKER_00": "Interviewer"})
+    assert {"docx", "pdf"} <= set(export.available())
+    doc = docx.Document(io.BytesIO(export.render("docx", t, "Interview")))
+    assert [p.text for p in doc.paragraphs] == [
+        "Interview",
+        "Interviewer: Jawaharlal Nehru, Śāstrī.",
+    ]
+    pdf = export.render("pdf", t, "Interview")
+    assert pdf.startswith(b"%PDF") and b"NotoSans" in pdf  # the embedded font covers ā and ś
+    assert export.render("pdf", t, "Interview") == pdf  # reproducible

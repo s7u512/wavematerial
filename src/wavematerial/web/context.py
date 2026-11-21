@@ -28,6 +28,8 @@ class NativeHooks:
     pick_files: Callable[[], list[str]] | None = None
     pick_folder: Callable[[], str | None] | None = None
     toggle_fullscreen: Callable[[], bool] | None = None  # returns True if now fullscreen
+    # (suggested file name, folder to start in) -> the chosen path, or None if cancelled
+    save_file: Callable[[str, str], str | None] | None = None
 
 
 @dataclass

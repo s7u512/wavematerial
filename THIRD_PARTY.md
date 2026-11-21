@@ -39,6 +39,19 @@ The PyAV wheel also carries other libraries (among them dav1d, LAME, Opus, SVT-A
 libvpl, libvpx, libwebp, and libxcb, plus their dependencies). Their licences and exact
 sources are recorded when the packages are built, and each release offers that source.
 
+## Export extra
+
+The optional `export` extra (docx and pdf export). Packages ship it; a source install
+without it simply doesn't offer those two formats.
+
+| Component | Licence | Source |
+|---|---|---|
+| python-docx | MIT | https://pypi.org/project/python-docx/ |
+| lxml (used by python-docx) | BSD-3-Clause | https://pypi.org/project/lxml/ |
+| reportlab | BSD-3-Clause | https://pypi.org/project/reportlab/ |
+| Pillow (used by reportlab) | MIT-CMU | https://pypi.org/project/pillow/ |
+| charset-normalizer (used by reportlab) | MIT | https://pypi.org/project/charset-normalizer/ |
+
 ## Development tools
 
 Used to build and check the project; not shipped in installers.
@@ -66,6 +79,14 @@ Committed under `src/wavematerial/web/static/`, each with its licence file besid
 | htmx (`vendor/htmx/`) | 2.0.11 | 0BSD | npm `htmx.org` |
 | Inter, variable, Latin and Latin Extended (`fonts/inter/`) | Fontsource 5.3.0 | OFL-1.1 | npm `@fontsource-variable/inter` (https://rsms.me/inter/) |
 | Noto Sans, variable, upright and italic (`fonts/noto-sans/`) | Fontsource 5.3.0 | OFL-1.1 | npm `@fontsource-variable/noto-sans` |
+
+## Fonts for PDF export
+
+Committed under `src/wavematerial/transcript/fonts/` with the licence beside them.
+
+| Component | Version | Licence | Source |
+|---|---|---|---|
+| Noto Sans Regular and Bold, static hinted TTF | notofonts latin-greek-cyrillic (2022 build) | OFL-1.1 | https://notofonts.github.io/latin-greek-cyrillic/ |
 
 The icons (`web/icons.py`) and the logo (`static/img/app-icon.svg`, a copy of
 `design/logo/app-icon.svg`) are our own work.
