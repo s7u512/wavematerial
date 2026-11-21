@@ -28,6 +28,7 @@
       <details class="menu" id="more-menu">
         <summary title="More" aria-label="More">{{ icon("more") }}</summary>
         <ul>
+          <li><button type="button" hx-get="/jobs/{{ job.id }}/again" hx-target="#modal">Transcribe again…</button></li>
           <li><button type="button" hx-post="/jobs/{{ job.id }}/open-folder" hx-swap="none">Open output folder</button></li>
         </ul>
       </details>

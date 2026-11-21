@@ -469,3 +469,32 @@ def test_history_saves_versions_and_an_automatic_one_on_opening(web):
     _post(client, f"/jobs/{job.id}/versions/{vid}/delete")
     assert _get(client, f"/jobs/{job.id}/versions/{vid}").status_code == 404
     assert (job_dir / "artifact.json").exists() and read_artifact(job_dir) == t  # untouched
+
+
+def test_transcribe_again_queues_a_new_entry_beside_the_old_one(web):
+    ctx, client, tmp = web
+    client.set_cookie(COOKIE, "secret-token", domain="127.0.0.1")
+    source = tmp / "apollo11.wav"
+    source.write_bytes(b"\0")
+    job = ctx.store.add(source, min_speakers=2, max_speakers=3, key_terms=("Eagle",))
+    ctx.store.set_state(job.id, "done")
+    dialog = _get(client, f"/jobs/{job.id}/again").get_data(as_text=True)
+    assert "apollo11 (2)" in dialog and "Eagle" in dialog  # the old settings, prefilled
+
+    r = _post(
+        client,
+        f"/jobs/{job.id}/again",
+        data={"min_speakers": "3", "max_speakers": "2", "key_terms": ["Tranquility"]},
+    )
+    assert r.status_code == 200
+    new = max(ctx.store.all(), key=lambda j: j.id)
+    assert (new.name, new.state, new.source) == ("apollo11 (2)", "queued", source)
+    assert (new.min_speakers, new.max_speakers, new.key_terms) == (2, 3, ("Tranquility",))
+    assert ctx.store.get(job.id).state == "done"  # the old entry is untouched
+    ctx.store.set_state(new.id, "done")
+    _post(client, f"/jobs/{new.id}/again", data={"min_speakers": "2", "max_speakers": "3"})
+    assert max(ctx.store.all(), key=lambda j: j.id).name == "apollo11 (3)"  # not "(2) (2)"
+
+    source.unlink()
+    assert "no longer at" in _get(client, f"/jobs/{job.id}/again").get_data(as_text=True)
+    assert _post(client, f"/jobs/{job.id}/again", data={}).status_code == 409

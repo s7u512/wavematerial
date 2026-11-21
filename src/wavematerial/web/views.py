@@ -397,6 +397,52 @@ def register(app: Flask) -> None:
     def job_drawer(job_id: int):
         return render_template("_drawer.html", **_drawer_data(_ctx(), job_id))
 
+    # ---- transcribe again (a whole recording, as a new entry) -----------------------------
+    def _again_name(ctx: AppContext, job: Job) -> str:
+        base = format.title(job.name, job.source)
+        base = base[: base.rfind(" (")] if base.endswith(")") and " (" in base else base
+        taken = {j.name for j in ctx.store.all()}
+        n = 2
+        while f"{base} ({n})" in taken:
+            n += 1
+        return f"{base} ({n})"
+
+    @app.get("/jobs/<int:job_id>/again")
+    def again_dialog(job_id: int):
+        ctx = _ctx()
+        try:
+            job = ctx.store.get(job_id)
+        except KeyError:
+            abort(404)
+        return render_template(
+            "_again.html",
+            job=job,
+            title=format.title(job.name, job.source),
+            new_name=_again_name(ctx, job),
+            missing=not job.source.exists(),
+        )
+
+    @app.post("/jobs/<int:job_id>/again")
+    def again_submit(job_id: int):
+        ctx = _ctx()
+        try:
+            job = ctx.store.get(job_id)
+        except KeyError:
+            abort(404)
+        if not job.source.exists():
+            abort(409)
+        lo = int(request.form.get("min_speakers", job.min_speakers))
+        hi = int(request.form.get("max_speakers", job.max_speakers))
+        lo, hi = min(lo, hi), max(lo, hi)
+        terms = [t.strip() for t in request.form.getlist("key_terms") if t.strip()]
+        name = _again_name(ctx, job)
+        new = ctx.scheduler.add(job.source, min_speakers=lo, max_speakers=hi, key_terms=terms)
+        ctx.store.update(new.id, name=name)
+        resp = make_response("")
+        resp.headers["HX-Trigger"] = json.dumps({"refresh": None, "close-modal": None})
+        resp.headers["HX-Redirect"] = "/library"
+        return resp
+
     @app.get("/sidebar/search")
     def sidebar_search():
         """The sidebar's list for a search: recordings whose title or transcript matches."""

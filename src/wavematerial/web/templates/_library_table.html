@@ -44,6 +44,7 @@
           <ul>
             <li><button type="button" hx-get="/jobs/{{ r.job.id }}" hx-target="#drawer">Details</button></li>
             {% if r.status == "done" %}<li><button type="button" hx-post="/jobs/{{ r.job.id }}/open-folder" hx-swap="none">Open output folder</button></li>{% endif %}
+            {% if r.status in ("done", "failed", "cancelled") %}<li><button type="button" hx-get="/jobs/{{ r.job.id }}/again" hx-target="#modal">Transcribe again…</button></li>{% endif %}
             {% if r.status == "running" %}<li><button type="button" hx-post="/jobs/{{ r.job.id }}/stop" hx-swap="none">Stop</button></li>{% endif %}
             {% if r.status == "cancelled" %}<li><button type="button" hx-post="/jobs/{{ r.job.id }}/resume" hx-swap="none">Resume</button></li>{% endif %}
             {% if r.status == "failed" %}<li><button type="button" hx-post="/jobs/{{ r.job.id }}/retry" hx-swap="none">Retry</button></li>{% endif %}

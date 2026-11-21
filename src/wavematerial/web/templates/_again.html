@@ -1,0 +1,34 @@
+{# SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0 #}
+{% from "_macros.html" import icon, tags, speaker_select %}
+<dialog open class="modal" aria-labelledby="again-title">
+  <form class="modal-card" hx-post="/jobs/{{ job.id }}/again" hx-swap="none" tabindex="-1">
+    <header class="modal-head">
+      <h2 id="again-title">Transcribe again</h2>
+      <button type="button" class="icon-btn" data-close-modal aria-label="Close">{{ icon("x") }}</button>
+    </header>
+    <div class="modal-body">
+      <p>Transcribes <strong>{{ title }}</strong> again from the original file, as a new entry: <strong>{{ new_name }}</strong>. The current transcript and its edits stay as they are.</p>
+      {% if missing %}
+      <div class="banner banner-danger" role="alert">{{ icon("alert") }}<div>The original file is no longer at <span class="path">{{ job.source }}</span>, so it can't be transcribed again.</div></div>
+      {% endif %}
+      <div class="add-options">
+        <fieldset class="field">
+          <legend>Speakers</legend>
+          <div class="inline">Between {{ speaker_select("min_speakers", job.min_speakers, "At least") }} and {{ speaker_select("max_speakers", job.max_speakers, "At most") }}</div>
+        </fieldset>
+        <div class="field grow">
+          <div class="field-label">Key terms <span class="muted">optional</span></div>
+          {{ tags("key_terms", job.key_terms, "Add a name, place or term…") }}
+          <p class="muted small">Spell names the way they should appear. Used as hints, not guaranteed.</p>
+        </div>
+      </div>
+    </div>
+    <footer class="modal-foot">
+      <span></span>
+      <div class="foot-right">
+        <button type="button" class="btn btn-secondary" data-close-modal>Cancel</button>
+        <button type="submit" class="btn btn-primary"{% if missing %} disabled{% endif %}>Add to the queue</button>
+      </div>
+    </footer>
+  </form>
+</dialog>
