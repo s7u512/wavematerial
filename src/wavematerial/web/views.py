@@ -7,6 +7,7 @@ import json
 import logging
 import shutil
 import threading
+import time
 import webbrowser
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -242,7 +243,41 @@ def _shell(ctx: AppContext, active: str) -> dict:
         "recent": _recent(ctx),
         "engine": _engine(ctx),
         "library_count": len(ctx.store.all()),
+        "update_version": ctx.updates.status.latest if ctx.updates.update_available() else None,
     }
+
+
+# What each update button does, leading with what is different (shown by its "?").
+UPDATE_TIPS = {
+    ("windows", "self"): "Installs the update for you and reopens WaveMaterial. It downloads "
+    "and checks the new version, waits for any transcription to finish, then closes, "
+    "installs, and opens again. Your recordings, transcripts, and settings stay as they are.",
+    ("windows", "manual"): "You go through the installer's steps yourself. It downloads and "
+    "checks the installer, waits for any transcription to finish, then closes WaveMaterial "
+    "and opens the installer.",
+    ("tarball", "self"): "Replaces this folder with the new version for you and reopens "
+    "WaveMaterial. It downloads and checks the new version first and waits for any "
+    "transcription to finish. The old version is kept beside it, with .previous added to "
+    "its name.",
+    ("tarball", "manual"): "Only saves the new version to your Downloads folder; you replace "
+    "this folder yourself. It is checked first, and WaveMaterial keeps running.",
+}
+
+
+def _install_when_free(ctx: AppContext) -> None:
+    """Wait until no transcription runs, hold the queue, and quit so the update installs."""
+    updater = ctx.updater
+    assert updater is not None
+    while not ctx.scheduler.try_hold():
+        if updater.cancelled:
+            return
+        time.sleep(2)
+    if updater.cancelled:
+        ctx.scheduler.release_hold()
+        return
+    updater.mark_ready()
+    log.info("Quitting to install the update")
+    threading.Timer(0.5, ctx.native.close or ctx.quit.set).start()
 
 
 # ---- first run -----------------------------------------------------------------------------
@@ -1025,6 +1060,13 @@ def register(app: Flask) -> None:
             "unreliable": sorted(ctx.store.unreliable_gpus()),
             "update_msg": ctx.updates.message(),
             "update_available": ctx.updates.update_available(),
+            "updater": ctx.updater,
+            "update_why": ctx.update_why,
+            "update_tips": {
+                mode: UPDATE_TIPS[(ctx.updater.install.kind, mode)] for mode in ("self", "manual")
+            }
+            if ctx.updater and ctx.updater.install
+            else {},
         }
 
     class _Verify:
@@ -1149,6 +1191,31 @@ def register(app: Flask) -> None:
         ctx = _ctx()
         ctx.updates.check_in_background(force=True)
         return render_template("_updates.html", **_settings_data(ctx))
+
+    @app.post("/updates/start/<mode>")
+    def updates_start(mode: str):
+        """Self-update or Manual update: download and check, then hand over (see updater)."""
+        ctx = _ctx()
+        if mode not in ("self", "manual"):
+            abort(404)
+        st = ctx.updates.status
+        if ctx.updater and ctx.updates.update_available() and st.latest:
+            ctx.updater.start(st.latest, st.assets or {}, mode, lambda: _install_when_free(ctx))
+        return render_template("_updates.html", **_settings_data(ctx))
+
+    @app.post("/updates/cancel")
+    def updates_cancel():
+        ctx = _ctx()
+        if ctx.updater:
+            ctx.updater.cancel()
+        return render_template("_updates.html", **_settings_data(ctx))
+
+    @app.post("/updates/show-saved")
+    def updates_show_saved():
+        ctx = _ctx()
+        if ctx.updater and ctx.updater.saved:
+            open_path(ctx.updater.saved.parent)
+        return "", 204
 
     @app.get("/updates/status")
     def updates_status():

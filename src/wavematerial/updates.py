@@ -1,14 +1,18 @@
 # SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0
-"""The update check: asks GitHub whether a newer release exists. Installing stays manual.
+"""The update check: asks GitHub whether a newer release exists, and what files it has.
 
 Runs at most once a day (plus "Check now"), and only if enabled in Settings. Offline or
-failed checks are silent. Besides model downloads, this is the app's only network call.
+failed checks are silent. Installing is the user's choice (see updater.py).
+
+For tests, WAVEMATERIAL_UPDATE_SERVER may point the check and the download at a local server
+(only http://127.0.0.1 or http://localhost are accepted).
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import threading
 import urllib.error
@@ -16,15 +20,37 @@ import urllib.request
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from urllib.parse import urlparse
 
 from wavematerial import __version__
 from wavematerial._fsutil import write_text_atomic
 
 RELEASES_API = "https://api.github.com/repos/s7u512/wavematerial/releases/latest"
 RELEASES_PAGE = "https://github.com/s7u512/wavematerial/releases"
+DOWNLOADS = "https://github.com/s7u512/wavematerial/releases/download/"
+TEST_SERVER = "WAVEMATERIAL_UPDATE_SERVER"
 INTERVAL = timedelta(days=1)
 
 log = logging.getLogger(__name__)
+
+
+def _test_server() -> str | None:
+    url = os.environ.get(TEST_SERVER, "").rstrip("/")
+    parsed = urlparse(url)
+    if url and parsed.scheme == "http" and parsed.hostname in ("127.0.0.1", "localhost"):
+        return url
+    return None
+
+
+def releases_api() -> str:
+    test = _test_server()
+    return f"{test}/releases/latest" if test else RELEASES_API
+
+
+def download_prefix() -> str:
+    """Where release files must come from."""
+    test = _test_server()
+    return f"{test}/download/" if test else DOWNLOADS
 
 
 def _version_key(version: str) -> tuple[tuple[int, ...], int]:
@@ -42,6 +68,7 @@ class UpdateStatus:
     checked_at: str | None = None
     latest: str | None = None
     url: str | None = None
+    assets: dict[str, dict] | None = None  # file name -> {"url", "size"}
 
 
 class UpdateChecker:
@@ -70,7 +97,7 @@ class UpdateChecker:
     def _check(self) -> None:
         try:
             req = urllib.request.Request(
-                RELEASES_API,
+                releases_api(),
                 headers={
                     "User-Agent": f"WaveMaterial/{__version__}",
                     "Accept": "application/vnd.github+json",
@@ -82,6 +109,11 @@ class UpdateChecker:
                 checked_at=datetime.now(UTC).isoformat(timespec="seconds"),
                 latest=str(data.get("tag_name", "")).lstrip("v") or None,
                 url=data.get("html_url") or RELEASES_PAGE,
+                assets={
+                    str(a["name"]): {"url": str(a["browser_download_url"]), "size": int(a["size"])}
+                    for a in data.get("assets") or []
+                    if a.get("name") and a.get("browser_download_url")
+                },
             )
         except urllib.error.HTTPError as exc:
             if exc.code == 404:  # no release published yet
@@ -90,7 +122,7 @@ class UpdateChecker:
                 )
             else:
                 log.info("Update check failed: %s", exc)
-        except (OSError, ValueError) as exc:
+        except (OSError, ValueError, KeyError, TypeError) as exc:
             log.info("Update check failed (offline?): %s", exc)
         finally:
             self.checking = False

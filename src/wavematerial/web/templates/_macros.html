@@ -41,3 +41,8 @@
 {% macro nav_library_count(n, oob=False) -%}
 <span id="nav-library-count" class="nav-count"{% if oob %} hx-swap-oob="true"{% endif %}>{{ n }}</span>
 {%- endmacro %}
+
+{# A "?" that explains something on hover and on keyboard focus, read by screen readers. #}
+{% macro tip(id, label, text) -%}
+<span class="help-tip"><button type="button" class="help-tip-btn" aria-label="{{ label }}" aria-describedby="{{ id }}">?</button><span class="help-tip-text" role="tooltip" id="{{ id }}">{{ text }}</span></span>
+{%- endmacro %}

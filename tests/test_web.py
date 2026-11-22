@@ -7,6 +7,7 @@ import threading
 import time
 import wave
 from dataclasses import replace
+from types import SimpleNamespace
 
 import av
 import pytest
@@ -697,3 +698,35 @@ def test_remove_downloaded_models_then_back_to_setup(web, monkeypatch):
     r = _post(client, "/settings/remove-models")
     assert r.headers["HX-Redirect"] == "/setup"
     assert not any(m.folder(ctx.models_dir()).exists() for m in ctx.manifest)
+
+
+def test_an_update_waits_for_the_queue_then_holds_it_and_quits(web, monkeypatch):
+    from wavematerial.web import views
+
+    ctx, _, _ = web
+    closed, marked = threading.Event(), []
+    ctx.native = NativeHooks(close=closed.set)
+    ctx.updater = SimpleNamespace(cancelled=False, mark_ready=lambda: marked.append(1))
+    real_sleep = time.sleep
+    monkeypatch.setattr(views.time, "sleep", lambda s: real_sleep(0.01))
+    busy = [True, True, False]  # a transcription is running for the first two looks
+    monkeypatch.setattr(ctx.scheduler, "try_hold", lambda: not busy.pop(0))
+
+    views._install_when_free(ctx)
+    assert marked and closed.wait(5)
+
+
+def test_the_update_buttons_explain_themselves(web, monkeypatch):
+    from wavematerial import updater as up
+    from wavematerial.updates import UpdateStatus
+
+    ctx, client, tmp_path = web
+    client.set_cookie(COOKIE, "secret-token", domain="127.0.0.1")
+    ctx.updates.status = UpdateStatus(checked_at="2026-11-22T00:00:00+00:00", latest="99.0.0")
+    ctx.updater = up.Updater(tmp_path / "cache", up.Install("tarball", tmp_path / "app"))
+    page = _get(client, "/settings").get_data(as_text=True)
+    assert "Self-update" in page and "Manual update" in page
+    assert 'role="tooltip"' in page and "Only saves the new version to your Downloads" in page
+    monkeypatch.setattr(ctx.installer, "all_installed", lambda: True)
+    library = _get(client, "/library").get_data(as_text=True)
+    assert "WaveMaterial 99.0.0 is available" in library  # the sidebar notice

@@ -15,6 +15,7 @@
   </form>
   <div id="nav-list">{% include "_nav_list.html" %}</div>
   <div class="sidebar-spacer"></div>
+  {% if update_version %}<a class="nav-item nav-update" href="/settings#updates" title="WaveMaterial {{ update_version }} is available">{{ icon("refresh") }}<span class="nav-label">Version {{ update_version }} is available</span></a>{% endif %}
   {% include "_engine.html" %}
   <a class="nav-item{% if active == 'settings' %} is-active{% endif %}" href="/settings" title="Settings">
     {{ icon("settings") }}<span class="nav-label">Settings</span>

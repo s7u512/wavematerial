@@ -56,6 +56,8 @@ Name: "{autodesktop}\WaveMaterial"; Filename: "{app}\python\pythonw.exe"; Parame
 
 [Run]
 Filename: "{app}\python\pythonw.exe"; Parameters: "-m wavematerial"; WorkingDir: "{app}"; Description: "{cm:LaunchProgram,WaveMaterial}"; Flags: nowait postinstall skipifsilent
+; Self-update from the app (/UPDATE=1, silent) starts it again when done.
+Filename: "{app}\python\pythonw.exe"; Parameters: "-m wavematerial"; WorkingDir: "{app}"; Flags: nowait; Check: IsUpdate
 
 [Code]
 // The bundle ships none of Microsoft's C++ runtime DLLs, so Windows must have the Visual C++
@@ -78,10 +80,41 @@ begin
     and (ComparePackedVersion(PackVersionComponents(Major, Minor, Bld, 0), Need) >= 0);
 end;
 
+// Started from the app: Self-update (/UPDATE=1, silent) or Manual update (/WAIT=1, the
+// normal wizard). The app is quitting; wait for it to exit first (it holds the
+// WaveMaterialRunning mutex while it runs), at most a minute.
+function IsUpdate(): Boolean;
+begin
+  Result := ExpandConstant('{param:UPDATE|no}') <> 'no';
+end;
+
+function FromApp(): Boolean;
+begin
+  Result := IsUpdate() or (ExpandConstant('{param:WAIT|no}') <> 'no');
+end;
+
+function WaitForApp(): Boolean;
+var
+  Waited: Integer;
+begin
+  Waited := 0;
+  while CheckForMutexes('WaveMaterialRunning') and (Waited < 60000) do begin
+    Sleep(250);
+    Waited := Waited + 250;
+  end;
+  Result := not CheckForMutexes('WaveMaterialRunning');
+  if not Result then
+    Log('WaveMaterial is still running after a minute; not updating.');
+end;
+
 function InitializeSetup(): Boolean;
 var
   ErrorCode: Integer;
 begin
+  if FromApp() and not WaitForApp() then begin
+    Result := False;
+    exit;
+  end;
   Result := HasVCRedist();
   if not Result then begin
     Log('Visual C++ Redistributable (x64) {#MinVCRedist} or later not found.');

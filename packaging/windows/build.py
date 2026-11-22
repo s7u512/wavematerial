@@ -6,7 +6,8 @@
 Builds the Windows bundle (packaging/bundle.py --target windows), installs Inno Setup into
 the build bottle if needed, compiles wavematerial.iss, then test-installs the result in the
 bottle: it runs on Microsoft's C++ runtime (not Wine's), writes nothing into its install
-folder, runs sherpa-onnx with Windows' older onnxruntime.dll already loaded, and
+folder, runs sherpa-onnx with Windows' older onnxruntime.dll already loaded, updates itself the
+way Self-update does (the installer waits for the app, installs, and restarts it), and
 uninstalls cleanly; and an installer that asks for a newer runtime than the
 bottle has refuses to install.
 
@@ -23,6 +24,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 import tomllib
 import zipfile
 from pathlib import Path
@@ -72,6 +74,40 @@ def ensure_inno(wine: Wine) -> Path:
         wine.run(setup, "/VERYSILENT", "/SUPPRESSMSGBOXES", "/CURRENTUSER", "/NORESTART",
                  "/NOICONS", f"/DIR={INNO_DIR}")  # fmt: skip
     return iscc
+
+
+def update_check(wine: Wine, app: Path, python: Path, setup: Path, out: Path) -> None:
+    """One-click update: the installed app starts the installer in update mode as it quits;
+    the installer must wait for it to exit, install, and start the app again."""
+    exited, record = out / "update-exited.txt", app / "unins000.dat"
+    exited.unlink(missing_ok=True)
+    before = record.stat().st_mtime
+    proc = subprocess.Popen(
+        [str(wine.wine), Wine.path(python), "-B", Wine.path(HERE / "update_selftest.py"),
+         Wine.path(setup), Wine.path(out / "update-cache"), Wine.path(exited)],
+        env=wine.env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL, start_new_session=True,
+    )  # fmt: skip
+    relaunched = False
+    for _ in range(180):
+        time.sleep(1)
+        ps = subprocess.run(["ps", "-eo", "args"], capture_output=True, text=True).stdout
+        if "pythonw.exe -m wavematerial" in ps and exited.exists():
+            relaunched = True
+            break
+    wine.stop()  # the restarted app, and the self-test's wine process
+    proc.wait(30)
+    shutil.rmtree(out / "update-cache", ignore_errors=True)
+    if not exited.exists():
+        sys.exit("The update self-test did not finish.")
+    gone = float(exited.read_text(encoding="utf-8"))
+    exited.unlink()
+    installed = record.stat().st_mtime
+    if installed <= before or installed < gone:
+        sys.exit("The installer in update mode did not wait for the app to exit and install.")
+    if not relaunched:
+        sys.exit("The installer in update mode did not start the app again.")
+    print("Update mode: waited for the app, installed, and restarted it.")
 
 
 def main() -> int:
@@ -131,6 +167,7 @@ def main() -> int:
     written = snapshot(app) - before
     if written:
         sys.exit(f"Running the installed app wrote into its folder: {sorted(written)[:10]}")
+    update_check(wine, app, python, setup, out)
     # A silent uninstall must keep the user's speech models (it only asks when interactive).
     models = user / "AppData" / "Local" / "wavematerial" / "models"
     made = not models.exists()

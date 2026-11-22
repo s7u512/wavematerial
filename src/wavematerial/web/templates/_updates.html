@@ -1,9 +1,41 @@
 {# SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0 #}
-{% from "_macros.html" import icon %}
-<div id="updates" class="setting" {% if ctx.updates.checking %}data-poll hx-get="/updates/status" hx-trigger="every 1s" hx-swap="outerHTML"{% endif %}>
-  <div>
-    {{ update_msg }}
-    {% if update_available %}<button type="button" class="link" hx-post="/open/releases" hx-swap="none">Open the release page</button>{% endif %}
+{% from "_macros.html" import icon, tip %}
+{% set u = updater %}
+{% set busy = u and u.state in ("downloading", "waiting", "ready") %}
+<div id="updates" {% if ctx.updates.checking or busy %}data-poll hx-get="/updates/status" hx-trigger="every 1s" hx-swap="outerHTML"{% endif %}>
+  <div class="setting">
+    <div>
+      {{ update_msg }}
+      {% if update_available %}<button type="button" class="link" hx-post="/open/releases" hx-swap="none">Open the release page</button>{% endif %}
+    </div>
+    <button type="button" class="btn btn-secondary btn-sm" hx-post="/updates/check" hx-target="#updates" hx-swap="outerHTML"{% if ctx.updates.checking or busy %} disabled{% endif %}>{{ icon("refresh", 14) }} Check now</button>
   </div>
-  <button type="button" class="btn btn-secondary btn-sm" hx-post="/updates/check" hx-target="#updates" hx-swap="outerHTML"{% if ctx.updates.checking %} disabled{% endif %}>{{ icon("refresh", 14) }} Check now</button>
+  {% if update_available %}
+    {% if not u %}
+      <p class="muted small">{{ update_why }}</p>
+    {% elif u.state == "downloading" %}
+      <div class="setting">
+        <div>Downloading WaveMaterial {{ u.version }} · {{ fmt.size(u.done) }}{% if u.size %} of {{ fmt.size(u.size) }}{% endif %}</div>
+        <button type="button" class="btn btn-secondary btn-sm" hx-post="/updates/cancel" hx-target="#updates" hx-swap="outerHTML">Cancel</button>
+      </div>
+    {% elif u.state == "waiting" %}
+      <div class="setting">
+        <div>Ready. WaveMaterial closes and {{ "installs the update" if u.mode == "self" else "opens the installer" }} when the current transcription is done.</div>
+        <button type="button" class="btn btn-secondary btn-sm" hx-post="/updates/cancel" hx-target="#updates" hx-swap="outerHTML">Cancel</button>
+      </div>
+    {% elif u.state == "ready" %}
+      <div class="setting"><div>Closing WaveMaterial to {{ "install the update" if u.mode == "self" else "open the installer" }}…</div></div>
+    {% elif u.state == "saved" %}
+      <div class="setting">
+        <div>Saved WaveMaterial {{ u.version }} to {{ u.saved }}. Unpack it and replace this folder whenever you like.</div>
+        <button type="button" class="btn btn-secondary btn-sm" hx-post="/updates/show-saved" hx-swap="none">{{ icon("folder", 14) }} Show in folder</button>
+      </div>
+    {% else %}
+      {% if u.state == "error" %}<div class="error-text" role="alert">{{ icon("alert", 14) }} <span>{{ u.error }}</span></div>{% endif %}
+      <div class="update-actions">
+        <span class="update-action"><button type="button" class="btn btn-primary btn-sm" hx-post="/updates/start/self" hx-target="#updates" hx-swap="outerHTML">Self-update</button>{{ tip("tip-self-update", "What does Self-update do?", update_tips.self) }}</span>
+        <span class="update-action"><button type="button" class="btn btn-secondary btn-sm" hx-post="/updates/start/manual" hx-target="#updates" hx-swap="outerHTML">Manual update</button>{{ tip("tip-manual-update", "What does Manual update do?", update_tips.manual) }}</span>
+      </div>
+    {% endif %}
+  {% endif %}
 </div>

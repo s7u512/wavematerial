@@ -10,11 +10,13 @@ from __future__ import annotations
 import json
 import logging
 import logging.handlers
+import os
 import secrets
 import sys
 import threading
 import time
 import webbrowser
+from pathlib import Path
 
 from wavematerial import __version__
 from wavematerial.config import Paths, load_settings
@@ -25,6 +27,7 @@ from wavematerial.models import folders
 from wavematerial.models.installer import Installer
 from wavematerial.models.manifest import load_manifest
 from wavematerial.preflight import detect_devices, in_wsl, physical_cores
+from wavematerial.updater import Updater, current_install
 from wavematerial.updates import UpdateChecker
 from wavematerial.web import create_app
 from wavematerial.web.context import AppContext, NativeHooks
@@ -140,12 +143,31 @@ def _open_window(ctx: AppContext, url: str) -> None:
     webview.start(private_mode=True)
 
 
+def _running_marker() -> None:
+    """On Windows, a named mutex the installer waits on while it exists (see the .iss)."""
+    if sys.platform == "win32":
+        import ctypes
+
+        global _MUTEX
+        _MUTEX = ctypes.windll.kernel32.CreateMutexW(None, False, "WaveMaterialRunning")
+
+
+_MUTEX = None
+# Build tests only (packaging/tarball/update_selftest.py): a file to write "started" into,
+# then exit at once instead of opening a window, so an update's restart can be seen.
+SELFTEST_STARTED = "WAVEMATERIAL_SELFTEST_STARTED"
+
+
 def main(argv: list[str] | None = None) -> int:
+    if marker := os.environ.get(SELFTEST_STARTED):
+        Path(marker).write_text(f"started {__version__} from {sys.executable}\n", encoding="utf-8")
+        return 0
     paths = Paths.default()
     _setup_logging(paths)
     log.info("WaveMaterial %s starting", __version__)
 
     lock = InstanceLock(paths.state_dir / "instance.lock")
+    _running_marker()
     try:
         lock.acquire()
     except AlreadyRunning:
@@ -167,10 +189,14 @@ def main(argv: list[str] | None = None) -> int:
     installer = Installer(manifest, lambda: paths.models_dir(settings()), paths.cache_dir)
     folders.write_pointer(paths.data_dir, paths.models_dir(settings()))  # for the uninstaller
     updates = UpdateChecker(paths.state_dir / "update.json")
+    install, update_why = current_install()
+    updater = Updater(paths.cache_dir, install) if install else None
+    if updater:
+        updater.clean()
     ctx = AppContext(
         paths=paths, store=store, scheduler=scheduler, installer=installer, updates=updates,
         manifest=manifest, devices=devices, cores=cores, wsl=wsl,
-        token=secrets.token_urlsafe(32),
+        token=secrets.token_urlsafe(32), updater=updater, update_why=update_why,
     )  # fmt: skip
 
     from waitress import create_server
@@ -203,4 +229,6 @@ def main(argv: list[str] | None = None) -> int:
         ctx.playback.shutdown()
         server.close()
         lock.release()
+        if updater:
+            updater.apply()  # after everything has shut down
     return 0

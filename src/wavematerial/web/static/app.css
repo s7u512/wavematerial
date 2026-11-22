@@ -600,3 +600,12 @@ body.is-resizing { cursor: col-resize; user-select: none; }
   .export-label { display: none; }
   .divider { display: none; }
 }
+
+/* "?" explanations (see the tip macro): on hover and on keyboard focus */
+.help-tip { position: relative; display: inline-flex; vertical-align: middle; }
+.help-tip .help-tip-btn { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; min-height: 0; margin: 0 0 0 6px; padding: 0; border-radius: 50%; border: 1px solid var(--border-strong); background: var(--surface-2); box-shadow: none; color: var(--text-2); font-size: var(--fs-caps); font-weight: 600; line-height: 1; cursor: help; }
+.help-tip-text { display: none; position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); width: 300px; max-width: 80vw; padding: 9px 11px; border: 1px solid var(--border-strong); border-radius: var(--r-control); background: var(--surface-2); box-shadow: var(--shadow-lg); color: var(--text); font-size: var(--fs-small); font-weight: 400; line-height: 1.45; text-align: left; z-index: 30; }
+.help-tip:hover .help-tip-text, .help-tip .help-tip-btn:focus + .help-tip-text { display: block; }
+.update-actions { display: flex; flex-wrap: wrap; gap: 18px; padding: 8px 0; }
+.update-action { display: inline-flex; align-items: center; }
+.nav-update, .nav-update:hover { color: var(--text); background: var(--surface-2); }

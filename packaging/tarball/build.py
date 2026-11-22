@@ -5,7 +5,9 @@
 
 Builds the Linux bundle (packaging/bundle.py) and packs it with the desktop entry, icons,
 licence and README into a reproducible tarball, then unpacks it and checks it: it runs,
-writes nothing into itself, and holds no paths from this machine.
+writes nothing into itself, holds no paths from this machine, and updates itself the way
+Self-update does (against a local stand-in for the release page offering the same tarball:
+the folders are swapped, the old one is kept as .previous, and the app restarts).
 
 Result: dist/wavematerial-<version>-linux-x86_64.tar.gz
 """
@@ -14,10 +16,17 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import hashlib
+import json
+import os
 import shutil
 import sys
 import tarfile
+import threading
+import time
 import tomllib
+from functools import partial
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -81,6 +90,57 @@ def make_tarball(bundle: Path, out: Path, mtime: int) -> None:
                 tf.add(source, arcname=name, recursive=False, filter=normalise)
 
 
+def update_check(check: Path, unpacked: Path, tarball: Path, version: str) -> None:
+    """Self-update the unpacked tarball from a local stand-in for the release page."""
+    site = check / "site"
+    (site / "releases").mkdir(parents=True)
+    (site / "download").mkdir()
+    shutil.copy2(tarball, site / "download" / tarball.name)
+    digest = hashlib.sha256(tarball.read_bytes()).hexdigest()
+    (site / "download" / "SHA256SUMS").write_text(f"{digest}  {tarball.name}\n", encoding="utf-8")
+    server = ThreadingHTTPServer(("127.0.0.1", 0), partial(QuietHandler, directory=str(site)))
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    base = f"http://127.0.0.1:{server.server_port}"
+    assets = [
+        {"name": n, "size": (site / "download" / n).stat().st_size,
+         "browser_download_url": f"{base}/download/{n}"}
+        for n in (tarball.name, "SHA256SUMS")
+    ]  # fmt: skip
+    latest = {"tag_name": f"v{version}", "html_url": base, "assets": assets}
+    (site / "releases" / "latest").write_text(json.dumps(latest), encoding="utf-8")
+
+    (unpacked / "OLD-COPY").write_text("this folder is the old version\n", encoding="utf-8")
+    started = check / "started.txt"
+    env = {**os.environ, "WAVEMATERIAL_UPDATE_SERVER": base,
+           "WAVEMATERIAL_SELFTEST_STARTED": str(started)}  # fmt: skip
+    try:
+        run(unpacked / "python" / "bin" / "python3.12", "-B", HERE / "update_selftest.py",
+            check / "update-cache", env=env)  # fmt: skip
+        for _ in range(60):
+            if started.exists():
+                break
+            time.sleep(0.5)
+    finally:
+        server.shutdown()
+    previous = unpacked.with_name(unpacked.name + ".previous")
+    if not (previous / "OLD-COPY").exists() or (unpacked / "OLD-COPY").exists():
+        sys.exit("Self-update did not swap the folders (the old one kept as .previous).")
+    if not (unpacked / "bin" / "wavematerial").exists():
+        sys.exit("Self-update left no app in the folder.")
+    if not started.exists():
+        sys.exit("Self-update did not restart the app.")
+    leftovers = sorted(p.name for p in check.iterdir() if p.name.endswith(".update"))
+    if leftovers:
+        sys.exit(f"Self-update left its unpacking folder behind: {leftovers}")
+    note = started.read_text(encoding="utf-8").strip()
+    print(f"Self-update: folders swapped, previous kept, app restarted ({note}).")
+
+
+class QuietHandler(SimpleHTTPRequestHandler):
+    def log_message(self, *args) -> None:
+        pass
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--allow-dirty", action="store_true", help="build from uncommitted changes")
@@ -116,6 +176,7 @@ def main() -> int:
         sys.exit(f"Build paths found in the tarball: {found[:20]}")
     if shutil.which("desktop-file-validate"):
         run("desktop-file-validate", HERE / f"{APP_ID}.desktop")
+    update_check(check, unpacked, tarball, version)
     shutil.rmtree(check)
 
     print(f"\nTarball: {tarball} ({tarball.stat().st_size / 1e6:.0f} MB)")

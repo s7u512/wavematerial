@@ -20,6 +20,7 @@ from wavematerial.jobs.store import JobStore
 from wavematerial.models.installer import Installer
 from wavematerial.models.manifest import ModelSpec
 from wavematerial.preflight import Device
+from wavematerial.updater import Updater
 from wavematerial.updates import UpdateChecker
 
 
@@ -48,6 +49,8 @@ class AppContext:
     wsl: bool
     token: str
     native: NativeHooks = field(default_factory=NativeHooks)
+    updater: Updater | None = None  # None: this copy can't update itself (see update_why)
+    update_why: str = ""
     port: int = 0
     fullscreen: bool = False
     playback: PlaybackCopies = field(default_factory=PlaybackCopies)
