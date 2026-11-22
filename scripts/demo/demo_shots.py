@@ -14,7 +14,18 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from make import CHROMIUM, KEY_TERM, OUT_VIDEO, SHOTS_DIR, SPEAKERS, WORK, Server, log, make_home
+from make import (
+    AUDIO,
+    CHROMIUM,
+    KEY_TERM,
+    OUT_VIDEO,
+    SHOTS_DIR,
+    SPEAKERS,
+    WORK,
+    Server,
+    log,
+    make_home,
+)
 from PIL import Image
 from playwright.sync_api import Page, sync_playwright
 
@@ -34,6 +45,21 @@ addEventListener("DOMContentLoaded", () => {
   addEventListener("mousedown", () => { dot.style.transform = "scale(.7)"; }, true);
   addEventListener("mouseup", () => { dot.style.transform = ""; }, true);
 });
+"""
+
+
+# What the page's <audio> plays, and when (wall clock), so the soundtrack can be rebuilt
+# afterwards: recordings have no sound.
+AUDIO_LOG = """
+window.__wmAudio = [];
+for (const type of ["playing", "pause", "ended", "seeking"]) {
+  addEventListener(type, (e) => {
+    if (e.target instanceof HTMLMediaElement) {
+      window.__wmAudio.push({type, t: Date.now() / 1000, pos: e.target.currentTime,
+                             rate: e.target.playbackRate});
+    }
+  }, true);
+}
 """
 
 
@@ -63,6 +89,7 @@ def browser(p, video_dir: Path | None = None):
     )  # fmt: skip
     if video_dir:
         ctx.add_init_script(CURSOR)
+        ctx.add_init_script(AUDIO_LOG)
     return b, ctx
 
 
@@ -244,18 +271,6 @@ def screenshots() -> int:
     return 0
 
 
-CAPTION = """(text) => {
-  const c = document.createElement("div");
-  c.id = "demo-caption";
-  c.textContent = text;
-  c.style.cssText = "position:fixed;z-index:2147483646;left:50%;top:22px;" +
-    "transform:translateX(-50%);" +
-    "padding:10px 18px;border-radius:10px;background:rgba(20,22,26,.92);color:#fff;" +
-    "font:600 16px Inter,system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.5)";
-  document.body.appendChild(c);
-}"""
-
-
 class Segment:
     """One recorded browser context; `ready()` marks where the usable footage starts."""
 
@@ -263,10 +278,25 @@ class Segment:
         self.b, self.ctx = browser(p, folder)
         self.page = self.ctx.new_page()
         self.created = time.monotonic()
+        self.created_wall = time.time()
         self.start = 0.0
 
     def ready(self) -> None:
         self.start = time.monotonic() - self.created
+
+    def played(self) -> list[tuple[float, float, float, float]]:
+        """(video time, audio position, length, rate) of each stretch the page played."""
+        events = self.page.evaluate("window.__wmAudio || []")
+        out, open_ = [], None
+        for e in events:
+            if open_ and e["type"] in ("pause", "ended", "seeking"):
+                t0, pos, rate = open_
+                if e["t"] > t0:
+                    out.append((t0 - self.created_wall - self.start, pos, e["t"] - t0, rate))
+                open_ = None
+            if e["type"] == "playing":
+                open_ = (e["t"], e["pos"], e["rate"])
+        return out
 
     def close(self) -> tuple[Path, float]:
         video = self.page.video
@@ -315,7 +345,7 @@ def video() -> int:
             parts.append(seg.close())
             first.stop()
 
-        log("segment 2: adding the recordings")
+        log("segment 2, one take: adding the recording, transcribing, the editor")
         main = Server(make_home("video"))
         try:
             seg = Segment(p, folder)
@@ -325,29 +355,10 @@ def video() -> int:
             seg.ready()
             time.sleep(1.0)
             add_recordings(page, slow=True)
-            submitted = time.monotonic()
             page.wait_for_selector("text=Transcribing", timeout=60000)
-            time.sleep(3.5)
-            parts.append(seg.close())
-
-            log("waiting for the transcriptions (not recorded)")
-            watcher = Segment(p, folder)  # a throwaway context to poll with
-            watcher.page.goto(main.url("/library"))
-            wait_until(watcher.page, lambda: jobs_done(watcher.page, main, 1), 1200, 1.0)
-            took = time.monotonic() - submitted
-            watcher.close()[0].unlink(missing_ok=True)
-            caption = f"Transcribing this minute took {round(took)} s · skipped ahead"
-            log(caption)
-
-            log("segment 3: the editor")
-            seg = Segment(p, folder)
-            page = seg.page
-            page.goto(main.url("/library"))
-            page.wait_for_selector(".pill-done")
-            page.evaluate(CAPTION, caption)
-            seg.ready()
-            time.sleep(2.6)
-            page.evaluate("document.getElementById('demo-caption').remove()")
+            glide(page, ".job-row .status", steps=30, pause=0.5)
+            wait_until(page, lambda: page.locator(".pill-done").count() > 0, 1200, 0.5)
+            time.sleep(1.5)
             row = page.locator(".job-row").filter(has_text="Act I")
             click(page, row.get_by_role("link", name="Edit the transcript", exact=False))
             page.wait_for_selector("#turns .turn")
@@ -398,28 +409,55 @@ def video() -> int:
 
             click(page, "#export-menu summary", pause=0.8)
             click(page, '[data-export="docx"]', pause=2.4)
+            played = seg.played()
             parts.append(seg.close())
         finally:
             main.stop()
-    encode(parts, OUT_VIDEO)
+    audio = WORK / "video" / "Recordings" / AUDIO[0][2]
+    encode(parts, OUT_VIDEO, sound=(audio, played))
     return 0
 
 
-def encode(parts: list[tuple[Path, float]], out: Path) -> None:
-    """Trim each segment's start, join them, and encode VP9 (no sound)."""
+def duration(path: Path) -> float:
+    return float(subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(path)],
+        capture_output=True, text=True, check=True,
+    ).stdout.strip())  # fmt: skip
+
+
+TRIM = 0.3  # cut from each segment's start, past the page appearing
+
+
+def encode(parts: list[tuple[Path, float]], out: Path, sound=None) -> None:
+    """Trim each segment's start, join them, and encode VP9. `sound` is (audio file, the last
+    segment's played stretches): the soundtrack is that audio where the page played it, and
+    silence elsewhere (Opus)."""
     out.parent.mkdir(parents=True, exist_ok=True)
     cmd = ["ffmpeg", "-v", "error", "-y"]
     for path, start in parts:
-        cmd += ["-ss", f"{start + 0.3:.2f}", "-i", str(path)]
+        cmd += ["-ss", f"{start + TRIM:.2f}", "-i", str(path)]
     joined = "".join(f"[{i}:v]" for i in range(len(parts)))
     graph = f"{joined}concat=n={len(parts)}:v=1:a=0,fps=25[v]"
-    cmd += ["-filter_complex", graph, "-map", "[v]", "-c:v", "libvpx-vp9", "-crf", "33",
-            "-b:v", "0", "-row-mt", "1", "-an", str(out)]  # fmt: skip
+    maps = ["-map", "[v]"]
+    if sound and sound[1]:
+        audio, played = sound
+        before = sum(duration(path) - start - TRIM for path, start in parts[:-1])
+        cmd += ["-i", str(audio)]
+        a = len(parts)
+        clips = []
+        for i, (at, pos, length, rate) in enumerate(played):
+            delay = max(0, round((before + at - TRIM) * 1000))
+            tempo = f",atempo={rate}" if abs(rate - 1) > 0.01 else ""
+            graph += (
+                f";[{a}:a]atrim=start={pos:.3f}:duration={length * rate:.3f},"
+                f"asetpts=PTS-STARTPTS{tempo},adelay={delay}:all=1[a{i}]"
+            )
+            clips.append(f"[a{i}]")
+        graph += f";{''.join(clips)}amix=inputs={len(clips)}:normalize=0,apad[a]"
+        maps += ["-map", "[a]", "-c:a", "libopus", "-b:a", "64k", "-shortest"]
+    else:
+        maps += ["-an"]
+    cmd += ["-filter_complex", graph, *maps, "-c:v", "libvpx-vp9", "-crf", "33",
+            "-b:v", "0", "-row-mt", "1", str(out)]  # fmt: skip
     subprocess.run(cmd, check=True)
-    length = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(out)],
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.strip()
-    log(f"video: {out} ({float(length):.0f} s, {out.stat().st_size / 1e6:.1f} MB)")
+    log(f"video: {out} ({duration(out):.0f} s, {out.stat().st_size / 1e6:.1f} MB)")

@@ -25,9 +25,11 @@ How it works:
   demo recordings. It never contacts GitHub; the "update available" screenshot uses a local
   stand-in.
 - Playwright drives the system Chromium headless at 1920×1080. Screenshots are tagged
-  300 ppi. The video is recorded in segments (a cursor dot is drawn, since recordings show
-  no pointer), joined, and encoded as VP9 without sound. The wait for the transcriptions is
-  cut, with a caption saying how long it really took.
+  300 ppi. The video is the first-run screen, then one uncut take: adding the recording,
+  its transcription in real time, and the editor. A cursor dot is drawn, since recordings
+  show no pointer. Recordings have no sound either, so the page logs when its audio plays
+  and from where, and ffmpeg rebuilds the soundtrack from the recording at those moments
+  (silence elsewhere). Encoded as VP9 with Opus sound.
 - Sample audio: one minute (3:00–4:00) of Act I of the LibriVox dramatic reading of
   Chekhov's *The Seagull* (translated by Marian Fell; archive.org `seagull_0903_librivox`;
   LibriVox recordings are public domain), downloaded into `dist/cache/demo/`, checked
