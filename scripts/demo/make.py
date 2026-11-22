@@ -41,7 +41,7 @@ OUT_VIDEO = REPO / "dist" / "demo" / "wavematerial-demo.webm"
 SHOTS_DIR = REPO / "demo" / "usage"
 MODELS = Path.home() / ".local" / "share" / "wavematerial" / "models"
 SANDBOX_HOME = Path("/home/you")
-CHROMIUM = "/usr/bin/chromium"
+CHROMIUM = os.environ.get("WM_CHROMIUM", "/usr/bin/chromium")  # or another Chromium build
 ARCHIVE = "https://archive.org/download/seagull_0903_librivox"
 # (file on archive.org, its SHA-1, the name it gets in the demo, start and length in seconds)
 AUDIO = [

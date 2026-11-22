@@ -62,7 +62,9 @@ them, as **Not started**, so you can collect recordings now and start them later
 **Start** on a recording, or **Start N not started** at the top of the library for all of
 them. Starting puts a recording at the end of the queue.
 
-![The Add recordings dialog with two files, a speaker range, and a key term](demo/usage/03-add-recordings.png)
+![The library with a recording added but not started, and its Start buttons](demo/usage/29-library-not-started.png)
+
+![The Add recordings dialog with a file, a speaker range, a key term, and its two buttons](demo/usage/03-add-recordings.png)
 
 ## While recordings are transcribed
 
@@ -88,7 +90,7 @@ Every recording, with its length, the number of speakers found, and its status. 
 filter by status. **Edit transcript** on a finished recording (or its name) opens it in the
 editor; its details drawer has the same button.
 
-![The library with two finished recordings](demo/usage/06-library.png)
+![The library with a finished recording and its Edit transcript button](demo/usage/06-library.png)
 
 **Search transcripts** finds recordings by what was said in them.
 

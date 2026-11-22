@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import threading
@@ -139,6 +140,15 @@ class UpdateStandIn:
         self.server.shutdown()
 
 
+def next_patch() -> str:
+    """The app's version with the patch number raised: what the stand-in offers."""
+    init = (
+        Path(__file__).resolve().parents[2] / "src" / "wavematerial" / "__init__.py"
+    ).read_text()
+    major, minor, patch = re.search(r'__version__ = "(\d+)\.(\d+)\.(\d+)"', init).groups()
+    return f"{major}.{minor}.{int(patch) + 1}"
+
+
 def screenshots() -> int:
     with sync_playwright() as p:
         b, ctx = browser(p)
@@ -153,20 +163,51 @@ def screenshots() -> int:
         finally:
             first.stop()
 
-        log("05: a recording's details while it is transcribed")
+        log("03: the Add recordings dialog")
         home = make_home("shots")
         main = Server(home)
         try:
             page.goto(main.url("/"))
-            add_recordings(page)
+            page.locator("text=Add recordings…").first.click()
+            page.wait_for_selector("#add-form")
+            page.locator("text=Choose files…").first.click()
+            page.wait_for_selector("#add-files .file-row", timeout=10000)
+            page.select_option("select[name=min_speakers]", SPEAKERS[0])
+            page.select_option("select[name=max_speakers]", SPEAKERS[1])
+            terms = page.locator("#add-form .tags input").first
+            terms.click()
+            terms.type(KEY_TERM)
+            terms.press("Enter")
+            page.locator("#add-submit").focus()
+            time.sleep(0.4)
+            save(page, "03-add-recordings.png")
+
+            log("29: added to the library, not started")
+            page.locator("#add-later").click()
             page.wait_for_url("**/library**")  # adding from the landing screen goes there
+            page.wait_for_selector("#start-all", timeout=10000)
+            time.sleep(0.6)
+            save(page, "29-library-not-started.png")
+
+            log("05: a recording's details while it is transcribed")
+            row = page.locator(".job-row").filter(has_text="Act I")
+            row.get_by_role("button", name="Start", exact=False).first.click()
             page.wait_for_selector("text=Transcribing", timeout=60000)
             time.sleep(2)  # into the first stages (a minute of audio is quick)
-            page.locator(".job-row").filter(has_text="Act I").locator(".row-open").click()
+            row.locator(".row-open").click()
             page.wait_for_selector("[data-copy-report]")
             time.sleep(1)
             save(page, "05-job-details.png")
             wait_until(page, lambda: jobs_done(page, main, 1), timeout=1200)
+
+            log("06 and 08: the library with the finished recording, and its row menu")
+            page.goto(main.url("/library"))
+            page.wait_for_selector("text=Edit transcript")
+            time.sleep(0.6)
+            save(page, "06-library.png")
+            page.locator(".job-row").first.locator("summary").click()
+            time.sleep(0.4)
+            save(page, "08-library-row-menu.png")
 
             log("26: Settings, lower part")
             page.goto(main.url("/settings"))
@@ -176,8 +217,9 @@ def screenshots() -> int:
         finally:
             main.stop()
 
-        log("28: an update is available (a local stand-in offers 1.1.1)")
-        stand_in = UpdateStandIn(WORK / "update-stand-in", "1.1.1")
+        newer = next_patch()
+        log(f"28: an update is available (a local stand-in offers {newer})")
+        stand_in = UpdateStandIn(WORK / "update-stand-in", newer)
         upd = Server(home, env={"WAVEMATERIAL_UPDATE_SERVER": stand_in.base}, pretend="tarball")
         try:
             page.goto(upd.url("/settings"))

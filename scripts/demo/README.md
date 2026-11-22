@@ -7,13 +7,15 @@ It is a maintainers' tool and runs on Linux only.
 uv run --no-project --python 3.12.13 --with playwright --with pillow \
     scripts/demo/make.py check        # transcribe the demo recordings once, print them
 uv run --no-project --python 3.12.13 --with playwright --with pillow \
-    scripts/demo/make.py screenshots  # 01, 05, 26, 28 into demo/usage/
+    scripts/demo/make.py screenshots  # 01, 03, 05, 06, 08, 26, 28, 29 into demo/usage/
 uv run --no-project --python 3.12.13 --with playwright --with pillow \
     scripts/demo/make.py video        # dist/demo/wavematerial-demo.webm
 ```
 
-Needs `bwrap` (bubblewrap), `chromium`, `ffmpeg`, the repo's `uv sync` environment, and the
-speech models already downloaded (`uv run wavematerial models`).
+Needs `bwrap` (bubblewrap), `chromium` (or set `WM_CHROMIUM` to another Chromium build, such as
+Playwright's headless shell), `ffmpeg`, the repo's `uv sync` environment, and the speech
+models already downloaded (`uv run wavematerial models`). The other screenshots in
+`demo/usage/` are from 1.0.0.
 
 How it works:
 
