@@ -44,9 +44,11 @@ def create_app(ctx: AppContext) -> Flask:
 
     @app.after_request
     def headers(resp):
+        # 'unsafe-eval': pywebview runs every evaluate_js call through eval(), which the
+        # app window needs for dropped files; htmx's own eval stays off (base.html).
         resp.headers["Content-Security-Policy"] = (
             "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; "
-            "script-src 'self'; frame-ancestors 'none'"
+            "script-src 'self' 'unsafe-eval'; frame-ancestors 'none'"
         )
         resp.headers["X-Content-Type-Options"] = "nosniff"
         resp.headers["Referrer-Policy"] = "no-referrer"

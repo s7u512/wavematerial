@@ -6,6 +6,10 @@ Every user-visible change is recorded here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Dropping files onto the app window now works on Linux; the app no longer logs an
+  `'EventContainer' object has no attribute 'drop'` error on every page load.
+
 ## [1.1.0] - 2026-11-22
 
 ### Added
