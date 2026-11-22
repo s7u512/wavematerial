@@ -1,6 +1,6 @@
 # WaveMaterial: visual design
 
-The design system for the 1.0.0 UI. Behaviour is specified in
+The design system for the 1.1.0 UI. Behaviour is specified in
 [`docs/SPEC.md`](../docs/SPEC.md); the mock-ups show how it looks.
 
 ## Files
@@ -32,16 +32,23 @@ The mock-ups are generated, so change `tools/build_mockups.py`, not the FigCraft
 | # | Screen |
 |---|---|
 | 00 | Landing: the logo large in the middle, the name, the tagline, Open library, Add recordings, and Quit; the sidebar logo returns to it |
-| 01 | First run: device detection and the one-time model download |
+| 01 | First run: asks before the one-time model download. One dominant, focused **Download models** button with the size under it (2.9 GB on disk, a 2.7 GB download); Saving to with **Change folder**; the model list, quiet (name, role, licence, source, size); the device note small at the bottom. Problems (no room, a folder it can't write to, OneDrive, a missing drive) show under the button; the progress view replaces the button in place |
 | 02 | Library: every recording, with filter chips (All, In progress, Done, Failed) and search |
 | 03 | Add recordings (dialog): files or a folder, speaker range, key terms |
 | 04 | Transcript editor |
-| 05 | Job details (drawer): stages, device, log, Stop and Retry |
-| 06 | Settings |
+| 05 | Job details (drawer): stages, device, log, Stop and Retry, **Copy log** (a ready-to-paste report) and Open log file |
+| 06 | Settings, shown with an update available: the models card has **Remove downloaded models** (red, ghost); the Updates card has **Self-update** (primary) and **Manual update** (secondary), each with a help tip, one shown open |
 | 07 | Editor at the 960 × 720 minimum: the sidebar becomes an icon rail and the side panel an overlay |
 
 The shell is a 248 px sidebar (logo, Library, Recent, the engine card, and Settings). Below
-about 1280 px wide it becomes a 60 px icon rail.
+about 1280 px wide it becomes a 60 px icon rail. When a newer version exists, a small notice
+("Version 1.1.1 is available", surface-2 fill) sits above the engine card and leads to
+Settings; in the rail it is just its icon.
+
+**Help tip:** a small round "?" (18 px, surface-2, border-strong, text-2) beside a control.
+On hover or keyboard focus it opens a tooltip above it: surface-2, border-strong, 6 px
+radius, the raised shadow, text 12 px, about 300 px wide. Its text leads with what is
+different about the control. It is a focusable button whose text screen readers read.
 
 In the editor's Speakers tab each speaker has its own "Merge into…" action, in place of the
 mock-up's single "Merge or split speakers…" link. A selection across neighbouring turns adds
@@ -85,5 +92,7 @@ generators; never hand-edit the generated files.
 
 ## Sample content
 
-Mock-ups, docs, and screenshots use public-domain recordings only. The editor shows NASA's
-Apollo 11 lunar landing (20 July 1969).
+Mock-ups, docs, and screenshots use public-domain recordings only. The mock-ups' editor
+shows NASA's Apollo 11 lunar landing (20 July 1969). The USAGE screenshots and the README
+video use a minute of the LibriVox dramatic reading of Chekhov's *The Seagull* (Act I,
+3:00–4:00), whose speakers are known from its cast (see `scripts/demo/`).

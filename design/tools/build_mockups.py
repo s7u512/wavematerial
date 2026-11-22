@@ -317,6 +317,7 @@ ICON = {
     "export": "M8 2v8 M4.5 5.5L8 2l3.5 3.5 M3 10v4h10v-4",
     "pencil": "M3 13l1-3 7-7 2 2-7 7z",
     "refresh": "M13 8c0 2.8-2.2 5-5 5s-5-2.2-5-5 2.2-5 5-5c1.6 0 3 .7 3.9 1.9 M13 2.5v3h-3",
+    "trash": "M3 4.5h10 M6.5 4.5V3h3v1.5 M4.5 4.5l.6 8.5h5.8l.6-8.5",
     "gpu": "M2 5h12v7H2z M5 5V3 M11 5V3 M5 12v2 M11 12v2 M5.5 7.5h5v2h-5z",
 }
 
@@ -419,6 +420,7 @@ def button(
         "secondary": dict(fill=SURFACE, stroke=BORDER_STRONG, color=TEXT),
         "ghost": dict(fill=None, stroke=None, color=TEXT_2),
         "danger": dict(fill=SURFACE, stroke="#6B2A2E", color=DANGER),
+        "ghost-danger": dict(fill=None, stroke=None, color=DANGER),
     }[kind]
     pad = [5, 10, 5, 10] if small else [8, 14, 8, 14]
     b = hstack(
@@ -532,7 +534,7 @@ def section_label(parent: str, s: str) -> str:
 # ---------------------------------------------------------------------------
 # App shell
 # ---------------------------------------------------------------------------
-def sidebar(win: str, active: str, compact: bool = False) -> None:
+def sidebar(win: str, active: str, compact: bool = False, update: str | None = None) -> None:
     if compact:  # icon rail for small windows
         sb = vstack(
             win,
@@ -622,6 +624,13 @@ def sidebar(win: str, active: str, compact: bool = False) -> None:
         icon(r, "file", TEXT_3, 15)
         text(r, name, 13, "Regular", TEXT_2, sizingH="fill")
     spacer(sb, horizontal=False)
+    if update:  # a newer version exists: a small notice that leads to Settings
+        note = hstack(
+            sb, "Update notice", gap=10, pad=[8, 10, 8, 10], fill=SURFACE_2, cornerRadius=6,
+            sizingH="fill",
+        )  # fmt: skip
+        icon(note, "refresh", TEXT)
+        text(note, f"Version {update} is available", 12.5, "Medium", TEXT, sizingH="fill")
     # engine card
     card = vstack(
         sb,
@@ -689,10 +698,17 @@ def page_header(main: str, title: str, subtitle: str | None = None) -> str:
 
 
 def shell(
-    name: str, x: float, y: float, active: str, h: float = H, w: float = W, compact: bool = False
+    name: str,
+    x: float,
+    y: float,
+    active: str,
+    h: float = H,
+    w: float = W,
+    compact: bool = False,
+    update: str | None = None,
 ) -> tuple[str, str]:
     win = screen(name, x, y, w=w, h=h, layout="horizontal")
-    sidebar(win, active, compact)
+    sidebar(win, active, compact, update)
     main = vstack(win, "Main", gap=0, sizingH="fill", sizingV="fill")
     return win, main
 
@@ -1381,12 +1397,13 @@ def details_drawer(x: float, y: float) -> None:
     acts = hstack(dr, "Actions", gap=8, sizingH="fill")
     button(acts, "Stop", "danger", "pause")
     spacer(acts)
+    button(acts, "Copy log", "ghost")
     button(acts, "Open log file", "ghost")
 
 
 def settings(x: float, y: float) -> None:
     hh = 1240 if H < 1240 else H
-    win, main = shell("06 Settings", x, y, "settings", h=hh)
+    win, main = shell("06 Settings", x, y, "settings", h=hh, update="1.1.1")
     f11_hint(page_header(main, "Settings"))
     col = vstack(main, "Sections", gap=16, pad=[0, 28, 28, 28], sizingH="fixed")
     cmd("node.set", {"ids": [R(col)], "props": {"width": 900}})
@@ -1490,6 +1507,7 @@ def settings(x: float, y: float) -> None:
     button(fr, "Change…", "secondary", small=True)
     ar = hstack(c, "Actions", gap=8)
     button(ar, "Verify all", "secondary", "check", small=True)
+    button(ar, "Remove downloaded models", "ghost-danger", "trash", small=True)
 
     c = card("Updates")
 
@@ -1500,24 +1518,49 @@ def settings(x: float, y: float) -> None:
     row(
         c,
         "Check for new versions once a day",
-        "Only asks GitHub whether a newer release exists. Installing stays manual.",
+        "Only asks GitHub whether a newer release exists.",
         toggle_ctrl,
     )
     ur = hstack(c, "Version", gap=10, sizingH="fill")
-    text(
-        ur,
-        "You have WaveMaterial 1.0.0 — the latest version.",
-        13,
-        "Regular",
-        TEXT_2,
-        sizingH="fill",
-    )
+    vt = hstack(ur, "Message", gap=8, sizingH="fill")
+    text(vt, "WaveMaterial 1.1.1 is available.", 13, "Regular", TEXT_2)
+    text(vt, "Open the release page", 13, "Medium", ACCENT_TEXT)
     button(ur, "Check now", "secondary", "refresh", small=True)
+    # The open tooltip sits above the buttons, so the row must not clip it (frames clip by
+    # default in FigCraft).
+    acts = hstack(c, "Update actions", gap=18, pad=[8, 0, 8, 0], clip=False)
+
+    def help_tip(parent: str) -> str:
+        q = frame(
+            parent, "Help tip", 18, 18, fill=SURFACE_2, stroke=BORDER_STRONG, strokeWeight=1,
+            cornerRadius=999, layout="horizontal", mainAlign="center", crossAlign="center",
+        )  # fmt: skip
+        text(q, "?", 11, "SemiBold", TEXT_2)
+        return q
+
+    for label, kind in [("Self-update", "primary"), ("Manual update", "secondary")]:
+        a = hstack(acts, label, gap=6)
+        button(a, label, kind, small=True)
+        help_tip(a)
+    tip = vstack(
+        acts, "Tooltip (Self-update)", gap=0, pad=[9, 11, 9, 11], fill=SURFACE_2,
+        stroke=BORDER_STRONG, strokeWeight=1, cornerRadius=6, effects=SHADOW_LG,
+        absolute=True, x=-10, y=-104, sizingH="fixed",
+    )  # fmt: skip
+    cmd("node.set", {"ids": [R(tip)], "props": {"width": 300}})
+    para(
+        tip,
+        "Installs the update for you and reopens WaveMaterial. It downloads and checks the new "
+        "version, waits for any transcription to finish, then closes, installs, and opens again.",
+        12,
+        TEXT,
+        lh="145%",
+    )
 
     c = card("About")
     para(
         c,
-        "WaveMaterial 1.0.0 · Licensed GPL-2.0-only WITH Universal-FOSS-exception-1.0. "
+        "WaveMaterial 1.1.0 · Licensed GPL-2.0-only WITH Universal-FOSS-exception-1.0. "
         "Speech models by Alibaba Qwen and NVIDIA (CC-BY-4.0), pyannote, and Silero.",
         12.5,
         TEXT_2,
@@ -1550,40 +1593,52 @@ def first_run(x: float, y: float) -> None:
     hc = vstack(head, "Titles", gap=2)
     text(hc, "Welcome to WaveMaterial", 22, "SemiBold", TEXT, letterSpacing="-1%")
     text(hc, "Transcripts with speakers, made entirely on this computer.", 13.5, "Regular", TEXT_2)
-    det = hstack(
-        card, "Detected", gap=10, pad=[10, 12, 10, 12], fill=OK_SOFT, cornerRadius=8, sizingH="fill"
-    )
-    c = frame(det, "Ok", 20, 20, fill=OK, cornerRadius=999)
-    vec(c, ICON["check"], 11, 11, stroke="#FFFFFF", sw=2.2, absolute=True, x=4.5, y=4.5)
-    dc = vstack(det, "Text", gap=1, sizingH="fill")
-    text(dc, "Fast mode available", 13, "SemiBold", OK)
-    text(dc, "Using your AMD Radeon 660M graphics (Vulkan).", 12.5, "Regular", TEXT_2)
     para(
         card,
-        "WaveMaterial needs to download its speech models once (2.9 GB). After that it works fully "
-        "offline. If the download is interrupted, it picks up where it left off.",
+        "One step before you start: download the speech models. After that WaveMaterial "
+        "works offline.",
         13.5,
         TEXT_2,
     )
-    lst = vstack(card, "Models", gap=12, sizingH="fill")
-    for n, info, frac, state in [
-        ("Transcription text · Qwen3-ASR 1.7B", "1.31 of 2.19 GB", 0.6, "dl"),
-        ("Word timings · Parakeet TDT 0.6B", "640 MB", 1, "ok"),
-        ("Speaker detection models", "48 MB", 1, "ok"),
-    ]:
-        r = vstack(lst, n, gap=6, sizingH="fill")
-        top = hstack(r, "Top", gap=8, sizingH="fill")
-        text(top, n, 13, "Medium", TEXT, sizingH="fill")
-        text(top, info, 12, "Regular", TEXT_3, features={"tnum": True})
-        if state == "ok":
-            pill(top, "Ready", OK, OK_SOFT, OK)
-        progress(r, frac, 556, OK if state == "ok" else ACCENT)
-    divider(card)
-    foot = hstack(card, "Footer", gap=10, sizingH="fill")
-    fc = vstack(foot, "Overall", gap=2, sizingH="fill")
-    text(fc, "Downloading · 2.0 of 2.9 GB", 13, "Medium", TEXT)
-    text(fc, "about 3 minutes left", 12, "Regular", TEXT_3)
-    button(foot, "Pause", "secondary", "pause", small=True)
+    cta = vstack(card, "Download", gap=8, sizingH="fill", crossAlign="center")
+    big = hstack(cta, "Button/Download models", gap=0, pad=[12, 32, 12, 32], fill=ACCENT,
+                 cornerRadius=6, effects=SHADOW_SM)  # fmt: skip
+    text(big, "Download models", 15, "SemiBold", ON_ACCENT)
+    text(cta, "2.9 GB on disk (a 2.7 GB download)", 12, "Regular", TEXT_2)
+    fold = vstack(card, "Saving to", gap=6, sizingH="fill")
+    text(fold, "Saving to", 13, "Medium", TEXT)
+    fr = hstack(fold, "Folder", gap=8, sizingH="fill")
+    field(fr, "/home/you/.local/share/wavematerial/models", icon_name="folder")
+    button(fr, "Change folder", "secondary", small=True)
+    section_label(card, "What will be downloaded")
+    lst = vstack(
+        card, "Models", gap=0, sizingH="fill", stroke=BORDER, strokeWeight=1, cornerRadius=8,
+        clip=True,
+    )  # fmt: skip
+    models = [
+        ("Qwen3-ASR 1.7B (Q8_0 GGUF)", "Text · Apache-2.0 · from huggingface.co", "2.19 GB"),
+        ("Parakeet TDT 0.6B v3 (int8)", "Word timings · CC-BY-4.0 · from github.com", "487 MB"),
+        ("Silero VAD", "Speech chunks · MIT · from github.com", "644 KB"),
+        (
+            "pyannote segmentation 3.0",
+            "Diarisation: who speaks when · MIT · from github.com",
+            "7 MB",
+        ),
+        ("TitaNet small", "Diarisation: voice embeddings · CC-BY-4.0 · from github.com", "40 MB"),
+    ]
+    for n, (name, info, size) in enumerate(models):
+        r = hstack(
+            lst, name, gap=10, pad=[7, 12, 7, 12], sizingH="fill",
+            **({"strokeBottomWeight": 1, "stroke": BORDER} if n < len(models) - 1 else {}),
+        )  # fmt: skip
+        nc = vstack(r, "Name", gap=1, sizingH="fill")
+        text(nc, name, 13, "Regular", TEXT_2)
+        text(nc, info, 12, "Regular", TEXT_3)
+        text(r, size, 12.5, "Regular", TEXT_2, features={"tnum": True})
+    gpu = hstack(card, "Device", gap=6)
+    icon(gpu, "check", OK, 13)
+    text(gpu, "Fast mode available", 12, "SemiBold", TEXT_2)
+    text(gpu, "· Using your AMD Radeon 660M graphics (Vulkan).", 12, "Regular", TEXT_2)
 
 
 # --- Design system ---------------------------------------------------------

@@ -44,6 +44,9 @@ if __name__ == "__main__":
         ("warn on warn-soft", t.WARN, t.WARN_SOFT),
         ("ok on ok-soft", t.OK, t.OK_SOFT),
         ("danger on danger-soft", t.DANGER, t.DANGER_SOFT),
+        ("danger on surface (Remove downloaded models)", t.DANGER, t.SURFACE),
+        ("text on surface-2 (help tips, the update notice)", t.TEXT, t.SURFACE_2),
+        ("text-2 on surface-2 (the help tip's ?)", t.TEXT_2, t.SURFACE_2),
         ("logo yellow on logo red (graphic, needs 3:1)", t.LOGO_YELLOW, t.LOGO_RED),
     ]
     for name, fg, bg in pairs:
