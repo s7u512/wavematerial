@@ -17,8 +17,15 @@ Your system needs:
 Run it:
   ./bin/wavematerial
 
-The first run downloads the speech models (2.7 GB). Your data goes to the usual per-user
-folders (~/.local/share/wavematerial and others); nothing is written inside this folder.
+The first run asks before downloading the speech models (2.9 GB on disk). Your data goes
+to the usual per-user folders (~/.local/share/wavematerial and others); nothing is written
+inside this folder.
+
+The models are in ~/.local/share/wavematerial/models unless you chose another folder (then
+in a "WaveMaterial models" folder there). To remove them: Settings > Remove downloaded
+models, or run
+  ./bin/wavematerial models --remove
+Deleting this folder removes the program but keeps the models and your transcripts.
 
 Add it to your applications menu (optional): copy share/ into ~/.local/share/ and put
 bin/wavematerial on your PATH, for example:

@@ -24,8 +24,8 @@ See [`USAGE.md`](USAGE.md) for a tour of every screen, with screenshots.
 ## Install
 
 Downloads are on the [releases page](https://github.com/s7u512/wavematerial/releases), with
-SHA256 checksums and the source code. Nothing is signed. The first run downloads the speech
-models (2.7 GB); after that WaveMaterial works offline.
+SHA256 checksums and the source code. Nothing is signed. On first run WaveMaterial asks
+before downloading its speech models (2.9 GB on disk); after that it works offline.
 
 - **Windows 10 or 11 (64-bit):** `WaveMaterial-<version>-windows-x86_64-setup.exe`. It
   installs for your user only and needs no administrator rights, but Windows must already

@@ -28,12 +28,18 @@ produced from them, mistakes included.
 
 ## First run
 
-The first time it starts, WaveMaterial downloads its speech models (2.7 GB) and says
-whether it can use your graphics card. The download resumes where it left off if it is
-interrupted, and can be paused. After this, nothing else is downloaded: transcription runs
-entirely on your computer.
+The first time it starts, WaveMaterial needs its speech models (2.9 GB on disk, a 2.7 GB
+download). Nothing is downloaded until you click **Download models**. The screen lists each
+model with its licence and source, and says whether WaveMaterial can use your graphics
+card. **Change folder** puts the models somewhere else, for example on a bigger drive; they
+go in a **WaveMaterial models** folder there, and models already in that folder are used
+as they are. WaveMaterial won't save them in a folder it can't write to, or in one synced
+by OneDrive. If the drive doesn't have room (3.7 GB, counting what the download needs
+while it unpacks), it says so instead of starting. The download can be paused, and resumes
+where it left off if it is interrupted. After this, nothing else is downloaded:
+transcription runs entirely on your computer.
 
-![First-run setup downloading the speech models](demo/usage/01-first-run-setup.png)
+![First-run setup asking before it downloads the speech models](demo/usage/01-first-run-setup.png)
 
 ## The landing screen
 
@@ -205,7 +211,8 @@ with its output files.
 
 Where transcription runs (automatic picks the graphics card when it can), processor
 threads, the defaults for new recordings, the speech models with their folder and a
-**Verify all** check, and the once-a-day update check (off unless you turn it on; it only
+**Verify all** check, **Remove downloaded models** (to get the space back; WaveMaterial asks
+for them again next time), and the once-a-day update check (off unless you turn it on; it only
 asks GitHub whether a newer release exists).
 
 ![Settings, top](demo/usage/25-settings.png)

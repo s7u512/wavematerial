@@ -15,7 +15,8 @@ Offline, Vulkan-first transcription with speaker diarisation and transcript edit
 | `{thirdparty}` | The exact sources of the copyleft libraries bundled in the files above (FFmpeg, x264, x265, and others), with a manifest. |
 | `SHA256SUMS` | Checksums of every file. Nothing is signed. |
 
-The speech models (2.7 GB) download on first run; after that WaveMaterial works offline.
+On first run WaveMaterial asks before downloading its speech models (2.9 GB on disk); after
+that it works offline.
 
 ## Tested on
 
