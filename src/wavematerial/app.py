@@ -140,7 +140,9 @@ def _open_window(ctx: AppContext, url: str) -> None:
     window.events.loaded += on_loaded
     ctx.native = NativeHooks(pick_files, pick_folder, toggle_fullscreen, save_file, window.destroy)
     ctx.fullscreen = True
-    webview.start(private_mode=True)
+    # Linux uses WebKitGTK. Without this, pywebview tries Qt first on KDE and logs an error.
+    gui = "gtk" if sys.platform.startswith("linux") else None
+    webview.start(private_mode=True, gui=gui)
 
 
 def _running_marker() -> None:

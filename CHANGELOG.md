@@ -9,6 +9,8 @@ Every user-visible change is recorded here. The format follows
 ### Fixed
 - Dropping files onto the app window now works on Linux; the app no longer logs an
   `'EventContainer' object has no attribute 'drop'` error on every page load.
+- On KDE, WaveMaterial no longer logs a "QT cannot be loaded" error at start-up: on
+  Linux it always opens its window with GTK.
 
 ## [1.1.0] - 2026-11-22
 
