@@ -1,10 +1,10 @@
 # Using WaveMaterial
 
 A tour of every screen, in the order you meet them. The screenshots come from WaveMaterial
-run from source (`uv run --extra export wavematerial`) full screen at 1920 × 1080, using two
-public-domain NASA recordings made on board Apollo 11: the crew on their first orbit of
-Earth, and the undocking before the Moon landing. Everything shown is what the app really
-produced from them, mistakes included.
+1.2.0 run from source at 1920 × 1080, using two one-minute excerpts of the LibriVox dramatic
+reading of Chekhov's *The Seagull* (Act I; public domain), where each part has its own
+reader. Everything shown is what the app really produced from them, mistakes included; the
+speakers are named from the LibriVox cast.
 
 ## Contents
 
@@ -62,9 +62,9 @@ them, as **Not started**, so you can collect recordings now and start them later
 **Start** on a recording, or **Start N not started** at the top of the library for all of
 them. Starting puts a recording at the end of the queue.
 
-![The library with a recording added but not started, and its Start buttons](demo/usage/29-library-not-started.png)
+![The library with two recordings added but not started, and the Start buttons](demo/usage/29-library-not-started.png)
 
-![The Add recordings dialog with a file, a speaker range, a key term, and its two buttons](demo/usage/03-add-recordings.png)
+![The Add recordings dialog with two files, a speaker range, a key term, and its two buttons](demo/usage/03-add-recordings.png)
 
 ## While recordings are transcribed
 
@@ -90,11 +90,13 @@ Every recording, with its length, the number of speakers found, and its status. 
 filter by status. **Edit transcript** on a finished recording (or its name) opens it in the
 editor; its details drawer has the same button.
 
-![The library with a finished recording and its Edit transcript button](demo/usage/06-library.png)
+![The library with two finished recordings and their Edit transcript buttons](demo/usage/06-library.png)
+
+![The details drawer of a finished recording, with Edit transcript](demo/usage/30-job-details-finished.png)
 
 **Search transcripts** finds recordings by what was said in them.
 
-![The library filtered to recordings that mention "trees"](demo/usage/07-library-search.png)
+![The library filtered to the recording that mentions "sultry"](demo/usage/07-library-search.png)
 
 Each row's **⋯** menu has **Edit transcript**, the details, the folder with the output
 files, **Transcribe again…**, and **Delete** (which never touches the original file).
@@ -165,7 +167,7 @@ turns to another.
 
 **Ctrl+F** finds and **Ctrl+H** finds and replaces, one match at a time or all at once.
 
-![Find and replace with two matches](demo/usage/17-editor-find-replace.png)
+![Find and replace with one match](demo/usage/17-editor-find-replace.png)
 
 ### The right-click menu
 
@@ -190,7 +192,7 @@ The **History** tab keeps named versions you save, an automatic version each tim
 open the recording, and the original transcript. **Restore** goes back to any of them (and
 can itself be undone). Click a version's name to rename it.
 
-![The History tab with a named version, an automatic one, and the original](demo/usage/20-editor-history.png)
+![The History tab with a named version and the original](demo/usage/20-editor-history.png)
 
 ### Details
 

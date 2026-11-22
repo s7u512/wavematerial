@@ -23,6 +23,7 @@ from make import (
     SPEAKERS,
     WORK,
     Server,
+    fetch_audio,
     log,
     make_home,
 )
@@ -176,7 +177,21 @@ def next_patch() -> str:
     return f"{major}.{minor}.{int(patch) + 1}"
 
 
+# A second minute of the same scene (4:00-5:00), so the library has two recordings.
+SECOND = ("The Seagull - Act I, later excerpt.mp3", 240, 60)
+
+
+def second_recording(home: Path) -> None:
+    out = home / "Recordings" / SECOND[0]
+    if not out.exists():
+        subprocess.run(
+            ["ffmpeg", "-v", "error", "-y", "-ss", str(SECOND[1]), "-t", str(SECOND[2]), "-i",
+             str(fetch_audio()[0]), "-c", "copy", str(out)], check=True,
+        )  # fmt: skip
+
+
 def screenshots() -> int:
+    """Every screenshot in USAGE.md, in the order of the tour."""
     with sync_playwright() as p:
         b, ctx = browser(p)
         page = ctx.new_page()
@@ -190,15 +205,21 @@ def screenshots() -> int:
         finally:
             first.stop()
 
-        log("03: the Add recordings dialog")
         home = make_home("shots")
+        second_recording(home)
         main = Server(home)
         try:
+            log("02: the landing screen")
             page.goto(main.url("/"))
+            page.wait_for_selector("text=Add recordings…")
+            time.sleep(0.5)
+            save(page, "02-landing.png")
+
+            log("03: the Add recordings dialog")
             page.locator("text=Add recordings…").first.click()
             page.wait_for_selector("#add-form")
             page.locator("text=Choose files…").first.click()
-            page.wait_for_selector("#add-files .file-row", timeout=10000)
+            page.wait_for_selector("#add-files .file-row >> nth=1", timeout=10000)
             page.select_option("select[name=min_speakers]", SPEAKERS[0])
             page.select_option("select[name=max_speakers]", SPEAKERS[1])
             terms = page.locator("#add-form .tags input").first
@@ -216,31 +237,205 @@ def screenshots() -> int:
             time.sleep(0.6)
             save(page, "29-library-not-started.png")
 
-            log("05: a recording's details while it is transcribed")
-            row = page.locator(".job-row").filter(has_text="Act I")
-            row.get_by_role("button", name="Start", exact=False).first.click()
+            log("04: one transcribing, one waiting")
+            page.locator("#start-all").click()
             page.wait_for_selector("text=Transcribing", timeout=60000)
-            time.sleep(2)  # into the first stages (a minute of audio is quick)
-            row.locator(".row-open").click()
+            page.wait_for_selector(".pill-queued", timeout=10000)
+            time.sleep(2.5)
+            save(page, "04-library-transcribing.png")
+
+            log("05: a recording's details while it is transcribed")
+            running = page.locator(".job-row.is-running")
+            running.locator(".row-open").click()
             page.wait_for_selector("[data-copy-report]")
             time.sleep(1)
             save(page, "05-job-details.png")
-            wait_until(page, lambda: jobs_done(page, main, 1), timeout=1200)
+            wait_until(page, lambda: jobs_done(page, main, 2), timeout=1200)
 
-            log("06 and 08: the library with the finished recording, and its row menu")
+            log("06: the library with both finished")
             page.goto(main.url("/library"))
             page.wait_for_selector("text=Edit transcript")
             time.sleep(0.6)
             save(page, "06-library.png")
-            page.locator(".job-row").first.locator("summary").click()
+
+            log("30: a finished recording's details")
+            first_row = page.locator(".job-row").filter(has_text="Act I, excerpt")
+            first_row.locator("summary").click()
+            first_row.get_by_role("button", name="Details").click()
+            page.wait_for_selector(".drawer-main")
+            time.sleep(0.8)
+            save(page, "30-job-details-finished.png")
+            page.goto(main.url("/library"))
+
+            log("07: searching the transcripts")
+            search = page.locator("#library-filters input[type=search]")
+            search.click()
+            search.type("sultry", delay=40)
+            time.sleep(1.5)
+            save(page, "07-library-search.png")
+            page.goto(main.url("/library"))
+
+            log("08: a row's menu")
+            row = page.locator(".job-row").filter(has_text="Act I, excerpt")
+            row.locator("summary").click()
             time.sleep(0.4)
             save(page, "08-library-row-menu.png")
 
-            log("26: Settings, lower part")
+            log("09: Transcribe again")
+            row.get_by_role("button", name="Transcribe again…").click()
+            page.wait_for_selector("#modal .modal-card", timeout=10000)
+            time.sleep(0.6)
+            save(page, "09-transcribe-again.png")
+            page.goto(main.url("/library"))
+
+            log("10: searching from the sidebar")
+            side = page.locator(".nav-search input")
+            side.click()
+            side.type("Sorin", delay=40)
+            time.sleep(1.5)
+            save(page, "10-sidebar-search.png")
+            page.goto(main.url("/library"))
+
+            log("11: the editor")
+            row = page.locator(".job-row").filter(has_text="Act I, excerpt")
+            row.get_by_role("link", name="Edit the transcript", exact=False).click()
+            page.wait_for_selector("#turns .turn")
+            if page.locator("#sel-tip-close").is_visible():
+                page.locator("#sel-tip-close").click()
+            time.sleep(1.2)
+            save(page, "11-editor.png")
+
+            log("12: playing with Follow")
+            page.locator("#play").click()
+            time.sleep(3.2)
+            save(page, "12-editor-playing-follow.png")
+            page.locator("#play").click()
+            time.sleep(0.4)
+
+            log("13: a selection")
+            drag_words(
+                page, word(page, "The", "air is sultry"), word(page, "tonight.", "air is sultry")
+            )
+            page.wait_for_selector("#sel-pop:not([hidden])")
+            time.sleep(0.6)
+            save(page, "13-editor-selection.png")
+            page.keyboard.press("Escape")
+            time.sleep(0.3)
+
+            log("14: a turn's speaker menu")
+            sorin = page.locator(".turn").filter(has_text="country life").first
+            sorin.scroll_into_view_if_needed()
+            sorin.locator(".turn-speaker").click()
+            page.wait_for_selector("#spk-menu:not([hidden])")
+            time.sleep(0.5)
+            save(page, "14-editor-speaker-menu.png")
+
+            log("15: the speakers named")
+            page.locator("#spk-menu .menu-item", has_text="New speaker").click()
+            time.sleep(0.5)
+            for n, name in enumerate(("Masha", "Medviedenko", "Stage directions", "Sorin")):
+                box = page.locator(f'.spk-input[data-speaker="SPEAKER_0{n}"]')
+                box.click()
+                box.fill(name)
+                page.keyboard.press("Enter")
+                time.sleep(0.3)
+            page.mouse.click(5, 1070)  # away from the inputs
+            time.sleep(0.8)
+            save(page, "15-editor-speakers-named.png")
+
+            log("16: Merge into…")
+            page.locator('.spk-merge[data-merge="SPEAKER_03"]').click()
+            page.wait_for_selector("#spk-menu:not([hidden])")
+            time.sleep(0.5)
+            save(page, "16-editor-merge-into.png")
+            page.keyboard.press("Escape")
+            time.sleep(0.3)
+
+            log("17: find and replace")
+            page.locator("#find").click()
+            page.locator("#find").type("Treplief", delay=40)
+            page.locator("#find-toggle").click()
+            page.locator("#find-replace").fill("Treplieff")
+            time.sleep(0.8)
+            save(page, "17-editor-find-replace.png")
+            page.locator("#replace-all").click()
+            time.sleep(0.6)
+            page.locator("#find").fill("")
+            page.locator("#find-toggle").click()
+            page.mouse.click(5, 1070)
+
+            log("18: the right-click menu")
+            w = word(page, "storm", "air is sultry")
+            w.scroll_into_view_if_needed()
+            w.click(button="right")
+            page.wait_for_selector("#ctx-menu:not([hidden])")
+            time.sleep(0.5)
+            save(page, "18-editor-context-menu.png")
+            page.keyboard.press("Escape")
+            time.sleep(0.3)
+
+            log("19: transcribing a passage again")
+            drag_words(
+                page, word(page, "You", "air is sultry"), word(page, "moralise,", "air is sultry")
+            )
+            page.wait_for_selector("#sel-pop:not([hidden])")
+            box = word(page, "nothing", "air is sultry").bounding_box()
+            page.mouse.click(box["x"] + 3, box["y"] + 5, button="right")
+            item = page.locator("#ctx-menu .menu-item", has_text="Transcribe again")
+            wait_until(page, lambda: item.is_enabled(), 30, 1.0)
+            item.click()
+            page.wait_for_selector("#passage-result:not([hidden])", timeout=180000)
+            time.sleep(0.6)
+            save(page, "19-editor-transcribe-passage.png")
+            page.locator("#passage-cancel").click()
+            time.sleep(0.4)
+            page.keyboard.press("Escape")
+
+            log("20: History")
+            page.locator("#tab-btn-history").click()
+            page.locator("#save-version").click()
+            page.locator("#version-name").fill("First pass")
+            page.keyboard.press("Enter")
+            time.sleep(1.0)
+            save(page, "20-editor-history.png")
+
+            log("21: Details")
+            page.locator("#tab-btn-details").click()
+            time.sleep(0.6)
+            save(page, "21-editor-details.png")
+            page.locator("#tab-btn-speakers").click()
+
+            log("22: the Export menu")
+            page.locator("#export-menu summary").click()
+            time.sleep(0.5)
+            save(page, "22-editor-export-menu.png")
+            page.locator("#export-menu summary").click()
+
+            log("23: renaming")
+            page.locator("#rename-btn").click()
+            time.sleep(0.5)
+            save(page, "23-editor-rename.png")
+            page.keyboard.press("Escape")
+            time.sleep(0.3)
+
+            log("24: the editor's ⋯ menu")
+            page.locator("#more-menu summary").click()
+            time.sleep(0.5)
+            save(page, "24-editor-more-menu.png")
+            page.locator("#more-menu summary").click()
+
+            log("25 and 26: Settings")
             page.goto(main.url("/settings"))
+            time.sleep(0.8)
+            save(page, "25-settings.png")
             page.mouse.wheel(0, 4000)
             time.sleep(0.6)
             save(page, "26-settings-lower.png")
+
+            log("27: Licences and credits")
+            page.goto(main.url("/credits"))
+            time.sleep(0.8)
+            save(page, "27-credits.png")
         finally:
             main.stop()
 
