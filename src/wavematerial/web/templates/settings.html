@@ -54,7 +54,7 @@
   <form class="card section" hx-post="/settings" hx-trigger="change" hx-swap="none">
     <h2>Updates</h2>
     <div class="setting">
-      <label for="update_check"><span>Check for new versions once a day</span><span class="muted small">Only asks GitHub whether a newer release exists. Installing stays manual.</span></label>
+      <label for="update_check"><span>Check for new versions once a day</span><span class="muted small">Only asks GitHub whether a newer release exists.</span></label>
       <input type="hidden" name="update_check" value="off">
       <input type="checkbox" role="switch" id="update_check" name="update_check" value="on"{% if s.update_check %} checked{% endif %}>
     </div>
