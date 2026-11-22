@@ -232,6 +232,8 @@ with git.
 
 ![Settings, lower: models, updates, and About](demo/usage/26-settings-lower.png)
 
+![Settings when an update is available: Self-update, Manual update, and what each does](demo/usage/28-settings-update.png)
+
 ## Licences and credits
 
 **Licences and credits** (from Settings) shows WaveMaterial's licence, the credits each
