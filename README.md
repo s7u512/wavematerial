@@ -14,9 +14,11 @@ download, on Linux and Windows, using a Vulkan GPU when there is one and the CPU
 
 https://github.com/user-attachments/assets/c5d55654-e965-43e5-bcda-fe26cebf3074
 
-> **WaveMaterial 1.0.0** is out: a Windows installer and a Linux `.tar.gz` are on the
+> **WaveMaterial 1.1.0** is out: a Windows installer and a Linux `.tar.gz` are on the
 > [releases page](https://github.com/s7u512/wavematerial/releases), or run it from source
-> (below). What it does is in [`docs/SPEC.md`](docs/SPEC.md), and the visual design is in
+> (below). New in 1.1.0: it asks before downloading the speech models, can update itself,
+> and fixes a crash on some Windows 11 PCs (see [`CHANGELOG.md`](CHANGELOG.md)). What it
+> does is in [`docs/SPEC.md`](docs/SPEC.md), and the visual design is in
 > [`design/DESIGN.md`](design/DESIGN.md).
 
 See [`USAGE.md`](USAGE.md) for a tour of every screen, with screenshots.
@@ -79,10 +81,9 @@ Windows 10 and 11 include.
 
 ## Honest support claims
 
-When 1.0.0 is released, it will have been tested on one machine (Ryzen 5 7535HS,
-Radeon 660M, 14 GB RAM, Arch Linux) and with one recording. Windows builds are made and
-tested only under Wine (Bottles), never on real Windows. Everything else will be
-"untested, should work".
+WaveMaterial is tested on one machine (Ryzen 5 7535HS, Radeon 660M, 14 GB RAM, Arch Linux)
+and with one recording. Windows builds are made and tested only under Wine (Bottles), never
+on real Windows. Everything else is "untested, should work".
 
 ## Development
 
