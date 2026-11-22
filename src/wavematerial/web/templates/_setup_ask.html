@@ -1,0 +1,26 @@
+{# SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0 #}
+{# The setup screen before the download: one dominant action; nothing is fetched until it is clicked. #}
+{% from "_macros.html" import icon %}
+<div id="setup-progress" class="setup-ask">
+  <div class="setup-cta">
+    <button type="button" class="btn btn-primary btn-lg" autofocus hx-post="/setup/start" hx-target="#setup-progress" hx-swap="outerHTML"{% if a.blocked %} disabled{% endif %}>{{ "Resume download" if a.resume else "Download models" }}</button>
+    <div class="muted small">{{ a.size_line }}</div>
+    {% if a.problem %}<div class="error-text setup-problem" role="alert">{{ icon("alert", 14) }} <span>{{ a.problem }}</span></div>{% endif %}
+  </div>
+  <div class="setup-folder">
+    <div class="setting-label">Saving to</div>
+    <div class="folder-row">
+      <div class="folder-path">{{ icon("folder", 14) }}<span title="{{ a.folder }}">{{ a.folder }}</span></div>
+      {% if a.can_change %}<button type="button" class="btn btn-secondary btn-sm" hx-post="/setup/folder" hx-target="#setup-progress" hx-swap="outerHTML">Change folder</button>{% endif %}
+    </div>
+  </div>
+  <h2 class="caps">What will be downloaded</h2>
+  <ul class="model-list model-list-quiet">
+    {% for m in a.models %}
+    <li class="model-row">
+      <div><div>{{ m.name }}</div><div class="muted small">{{ m.role }} · {{ m.licence }} · from {{ m.source }}</div></div>
+      <div class="model-meta">{{ m.size }}</div>
+    </li>
+    {% endfor %}
+  </ul>
+</div>

@@ -162,3 +162,24 @@ def test_only_one_instance_holds_the_lock(tmp_path):
         with pytest.raises(AlreadyRunning):
             InstanceLock(tmp_path / "instance.lock").acquire()
     InstanceLock(tmp_path / "instance.lock").acquire()  # free again once released
+
+
+def test_the_remove_command_asks_and_refuses_while_the_app_runs(tmp_path, monkeypatch, capsys):
+    from wavematerial import __main__ as cli
+    from wavematerial.config import Paths
+    from wavematerial.models.manifest import load_manifest
+
+    paths = Paths.under(tmp_path / "app")
+    monkeypatch.setattr(Paths, "default", staticmethod(lambda: paths))
+    for m in load_manifest():
+        m.folder(paths.default_models_dir).mkdir(parents=True)
+
+    monkeypatch.setattr("builtins.input", lambda prompt: "n")
+    assert cli.main(["models", "--remove"]) == 1 and paths.default_models_dir.exists()
+
+    with InstanceLock(paths.state_dir / "instance.lock"):
+        assert cli.main(["models", "--remove", "--yes"]) == 1
+        assert "Quit it first" in capsys.readouterr().err
+
+    assert cli.main(["models", "--remove", "--yes"]) == 0
+    assert not paths.default_models_dir.exists()

@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0
 """Download, verify, and install the speech models.
 
-Downloads go to `<cache>/<id>.part` and resume with HTTP Range requests after an
+Downloads go to `<models folder>/.downloads/<id>.part` (so only one drive is involved) and
+resume with HTTP Range requests after an
 interruption. The finished file must match the manifest's size and sha256 before anything
 is installed. Installation builds the model folder beside the final one and renames it into
 place, so a model folder is either complete or absent.
@@ -140,7 +141,7 @@ def _check_file(spec: ModelSpec, f: FileSpec, path: Path) -> None:
 def install(
     spec: ModelSpec,
     models_dir: Path,
-    cache_dir: Path,
+    downloads_dir: Path,
     progress: Progress | None = None,
     *,
     retries: int = 4,
@@ -148,9 +149,9 @@ def install(
     opener: Callable[..., http.client.HTTPResponse] = urllib.request.urlopen,
 ) -> None:
     """Download `spec` if needed, verify it, and install it into `models_dir/<id>/`."""
-    cache_dir.mkdir(parents=True, exist_ok=True)
+    downloads_dir.mkdir(parents=True, exist_ok=True)
     models_dir.mkdir(parents=True, exist_ok=True)
-    part = cache_dir / f"{spec.id}.part"
+    part = downloads_dir / f"{spec.id}.part"
 
     _fetch(spec.url, part, spec.size, progress, retries, backoff, opener)
     if _sha256_file(part) != spec.sha256:
@@ -170,8 +171,7 @@ def install(
         else:
             target = staging / spec.files[0].path
             target.parent.mkdir(parents=True, exist_ok=True)
-            # Already checked: same bytes as the download. move() copies when the models
-            # folder is on another drive than the cache.
+            # Already checked: same bytes as the download (and the same drive: a rename).
             shutil.move(part, target)
         final = spec.folder(models_dir)
         if final.exists():

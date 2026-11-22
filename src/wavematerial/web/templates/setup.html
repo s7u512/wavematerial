@@ -14,12 +14,9 @@
         <p class="muted">Transcripts with speakers, made entirely on this computer.</p>
       </div>
     </header>
-    <div class="banner {{ 'banner-ok' if banner.ok else 'banner-neutral' }}">
-      {% if banner.ok %}<span class="banner-icon">{{ icon("check", 12) }}</span>{% else %}<span class="banner-icon banner-icon-neutral">{{ icon("gpu", 12) }}</span>{% endif %}
-      <div><strong>{{ banner.title }}</strong><div>{{ banner.text }}</div></div>
-    </div>
-    <p class="setup-intro">WaveMaterial needs to download its speech models once ({{ s.size_total }}). After that it works fully offline. If the download is interrupted, it picks up where it left off.</p>
-    {% include "_setup_progress.html" %}
+    <p class="setup-intro">{% if not a or a.first %}One step before you start: download the speech models. After that WaveMaterial works offline.{% else %}This version needs some new speech models. Download them to continue; after that WaveMaterial works offline.{% endif %}</p>
+    {% if a %}{% include "_setup_ask.html" %}{% else %}{% include "_setup_progress.html" %}{% endif %}
+    <p class="setup-gpu small muted">{% if banner.ok %}{{ icon("check", 12) }}{% else %}{{ icon("gpu", 12) }}{% endif %} <span><strong>{{ banner.title }}</strong> · {{ banner.text }}</span></p>
   </section>
 </main>
 {% endblock %}

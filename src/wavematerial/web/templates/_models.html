@@ -14,7 +14,9 @@
     {% if ctx.windowed %}<button type="button" class="btn btn-secondary btn-sm" hx-post="/settings/models-folder" hx-target="#models" hx-swap="outerHTML"{% if moving %} disabled{% endif %}>Change…</button>{% endif %}
   </div>
   {% if moving %}<p class="muted small">{{ moving }}</p>{% endif %}
+  {% if models_problem %}<div class="error-text" role="alert">{{ icon("alert", 14) }} <span>{{ models_problem }}</span></div>{% endif %}
   <button type="button" class="btn btn-secondary btn-sm" hx-post="/settings/verify" hx-target="#models" hx-swap="outerHTML"{% if verifying %} disabled{% endif %}>
     {{ icon("check", 14) }} {{ "Verifying…" if verifying else "Verify all" }}
   </button>
+  <button type="button" class="btn btn-ghost danger btn-sm" hx-post="/settings/remove-models" hx-target="#models" hx-swap="outerHTML" hx-confirm="Delete the speech models ({{ models_size }}) in {{ models_dir }}? You'll need to download them again to transcribe."{% if busy or moving or verifying %} disabled title="Not while a transcription runs"{% endif %}>{{ icon("trash", 14) }} Remove downloaded models</button>
 </div>

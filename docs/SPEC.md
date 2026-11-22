@@ -125,6 +125,23 @@ Paths come from `platformdirs`. Nothing is written inside the install folder.
   original (for example, converted to ONNX or quantised to Q8_0).
 - Models are downloaded from upstream only (Hugging Face and sherpa-onnx releases) over
   plain HTTPS: no mirroring and no token.
+- Nothing is downloaded until the user clicks **Download models** on the setup screen,
+  which lists each missing model (name, role, licence, source, size) and says "2.9 GB on
+  disk (a 2.7 GB download)". On the click it checks the free space: download size + the
+  largest archive's unpacked size + 10%, rounded to the nearest 100 MB (3.7 GB), counting
+  only what is still missing; if there isn't room it refuses with a message.
+- Partial downloads live in `<models folder>/.downloads/`, so only one drive is involved.
+- **Change folder** (in the app window, before the download starts) and Settings' move put
+  the models in a `WaveMaterial models` subfolder of the chosen folder, unless it already is
+  one (models already there are reused). Folders WaveMaterial can't write to (tested by
+  trying) and folders synced by OneDrive are refused. A chosen folder whose drive is gone
+  gets a message at launch instead of a download offer.
+- **Remove downloaded models** (Settings, every build; confirms; not while a transcription
+  runs; then back to setup) and `wavematerial models --remove [--yes]` (asks unless `--yes`;
+  refuses while the app runs) delete the models and partial downloads, and the folder only
+  if it is ours and then empty. The Windows uninstaller asks whether to delete the speech
+  models too (models only; silent uninstalls keep them); the app notes the models folder in
+  `models-folder.txt` in its data folder for it.
 - Downloads resume after an interruption, are retried, and are sha256-verified before they
   are used. Each launch checks file sizes only; a full check is in Settings.
 - Model updates come with app updates.

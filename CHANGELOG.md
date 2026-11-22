@@ -10,8 +10,18 @@ Every user-visible change is recorded here. The format follows
 - **Copy log** on every job's details: copies a ready-to-paste report (app version, system,
   device, the job's settings, events, and the end of its log, with your home folder shown
   as ~) for reporting problems on the issues page.
+- **Change folder** on the first-run screen: the models go in a "WaveMaterial models"
+  folder in the folder you pick (models already there are used). Folders WaveMaterial can't
+  write to, and folders synced by OneDrive, are refused; Settings' move follows the same
+  rules. If a chosen folder's drive is gone, WaveMaterial says so.
+- **Remove downloaded models** in Settings, and `wavematerial models --remove`. On Windows,
+  uninstalling asks whether to delete the speech models too.
 
 ### Changed
+- WaveMaterial asks before downloading its speech models (2.9 GB on disk). The first-run
+  screen has one clear **Download models** button, lists each model with its licence and
+  source, and checks the free space first (3.7 GB, counting what unpacking needs), refusing
+  with a message if there isn't room. Partial downloads now stay in the models folder.
 - A transcription that crashes now says so in plain words ("crashed (error 0xC0000005)"
   instead of a raw exit code) and suggests copying the log for a report, and the log now
   shows where in the program the crash happened.

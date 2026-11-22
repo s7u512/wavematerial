@@ -12,6 +12,7 @@ from pathlib import Path
 from wavematerial import __version__
 from wavematerial.config import Paths, Settings, load_settings
 from wavematerial.models.download import DownloadError, install, is_installed, verify
+from wavematerial.models.folders import DOWNLOADS
 from wavematerial.models.manifest import load_manifest
 
 
@@ -36,6 +37,9 @@ def _cmd_models(args: argparse.Namespace) -> int:
     models_dir = paths.models_dir(load_settings(paths.settings_file))
     manifest = load_manifest()
 
+    if args.remove:
+        return _remove_models(paths, models_dir, manifest, args.yes)
+
     if args.verify:
         problems = [p for m in manifest for p in verify(m, models_dir)]
         for p in problems:
@@ -51,12 +55,44 @@ def _cmd_models(args: argparse.Namespace) -> int:
     print(f"Downloading {len(missing)} model(s), {total / 1e9:.1f} GB, into {models_dir}")
     for m in missing:
         try:
-            install(m, models_dir, paths.cache_dir, _progress_printer(m.name))
+            install(m, models_dir, models_dir / DOWNLOADS, _progress_printer(m.name))
         except DownloadError as exc:
             print(f"\n{exc}", file=sys.stderr)
             return 1
     print("Done.")
     return 0
+
+
+def _remove_models(paths: Paths, models_dir: Path, manifest, yes: bool) -> int:
+    """`wavematerial models --remove`: delete the downloaded models (not while the app runs)."""
+    from wavematerial.jobs.lock import AlreadyRunning, InstanceLock
+    from wavematerial.models.folders import remove_models
+
+    present = [m for m in manifest if m.folder(models_dir).exists()]
+    if not present and not (models_dir / DOWNLOADS).exists():
+        print(f"No downloaded models in {models_dir}.")
+        return 0
+    lock = InstanceLock(paths.state_dir / "instance.lock")
+    try:
+        lock.acquire()
+    except AlreadyRunning:
+        print("WaveMaterial is running. Quit it first, then remove the models.", file=sys.stderr)
+        return 1
+    try:
+        size = sum(m.installed_size for m in present) / 1e9
+        if not yes:
+            answer = input(
+                f"Delete the speech models ({size:.1f} GB) in {models_dir}? You'll need to "
+                "download them again to transcribe. [y/N] "
+            )
+            if answer.strip().lower() not in ("y", "yes"):
+                print("Nothing removed.")
+                return 1
+        freed = remove_models(models_dir, manifest, paths.default_models_dir)
+        print(f"Removed the speech models ({freed / 1e9:.1f} GB) from {models_dir}.")
+        return 0
+    finally:
+        lock.release()
 
 
 def _cmd_transcribe(args: argparse.Namespace) -> int:
@@ -136,8 +172,12 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="wavematerial")
     parser.add_argument("--version", action="version", version=f"wavematerial {__version__}")
     sub = parser.add_subparsers(dest="command")
-    p_models = sub.add_parser("models", help="download the speech models, or check them")
+    p_models = sub.add_parser(
+        "models", help="download the speech models, check them, or remove them"
+    )
     p_models.add_argument("--verify", action="store_true", help="check every file's checksum")
+    p_models.add_argument("--remove", action="store_true", help="delete the downloaded models")
+    p_models.add_argument("--yes", action="store_true", help="with --remove: don't ask first")
     p_models.set_defaults(func=_cmd_models)
     p_tr = sub.add_parser("transcribe", help="transcribe one audio or video file")
     p_tr.add_argument("file")

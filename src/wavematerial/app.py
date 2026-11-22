@@ -21,6 +21,7 @@ from wavematerial.config import Paths, load_settings
 from wavematerial.jobs.lock import AlreadyRunning, InstanceLock
 from wavematerial.jobs.scheduler import Scheduler
 from wavematerial.jobs.store import JobStore
+from wavematerial.models import folders
 from wavematerial.models.installer import Installer
 from wavematerial.models.manifest import load_manifest
 from wavematerial.preflight import detect_devices, in_wsl, physical_cores
@@ -164,6 +165,7 @@ def main(argv: list[str] | None = None) -> int:
 
     scheduler = Scheduler(store, paths, settings, devices, cores, wsl=wsl)
     installer = Installer(manifest, lambda: paths.models_dir(settings()), paths.cache_dir)
+    folders.write_pointer(paths.data_dir, paths.models_dir(settings()))  # for the uninstaller
     updates = UpdateChecker(paths.state_dir / "update.json")
     ctx = AppContext(
         paths=paths, store=store, scheduler=scheduler, installer=installer, updates=updates,

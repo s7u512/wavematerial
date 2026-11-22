@@ -131,10 +131,22 @@ def main() -> int:
     written = snapshot(app) - before
     if written:
         sys.exit(f"Running the installed app wrote into its folder: {sorted(written)[:10]}")
+    # A silent uninstall must keep the user's speech models (it only asks when interactive).
+    models = user / "AppData" / "Local" / "wavematerial" / "models"
+    made = not models.exists()
+    marker = models / ".uninstall-test"
+    models.mkdir(parents=True, exist_ok=True)
+    marker.write_text("keep me\n", encoding="utf-8")
     wine.run(app / "unins000.exe", "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART")
     subprocess.run([wine.wine.parent / "wineserver", "-w"], env=wine.env, check=False)
     if app.exists() and any(app.iterdir()):
         sys.exit(f"Uninstalling left files in {app}: {sorted(snapshot(app))[:10]}")
+    kept = marker.exists()
+    marker.unlink(missing_ok=True)
+    if made:
+        shutil.rmtree(models, ignore_errors=True)
+    if not kept:
+        sys.exit("A silent uninstall deleted the speech models.")
 
     # An installer that needs a newer runtime than the bottle has must refuse to install.
     probe = f"WaveMaterial-{version}-vcredist-check"

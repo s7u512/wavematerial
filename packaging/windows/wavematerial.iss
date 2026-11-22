@@ -95,3 +95,48 @@ begin
       ShellExec('open', VCRedistDownload, '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
   end;
 end;
+
+// Uninstalling: offer to delete the speech models too (models only; transcripts and settings
+// stay). The app notes its models folder in models-folder.txt in its data folder. Only a
+// "WaveMaterial models" folder or the default one is ever deleted; a silent uninstall keeps
+// them (an update never runs the uninstaller).
+const
+  ModelsFolderName = 'WaveMaterial models';
+
+function DefaultModelsFolder(): String;
+begin
+  Result := ExpandConstant('{localappdata}\wavematerial\models');
+end;
+
+function ModelsFolder(): String;
+var
+  Lines: TArrayOfString;
+begin
+  Result := '';
+  if LoadStringsFromFile(ExpandConstant('{localappdata}\wavematerial\models-folder.txt'), Lines)
+    and (GetArrayLength(Lines) > 0) then
+    Result := RemoveBackslashUnlessRoot(Trim(Lines[0]));
+  if Result = '' then
+    Result := DefaultModelsFolder();
+end;
+
+function SafeToDelete(Folder: String): Boolean;
+begin
+  Result := (CompareText(ExtractFileName(Folder), ModelsFolderName) = 0)
+    or (CompareText(Folder, DefaultModelsFolder()) = 0);
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  Folder: String;
+begin
+  if CurUninstallStep <> usUninstall then
+    exit;
+  Folder := ModelsFolder();
+  if UninstallSilent() or not DirExists(Folder) or not SafeToDelete(Folder) then
+    exit;
+  if MsgBox('Also delete the speech models (2.9 GB) in' + #13#10 + Folder + '?' + #13#10#13#10
+    + 'Your transcripts and settings are kept either way.',
+    mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
+    DelTree(Folder, True, True, True);
+end;

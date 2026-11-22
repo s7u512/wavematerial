@@ -28,6 +28,7 @@ from wavematerial.engine.playback import PLAYBACK
 from wavematerial.jobs import report
 from wavematerial.jobs.events import STAGE_LABELS, read_events, stage_times
 from wavematerial.jobs.store import Job
+from wavematerial.models import folders
 from wavematerial.models.download import is_installed, verify
 from wavematerial.preflight import choose, usable_gpus
 from wavematerial.transcript import export, versions
@@ -285,6 +286,64 @@ def _setup_state(ctx: AppContext) -> dict:
     }
 
 
+def _gb(n: int) -> str:
+    return f"{n / 1e9:.1f} GB" if n >= 1e8 else format.size(n)
+
+
+def _setup_ask(ctx: AppContext, problem: str | None = None) -> dict:
+    """The setup screen before the download: nothing is fetched until the user clicks."""
+    inst = ctx.installer
+    missing = inst.missing()
+    folder = ctx.models_dir()
+    started = inst.started()
+    gone = bool(ctx.settings().models_dir) and folders.unavailable(folder)
+    if gone and not problem:
+        problem = (
+            f"The models folder {folder} isn't available. Reconnect the drive or choose "
+            "another folder."
+        )
+    if started:
+        left = sum(m.size - inst.bytes_done(m) for m in missing)
+        size_line = f"{_gb(left)} left to download"
+    else:
+        on_disk = sum(m.installed_size for m in missing)
+        size_line = f"{_gb(on_disk)} on disk (a {_gb(sum(m.size for m in missing))} download)"
+    return {
+        "models": [
+            {
+                "name": m.name,
+                "role": m.role,
+                "licence": m.licence,
+                "source": urlparse(m.url).hostname,
+                "size": format.size(m.size),
+            }
+            for m in missing
+        ],  # fmt: skip
+        "resume": started,
+        "size_line": size_line,
+        "folder": str(folder),
+        "can_change": ctx.native.pick_folder is not None and not started,
+        "problem": problem,
+        "blocked": gone,
+        "first": len(missing) == len(ctx.manifest),
+    }
+
+
+def _start_problem(ctx: AppContext) -> str | None:
+    """Why the download can't start now (checked on the click), or None."""
+    folder = ctx.models_dir()
+    if ctx.settings().models_dir and folders.unavailable(folder):
+        return None  # _setup_ask says so, and the button is off
+    needed, free = ctx.installer.space()
+    if free < needed:
+        more = " or choose another folder" if ctx.native.pick_folder else ""
+        return (
+            f"WaveMaterial needs {_gb(needed)} free on this drive and it has {_gb(free)}. "
+            f"Free up space{more}."
+        )
+    return folders.problem_with(folder)
+
+
 # ---- routes ----------------------------------------------------------------------------------
 
 
@@ -307,9 +366,8 @@ def register(app: Flask) -> None:
         ctx = _ctx()
         if ctx.installer.all_installed():
             return redirect("/library")
-        if ctx.installer.state in ("idle",):
-            ctx.installer.start()
-        return render_template("setup.html", banner=_device_banner(ctx), s=_setup_state(ctx))
+        ask = _setup_ask(ctx) if ctx.installer.state == "idle" else None
+        return render_template("setup.html", banner=_device_banner(ctx), s=_setup_state(ctx), a=ask)
 
     @app.get("/setup/progress")
     def setup_progress():
@@ -323,10 +381,35 @@ def register(app: Flask) -> None:
     @app.post("/setup/<action>")
     def setup_action(action: str):
         ctx = _ctx()
-        if action == "pause":
-            ctx.installer.pause()
+        inst = ctx.installer
+        if action == "start":  # the user's click: nothing is downloaded before it
+            if inst.state == "idle":
+                ask = _setup_ask(ctx)
+                problem = None if ask["blocked"] else _start_problem(ctx)
+                if ask["blocked"] or problem:
+                    return render_template("_setup_ask.html", a=_setup_ask(ctx, problem))
+                inst.start()
+        elif action == "folder":
+            ask = _setup_ask(ctx)
+            if inst.state != "idle" or not ask["can_change"]:
+                return render_template("_setup_ask.html", a=ask)
+            chosen = ctx.native.pick_folder()
+            if not chosen:
+                return render_template("_setup_ask.html", a=ask)
+            target = folders.models_folder_for(Path(chosen), ctx.manifest)
+            problem = folders.problem_with(target)
+            if not problem:
+                ctx.save_settings(replace(ctx.settings(), models_dir=str(target)))
+                folders.write_pointer(ctx.paths.data_dir, target)
+                if ctx.installer.all_installed():  # the models were already there
+                    resp = make_response("")
+                    resp.headers["HX-Redirect"] = "/library"
+                    return resp
+            return render_template("_setup_ask.html", a=_setup_ask(ctx, problem))
+        elif action == "pause":
+            inst.pause()
         elif action in ("resume", "retry"):
-            ctx.installer.start()
+            inst.start()
         else:
             abort(404)
         return render_template("_setup_progress.html", s=_setup_state(ctx))
@@ -936,6 +1019,9 @@ def register(app: Flask) -> None:
             "models_dir": str(ctx.models_dir()),
             "verifying": ctx_verify.running,
             "moving": ctx_move.message,
+            "models_problem": ctx_move.problem,
+            "models_size": _gb(sum(m.installed_size for m in ctx.manifest)),
+            "busy": ctx.scheduler.busy,
             "unreliable": sorted(ctx.store.unreliable_gpus()),
             "update_msg": ctx.updates.message(),
             "update_available": ctx.updates.update_available(),
@@ -947,6 +1033,7 @@ def register(app: Flask) -> None:
 
     class _Move:
         message: str | None = None
+        problem: str | None = None  # why the last chosen folder was refused, or a removal
 
     ctx_verify, ctx_move = _Verify(), _Move()
 
@@ -1004,8 +1091,12 @@ def register(app: Flask) -> None:
         if not ctx.native.pick_folder or ctx_move.message:
             return render_template("_models.html", **_settings_data(ctx))
         chosen = ctx.native.pick_folder()
-        if chosen and Path(chosen) != ctx.models_dir():
-            target, source = Path(chosen), ctx.models_dir()
+        ctx_move.problem = None
+        target = folders.models_folder_for(Path(chosen), ctx.manifest) if chosen else None
+        if target and target != ctx.models_dir():
+            ctx_move.problem = folders.problem_with(target)
+        if target and target != ctx.models_dir() and not ctx_move.problem:
+            source = ctx.models_dir()
 
             def move():
                 try:
@@ -1015,6 +1106,7 @@ def register(app: Flask) -> None:
                         if m.folder(source).exists() and not m.folder(target).exists():
                             shutil.move(m.folder(source), m.folder(target))
                     ctx.save_settings(replace(ctx.settings(), models_dir=str(target)))
+                    folders.write_pointer(ctx.paths.data_dir, target)
                     ctx_move.message = None
                 except OSError as exc:
                     log.exception("Moving the models failed")
@@ -1022,6 +1114,28 @@ def register(app: Flask) -> None:
 
             threading.Thread(target=move, daemon=True).start()
         return render_template("_models.html", **_settings_data(ctx))
+
+    @app.post("/settings/remove-models")
+    def settings_remove_models():
+        """Remove downloaded models: never while a transcription runs; then back to setup."""
+        ctx = _ctx()
+        if ctx_move.message or not ctx.scheduler.try_hold():
+            ctx_move.problem = "A transcription is running. Remove the models once it's done."
+            return render_template("_models.html", **_settings_data(ctx))
+        try:
+            folders.remove_models(ctx.models_dir(), ctx.manifest, ctx.paths.default_models_dir)
+        except OSError as exc:
+            log.exception("Removing the models failed")
+            ctx_move.problem = f"Could not remove the models: {exc}"
+            return render_template("_models.html", **_settings_data(ctx))
+        finally:
+            ctx.scheduler.release_hold()
+        ctx_move.problem = None
+        ctx_verify.results = {}
+        ctx.installer.reset()
+        resp = make_response("")
+        resp.headers["HX-Redirect"] = "/setup"
+        return resp
 
     @app.post("/settings/reset-gpu")
     def settings_reset_gpu():

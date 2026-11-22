@@ -623,3 +623,77 @@ def test_copy_log_gives_a_report_without_the_home_folder(web, monkeypatch):
     assert "apollo11.wav" in text and "2–3 speakers" in text
     assert str(home) not in text and "~/Recordings/apollo11.wav" in text
     assert "line 49 " not in text and "line 50 " in text and "line 249 " in text  # last 200
+
+
+def _setup_client(web, monkeypatch, free=10**12):
+    ctx, client, tmp_path = web
+    client.set_cookie(COOKIE, "secret-token", domain="127.0.0.1")
+    started = []
+    monkeypatch.setattr(ctx.installer, "start", lambda: started.append(1))
+    monkeypatch.setattr("wavematerial.models.folders.free_space", lambda folder: free)
+    return ctx, client, tmp_path, started
+
+
+def test_setup_downloads_nothing_until_the_button_is_clicked(web, monkeypatch):
+    ctx, client, _, started = _setup_client(web, monkeypatch)
+    page = _get(client, "/setup").get_data(as_text=True)
+    assert "Download models" in page and "2.9 GB on disk (a 2.7 GB download)" in page
+    assert "huggingface.co" in page and not started
+    _post(client, "/setup/start")
+    assert started
+
+
+def test_setup_refuses_to_start_without_room(web, monkeypatch):
+    ctx, client, _, started = _setup_client(web, monkeypatch, free=1_200_000_000)
+    page = _post(client, "/setup/start").get_data(as_text=True)
+    assert "needs 3.7 GB free on this drive and it has 1.2 GB" in page and not started
+
+
+def test_setup_resumes_a_started_download_in_the_same_folder(web, monkeypatch):
+    ctx, client, _, started = _setup_client(web, monkeypatch)
+    ctx.native = NativeHooks(pick_folder=lambda: "/elsewhere")
+    downloads = ctx.models_dir() / ".downloads"
+    downloads.mkdir(parents=True)
+    (downloads / f"{ctx.manifest[0].id}.part").write_bytes(b"0" * 1000)
+    page = _get(client, "/setup").get_data(as_text=True)
+    assert "Resume download" in page and "left to download" in page
+    assert "Change folder" not in page  # the partial files stay where they are
+
+
+def test_choosing_a_folder_makes_a_models_subfolder_and_notes_it(web, monkeypatch):
+    ctx, client, tmp_path, _ = _setup_client(web, monkeypatch)
+    drive = tmp_path / "D"
+    drive.mkdir()
+    ctx.native = NativeHooks(pick_folder=lambda: str(drive))
+    _post(client, "/setup/folder")
+    target = drive / "WaveMaterial models"
+    assert load_settings(ctx.paths.settings_file).models_dir == str(target)
+    note = (ctx.paths.data_dir / "models-folder.txt").read_text(encoding="utf-8-sig")
+    assert note.strip() == str(target)
+
+
+def test_setup_says_when_the_chosen_models_folder_is_gone(web, monkeypatch):
+    ctx, client, tmp_path, started = _setup_client(web, monkeypatch)
+    gone = tmp_path / "unplugged" / "WaveMaterial models"
+    ctx.save_settings(replace(ctx.settings(), models_dir=str(gone)))
+    page = _get(client, "/setup").get_data(as_text=True)
+    assert "available. Reconnect the drive" in page and "disabled" in page
+    _post(client, "/setup/start")
+    assert not started
+
+
+def test_remove_downloaded_models_then_back_to_setup(web, monkeypatch):
+    ctx, client, _, _ = _setup_client(web, monkeypatch)
+    for m in ctx.manifest:
+        m.folder(ctx.models_dir()).mkdir(parents=True)
+    monkeypatch.setattr(ctx.scheduler, "try_hold", lambda: False)  # a transcription runs
+    page = _post(client, "/settings/remove-models").get_data(as_text=True)
+    assert (
+        "A transcription is running" in page and ctx.manifest[0].folder(ctx.models_dir()).exists()
+    )
+
+    monkeypatch.setattr(ctx.scheduler, "try_hold", lambda: True)
+    monkeypatch.setattr(ctx.scheduler, "release_hold", lambda: None)
+    r = _post(client, "/settings/remove-models")
+    assert r.headers["HX-Redirect"] == "/setup"
+    assert not any(m.folder(ctx.models_dir()).exists() for m in ctx.manifest)
