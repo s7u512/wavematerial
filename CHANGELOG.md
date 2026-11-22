@@ -6,6 +6,8 @@ Every user-visible change is recorded here. The format follows
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-22
+
 ### Added
 - **Add to library** in the Add recordings dialog: the recordings are listed as **Not
   started** and wait until you press **Start** on one, or **Start N not started** at the top
