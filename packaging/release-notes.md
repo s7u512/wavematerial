@@ -16,7 +16,8 @@ Offline, Vulkan-first transcription with speaker diarisation and transcript edit
 | `SHA256SUMS` | Checksums of every file. Nothing is signed. |
 
 On first run WaveMaterial asks before downloading its speech models (2.9 GB on disk); after
-that it works offline.
+that it works offline. From 1.1.0 on, installed copies update themselves (Settings › Self-update);
+older versions need this download once.
 
 ## Tested on
 

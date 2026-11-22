@@ -102,7 +102,8 @@ before building it. Visual design: [`design/DESIGN.md`](../design/DESIGN.md).
 
 ## Data and settings
 
-Paths come from `platformdirs`. Nothing is written inside the install folder.
+Paths come from `platformdirs`. Nothing is written inside the install folder, except by an
+update the user starts, which replaces it whole (see Updates).
 
 | What | Linux | Windows |
 |---|---|---|
@@ -158,7 +159,25 @@ Paths come from `platformdirs`. Nothing is written inside the install folder.
 
 - The app checks GitHub releases at most once a day, plus a "Check now" button. The check
   can be turned off in Settings.
-- If a newer version exists, the app links to its release page. Installing is manual.
+- If a newer version exists, Settings shows it with a link to its release page, and the
+  sidebar shows a small notice that leads there.
+- The Windows installer and the Linux `.tar.gz` offer two buttons, each with a "?" that
+  says what it does, leading with what is different (on hover and on keyboard focus):
+  - **Self-update:** Windows runs the installer silently in update mode (`/UPDATE=1`): it
+    waits for the app to exit (the app holds a named mutex while it runs), installs, and
+    starts it again. Linux unpacks the new version beside the install and, after the app
+    has quit, swaps the folders by renaming (the old one kept as `<folder>.previous` until
+    the next update) and restarts it.
+  - **Manual update:** Windows opens the installer normally (`/WAIT=1`: it waits for the
+    app to exit) for the user to go through. Linux saves the new `.tar.gz` in the Downloads
+    folder (never over an existing file) and the app keeps running.
+  - Running from source, or from a folder the user can't write to, shows the notice only.
+- Updates come only from the project's GitHub release page over HTTPS and must match the
+  release's `SHA256SUMS`, which catches damaged downloads, not tampering; releases are not
+  signed. Nothing happens without the user's click, and anything that closes the app waits
+  until no transcription runs and holds the queue first.
+- A newer version opens an older version's data as it is, upgrading it in place if needed;
+  nothing requires going back to an older version.
 - Offline or failed checks are silent.
 
 ## UI

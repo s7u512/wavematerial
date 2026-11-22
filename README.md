@@ -36,6 +36,12 @@ before downloading its speech models (2.9 GB on disk); after that it works offli
   loader for fast mode, and GStreamer's "good" plugins for playback.
 - **Anything else, or if the `.tar.gz` doesn't run:** run from source.
 
+From 1.1.0 on, the Windows installer and the Linux `.tar.gz` can update themselves: when a
+new version is out, **Self-update** in Settings downloads it, checks it against the
+release's checksums, installs it, and reopens WaveMaterial (**Manual update** lets you do
+the last step yourself). Nothing updates without your click. Earlier versions need one
+manual update.
+
 ### Windows needs one thing first
 
 The Windows installer doesn't include Microsoft's Visual C++ runtime, because its licence

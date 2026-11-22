@@ -212,8 +212,21 @@ with its output files.
 Where transcription runs (automatic picks the graphics card when it can), processor
 threads, the defaults for new recordings, the speech models with their folder and a
 **Verify all** check, **Remove downloaded models** (to get the space back; WaveMaterial asks
-for them again next time), and the once-a-day update check (off unless you turn it on; it only
+for them again next time), and the once-a-day update check (on unless you turn it off; it only
 asks GitHub whether a newer release exists).
+
+When a newer version exists, Settings says so and a small notice appears in the sidebar.
+The Windows installer and the Linux `.tar.gz` can then update themselves (from 1.1.0 on);
+each button's **?** says what it does:
+
+- **Self-update** downloads the new version, checks it, waits for any transcription to
+  finish, then installs it and reopens WaveMaterial. On Linux the old folder is kept beside
+  the new one, with `.previous` added to its name.
+- **Manual update** downloads and checks it, then on Windows closes WaveMaterial and opens
+  the installer for you to go through, or on Linux saves it in your Downloads folder.
+
+Your recordings, transcripts, and settings stay as they are. If you run from source, update
+with git.
 
 ![Settings, top](demo/usage/25-settings.png)
 

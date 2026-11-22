@@ -27,6 +27,11 @@ models, or run
   ./bin/wavematerial models --remove
 Deleting this folder removes the program but keeps the models and your transcripts.
 
+Updating: when a new version is out, Settings > Self-update replaces this folder with it and
+restarts WaveMaterial (the old folder is kept beside it, with .previous added to its name;
+paths stay the same, so menu entries and links keep working). Manual update only saves the
+new version to your Downloads folder.
+
 Add it to your applications menu (optional): copy share/ into ~/.local/share/ and put
 bin/wavematerial on your PATH, for example:
   cp -r share/. ~/.local/share/

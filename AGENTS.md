@@ -31,7 +31,8 @@ RFC 2119 and RFC 8174. When you depart from a SHOULD, say so and why in your sum
 9. You MUST keep secrets and personal details (emails, tokens, local paths, names) out of
    code, logs, fixtures, test data, and commits.
 10. The app MUST stay offline after first run: no telemetry. The only network calls are the
-    model downloads (first run) and the once-a-day update check (can be turned off).
+    model downloads (after the user agrees), the once-a-day update check (can be turned
+    off), and downloading an update when the user asks for it.
 
 ## Licences and assets
 
@@ -70,7 +71,8 @@ RFC 2119 and RFC 8174. When you depart from a SHOULD, say so and why in your sum
 21. Only one model SHOULD be loaded at a time, and heavy work MUST run in the job's worker
     subprocess, never in the web server process.
 22. Startup preflight MUST stay under 2 seconds: detection only, no benchmarking or network.
-23. Nothing MAY be written inside the install directory; data goes to the `platformdirs`
+23. Nothing MAY be written inside the install directory, except by an update the user
+    starts, which replaces the install as a whole; data goes to the `platformdirs`
     locations in `docs/SPEC.md` (Data and settings).
 
 ## Tests

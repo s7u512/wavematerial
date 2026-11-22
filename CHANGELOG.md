@@ -7,6 +7,13 @@ Every user-visible change is recorded here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Self-update** and **Manual update** for the Windows installer and the Linux `.tar.gz`:
+  when a newer version exists (Settings, and a small notice in the sidebar), Self-update
+  downloads it from the release page, checks it against the release's checksums, waits
+  until no transcription is running, then installs it and reopens WaveMaterial; Manual
+  update lets you go through the installer yourself (Windows) or saves the new version in
+  your Downloads folder (Linux). A "?" by each button says what it does. Nothing updates
+  without your click. Running from source shows the notice only.
 - **Copy log** on every job's details: copies a ready-to-paste report (app version, system,
   device, the job's settings, events, and the end of its log, with your home folder shown
   as ~) for reporting problems on the issues page.
@@ -32,6 +39,8 @@ Every user-visible change is recorded here. The format follows
   WaveMaterial needs (ONNX Runtime), as some Windows 11 versions do. WaveMaterial now always
   uses its own copy. If Windows' copy gets in anyway, the job stops with a plain message
   when that copy can't work, or goes on with a warning in its log when it can.
+- The usage guide said the daily update check is off by default; it is on (and can be
+  turned off in Settings).
 
 ## [1.0.0] - 2026-11-21
 
