@@ -6,9 +6,8 @@ Thanks for your interest. WaveMaterial is a small hobby project, so these rules 
 ## Before you start
 
 - For anything beyond a small fix, **open an issue first** so we can agree on the approach.
-- Read [`docs/SPEC.md`](docs/SPEC.md). It lists what is decided for 1.0.0. Please don't
-  reopen a decision without new information, and don't build features it lists as out of
-  scope.
+- Read [`docs/SPEC.md`](docs/SPEC.md). It lists what is decided. Please don't reopen a
+  decision without new information, and don't build features it lists as out of scope.
 
 ## Licence and sign-off
 

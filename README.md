@@ -95,8 +95,23 @@ uv run ruff check && uv run ruff format --check
 uv run pytest
 ```
 
-Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a pull request. Report security
-issues as described in [`SECURITY.md`](SECURITY.md).
+## Contributing
+
+Contributions are welcome. WaveMaterial is a small hobby project, so the rules are short:
+
+- **Bugs and ideas:** open an issue on the
+  [issues page](https://github.com/s7u512/wavematerial/issues). For a problem with a
+  transcription, the recording's **Copy log** gives a ready-to-paste report.
+- **Before writing code:** for anything beyond a small fix, open an issue first so we can
+  agree on the approach. [`docs/SPEC.md`](docs/SPEC.md) lists what is decided.
+- **Pull requests:** one change each, with
+  [Conventional Commits](https://www.conventionalcommits.org/) messages, every commit signed
+  off under the Developer Certificate of Origin (`git commit -s`), the checks above run, and
+  a test for a bug fix. Contributions are licensed under the project's licence.
+- **AI-assisted contributions** are welcome; you are responsible for every line you submit.
+
+The full rules are in [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`AGENTS.md`](AGENTS.md). Report
+security issues privately, as described in [`SECURITY.md`](SECURITY.md).
 
 ## Licence
 
