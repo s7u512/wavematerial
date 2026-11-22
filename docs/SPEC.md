@@ -60,6 +60,13 @@ before building it. Visual design: [`design/DESIGN.md`](../design/DESIGN.md).
 - On resume, the source file's fingerprint is checked; a changed or missing source fails
   with a clear message.
 - Only one instance of the app runs at a time.
+- A failed job says why in plain words. A worker that dies without reporting an error
+  "crashed (error 0x…)" (Windows) or "(signal N)" (Linux), or "stopped unexpectedly (exit
+  code N)"; each ends "Retry, or copy the log and report it on the issues page". The worker
+  runs Python's `faulthandler`, so a crash in native code leaves a traceback in its log.
+- Every job's details have **Copy log**: the app version, system, device, the job's
+  recording, settings and outcome, its events, and the last 200 lines of its worker log,
+  with the home folder shown as `~`, ready to paste into an issue.
 
 ## Transcripts
 

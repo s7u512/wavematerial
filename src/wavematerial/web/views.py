@@ -25,6 +25,7 @@ from flask import (
 )
 
 from wavematerial.engine.playback import PLAYBACK
+from wavematerial.jobs import report
 from wavematerial.jobs.events import STAGE_LABELS, read_events, stage_times
 from wavematerial.jobs.store import Job
 from wavematerial.models.download import is_installed, verify
@@ -401,6 +402,18 @@ def register(app: Flask) -> None:
     @app.get("/jobs/<int:job_id>")
     def job_drawer(job_id: int):
         return render_template("_drawer.html", **_drawer_data(_ctx(), job_id))
+
+    @app.get("/jobs/<int:job_id>/report")
+    def job_report(job_id: int):
+        """The text "Copy log" copies (see jobs/report.py)."""
+        ctx = _ctx()
+        try:
+            job = ctx.store.get(job_id)
+        except KeyError:
+            abort(404)
+        resp = make_response(report.build(job, ctx.scheduler.job_dir(job_id)))
+        resp.mimetype = "text/plain"
+        return resp
 
     # ---- transcribe again (a whole recording, as a new entry) -----------------------------
     def _again_name(ctx: AppContext, job: Job) -> str:

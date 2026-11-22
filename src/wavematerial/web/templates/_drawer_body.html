@@ -43,6 +43,7 @@
     {% else %}<span></span>{% endif %}
     <div class="foot-right">
       {% if job.state != "running" %}<button type="button" class="btn btn-ghost danger" hx-post="/jobs/{{ job.id }}/delete" hx-swap="none" hx-confirm="Delete {{ job.name }} and its transcript? The original file is not touched.">{{ icon("trash", 14) }} Delete</button>{% endif %}
+      <button type="button" class="btn btn-ghost" data-copy-report="/jobs/{{ job.id }}/report" title="Copies the app version, system, this job's settings and log, ready to paste into a report. Your home folder is shown as ~.">Copy log</button>
       <button type="button" class="btn btn-ghost" hx-post="/jobs/{{ job.id }}/open-log" hx-swap="none">Open log file</button>
     </div>
   </footer>

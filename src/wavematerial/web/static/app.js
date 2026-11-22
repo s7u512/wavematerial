@@ -31,6 +31,53 @@
     });
   });
 
+  // ---- "Copy log": a job's report, ready to paste into an issue ----------------------------
+  // The clipboard API first; then the older copy command (WebKitGTK may lack the API); if
+  // both fail, say so (the log file can still be opened).
+  function copyText(text) {
+    if (navigator.clipboard?.writeText) {
+      return navigator.clipboard.writeText(text).then(() => true, () => copyByCommand(text));
+    }
+    return Promise.resolve(copyByCommand(text));
+  }
+
+  function copyByCommand(text) {
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.select();
+    let ok = false;
+    try {
+      ok = document.execCommand("copy");
+    } catch (e) {
+      ok = false;
+    }
+    area.remove();
+    return ok;
+  }
+
+  document.addEventListener("click", async (evt) => {
+    const button = evt.target.closest("[data-copy-report]");
+    if (!button) return;
+    const label = button.textContent;
+    button.disabled = true;
+    let ok = false;
+    try {
+      const resp = await fetch(button.dataset.copyReport, { credentials: "same-origin" });
+      ok = resp.ok && (await copyText(await resp.text()));
+    } catch (e) {
+      ok = false;
+    }
+    button.textContent = ok ? "Copied" : "Couldn't copy: use Open log file";
+    setTimeout(() => {
+      button.textContent = label;
+      button.disabled = false;
+    }, ok ? 1500 : 4000);
+  });
+
   // ---- full screen (F11; Esc leaves it when there is nothing else to close) ----------------
   document.addEventListener("keydown", (evt) => {
     if (evt.key === "F11") {

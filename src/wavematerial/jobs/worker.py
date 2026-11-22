@@ -17,6 +17,7 @@ if the app dies, its worker dies with it.
 
 from __future__ import annotations
 
+import faulthandler
 import json
 import logging
 import os
@@ -68,6 +69,7 @@ def main(argv: list[str]) -> int:
     channel = os.fdopen(os.dup(1), "w", buffering=1, encoding="utf-8")
     os.dup2(2, 1)
     sys.stdout = sys.stderr
+    faulthandler.enable()  # a crash in native code leaves a Python traceback in the log
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
     def emit(**event) -> None:

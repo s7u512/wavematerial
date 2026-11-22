@@ -6,6 +6,16 @@ Every user-visible change is recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Copy log** on every job's details: copies a ready-to-paste report (app version, system,
+  device, the job's settings, events, and the end of its log, with your home folder shown
+  as ~) for reporting problems on the issues page.
+
+### Changed
+- A transcription that crashes now says so in plain words ("crashed (error 0xC0000005)"
+  instead of a raw exit code) and suggests copying the log for a report, and the log now
+  shows where in the program the crash happened.
+
 ### Fixed
 - Windows: transcription no longer crashes right after "Read audio" ("stopped unexpectedly
   (exit code 3221225477)") on PCs where Windows has its own, older copy of a library

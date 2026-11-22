@@ -305,6 +305,9 @@ def _probe_duration(source: Path) -> float | None:
         return None
 
 
+REPORT = "Retry, or copy the log and report it on the issues page."
+
+
 def _death(code: int) -> str:
     """A plain explanation for a worker that died without saying why."""
     if code in (-9, 137):
@@ -312,4 +315,8 @@ def _death(code: int) -> str:
             "The transcription was killed, most likely because the computer ran out of "
             "memory. Close other programs and retry."
         )
-    return f"The transcription stopped unexpectedly (exit code {code}). Retry, or see the log."
+    if code >= 0xC0000000:  # a Windows exception code, such as 0xC0000005 (access violation)
+        return f"The transcription crashed (error 0x{code:08X}). {REPORT}"
+    if code < 0:  # killed by a signal (Linux)
+        return f"The transcription crashed (signal {-code}). {REPORT}"
+    return f"The transcription stopped unexpectedly (exit code {code}). {REPORT}"

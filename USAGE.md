@@ -64,7 +64,10 @@ to the processor.
 ![The library while the first recording is transcribed and the second waits](demo/usage/04-library-transcribing.png)
 
 Click a recording for its details: each stage with its time, the settings used, and a log.
-**Stop** stops it (you can resume it later).
+**Stop** stops it (you can resume it later). If something goes wrong, **Copy log** copies a
+ready-to-paste report (versions, system, the recording's settings and log, with your home
+folder shown as ~) for the [issues page](https://github.com/s7u512/wavematerial/issues);
+**Open log file** opens the full log.
 
 ![The details drawer of a recording being transcribed](demo/usage/05-job-details.png)
 

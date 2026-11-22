@@ -598,3 +598,28 @@ def test_the_app_opens_on_the_landing_screen_once_set_up(web):
     assert _post(client, "/add", data={}, headers=landing).headers.get("HX-Redirect") == "/library"
     library = {"HX-Current-URL": "http://127.0.0.1:5555/library"}
     assert "HX-Redirect" not in _post(client, "/add", data={}, headers=library).headers
+
+
+def test_copy_log_gives_a_report_without_the_home_folder(web, monkeypatch):
+    from wavematerial import __version__
+
+    ctx, client, tmp_path = web
+    client.set_cookie(COOKIE, "secret-token", domain="127.0.0.1")
+    home = tmp_path / "home" / "someone"
+    monkeypatch.setattr("wavematerial.jobs.report.Path.home", lambda: home)
+    source = home / "Recordings" / "apollo11.wav"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"RIFF" + bytes(64))
+    job = ctx.store.add(source, min_speakers=2, max_speakers=3)
+    job_dir = ctx.scheduler.job_dir(job.id)
+    job_dir.mkdir(parents=True)
+    lines = [f"line {i} reading {source}" for i in range(250)]
+    (job_dir / "worker.log").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    r = _get(client, f"/jobs/{job.id}/report")
+    text = r.get_data(as_text=True)
+    assert r.status_code == 200 and r.mimetype == "text/plain"
+    assert text.startswith(f"WaveMaterial {__version__} · ")
+    assert "apollo11.wav" in text and "2–3 speakers" in text
+    assert str(home) not in text and "~/Recordings/apollo11.wav" in text
+    assert "line 49 " not in text and "line 50 " in text and "line 249 " in text  # last 200

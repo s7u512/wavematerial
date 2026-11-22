@@ -146,6 +146,17 @@ def test_an_onnxruntime_that_can_serve_sherpa_only_warns(env):
     assert "System32" in (sched.job_dir(job.id) / "worker.log").read_text(encoding="utf-8")
 
 
+def test_a_native_crash_says_so_and_leaves_a_traceback_in_the_log(env):
+    sched, store, source = env(crash_at="vad")
+    job = sched.add(source, min_speakers=2, max_speakers=3)
+    sched.start()
+    failed = wait_for(store, job.id, "failed")
+    assert failed.error.startswith("The transcription crashed (signal 11).")
+    assert failed.error.endswith("copy the log and report it on the issues page.")
+    log = (sched.job_dir(job.id) / "worker.log").read_text(encoding="utf-8")
+    assert "Fatal Python error: Segmentation fault" in log and "fake.py" in log
+
+
 def test_only_one_instance_holds_the_lock(tmp_path):
     with InstanceLock(tmp_path / "instance.lock"):
         with pytest.raises(AlreadyRunning):

@@ -4,6 +4,8 @@
 The worker uses it when `WAVEMATERIAL_FAKE_ENGINE` is set to a JSON object of options:
 - `"sleep"`: seconds to wait in each stage (default 0);
 - `"gpu_fails_at"`: a stage name; on a "vulkan" device it raises GpuFailure there.
+- `"crash_at"`: a stage name; the worker crashes there as native code would (a fatal
+  signal on Linux, an access violation on Windows), so faulthandler writes a traceback.
 - `"onnxruntime"`: "old" or "new" makes the worker meet another ONNX Runtime that can't, or
   can, serve sherpa-onnx (see engine/onnxruntime_check.py) before any stage runs.
 Each stage that actually runs is appended to `fake-stages.log` in the job folder, so tests
@@ -58,6 +60,10 @@ def run(source: Path, job_dir: Path, *, choice: Choice, progress=None, **_) -> T
     def stage(name: str) -> None:
         if opts.get("gpu_fails_at") == name and choice.backend == "vulkan":
             raise GpuFailure("simulated GPU failure")
+        if opts.get("crash_at") == name:
+            import faulthandler
+
+            faulthandler._sigsegv()  # a real native crash, for faulthandler to report
         with (job_dir / "fake-stages.log").open("a", encoding="utf-8") as f:
             f.write(f"{name}\n")
         for i in range(4):
