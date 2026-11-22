@@ -550,7 +550,7 @@ def sidebar(win: str, active: str, compact: bool = False, update: str | None = N
         cmd("node.set", {"ids": [R(sb)], "props": {"width": 60}})
         logo_mark(sb, 30)
         frame(sb, "gap", 1, 12)
-        for key, ic in [("library", "library"), ("add", "plus")]:
+        for key, ic in [("library", "library"), ("editor", "pencil"), ("add", "plus")]:
             it = frame(
                 sb,
                 f"Rail/{key}",
@@ -610,19 +610,30 @@ def sidebar(win: str, active: str, compact: bool = False, update: str | None = N
         TEXT if is_lib else TEXT_2,
         sizingH="fill",
     )
-    text(item, "12", 12, "Regular", TEXT_3, features={"tnum": True})
+    text(item, "14", 12, "Regular", TEXT_3, features={"tnum": True})
+    # Editor: reopens the transcript last opened; active (with it lit in Recent) in the editor.
+    is_ed = active == "editor"
+    ed = hstack(sb, "Nav/Editor", gap=10, pad=[8, 10, 8, 10], cornerRadius=6, sizingH="fill",
+                fill=SURFACE if is_ed else None)  # fmt: skip
+    icon(ed, "pencil", ACCENT if is_ed else TEXT_2)
+    ecol = vstack(ed, "Label", gap=1, sizingH="fill")
+    text(ecol, "Editor", 13.5, "Medium" if is_ed else "Regular", TEXT if is_ed else TEXT_2)
+    if not is_ed:
+        text(ecol, "Last: apollo11_landing_1969", 11.5, "Regular", TEXT_3)
     frame(sb, "gap", 1, 14)
     rl = hstack(sb, "Recent label", gap=0, pad=[0, 10, 4, 10], sizingH="fill")
     section_label(rl, "Recent")
-    for name, _spk_c in [
+    for i, (name, _spk_c) in enumerate([
         ("apollo11_landing_1969", SPK[0]),
         ("apollo8_christmas_eve_1968", SPK[1]),
         ("gemini4_spacewalk_1965", SPK[2]),
         ("nixon_moon_call_1969", SPK[3]),
-    ]:
-        r = hstack(sb, f"Recent/{name}", gap=10, pad=[6, 10, 6, 10], cornerRadius=6, sizingH="fill")
-        icon(r, "file", TEXT_3, 15)
-        text(r, name, 13, "Regular", TEXT_2, sizingH="fill")
+    ]):  # fmt: skip
+        lit = is_ed and i == 0  # the transcript open in the editor
+        r = hstack(sb, f"Recent/{name}", gap=10, pad=[6, 10, 6, 10], cornerRadius=6,
+                   sizingH="fill", fill=SURFACE if lit else None)  # fmt: skip
+        icon(r, "file", ACCENT if lit else TEXT_3, 15)
+        text(r, name, 13, "Medium" if lit else "Regular", TEXT if lit else TEXT_2, sizingH="fill")
     spacer(sb, horizontal=False)
     if update:  # a newer version exists: a small notice that leads to Settings
         note = hstack(
@@ -719,6 +730,8 @@ def shell(
 ROWS = [
     # Sample library: US-government (public-domain) recordings from 1950-1990.
     # name, duration, speakers, status kind, status detail, added, progress
+    ("apollo12_landing_1969.mp3", "14:02", "2–3", "new", "Not started", "Today, 15:10", 0),
+    ("apollo14_eva_1971.mp3", "52:30", "2–3", "new", "Not started", "Today, 15:10", 0),
     ("apollo13_problem_1970.mp3", "18:44", "2–4", "running", "Transcribing", "Today, 14:02", 0.58),
     ("jfk_rice_university_1962.mp3", "17:47", "1", "queued", "Queued · next", "Today, 14:03", 0),
     (
@@ -742,10 +755,14 @@ ROWS = [
 ]
 
 
+ACTIONS_W = 170  # the row's Start or Edit transcript button, then the ⋯ menu
+
+
 def library_table(main: str, selected: int | None = None) -> None:
     bar = hstack(main, "Toolbar", gap=8, pad=[0, 28, 14, 28], sizingH="fill")
     for label, count, act in [
-        ("All", "12", True),
+        ("All", "14", True),
+        ("Not started", "2", False),
         ("In progress", "2", False),
         ("Done", "9", False),
         ("Failed", "1", False),
@@ -773,7 +790,7 @@ def library_table(main: str, selected: int | None = None) -> None:
         ("Speakers", 86),
         ("Status", 300),
         ("Added", 104),
-        ("", 40),
+        ("", ACTIONS_W),
     ]
     head = hstack(
         table,
@@ -813,7 +830,9 @@ def library_table(main: str, selected: int | None = None) -> None:
             t = text(row, val, 13, "Regular", TEXT_2, features={"tnum": True})
             cmd("node.set", {"ids": [R(t)], "props": {"textAutoResize": "height", "width": w}})
         st = frame(row, "Status", 300, 10, layout="vertical", gap=6, sizingV="hug")
-        if kind == "running":
+        if kind == "new":
+            pill(st, "Not started", TEXT_2, SURFACE_2, TEXT_2)
+        elif kind == "running":
             line = hstack(st, "Line", gap=8)
             pill(line, "Transcribing", ON_ACCENT, ACCENT, ON_ACCENT)
             text(line, "58%", 12, "Medium", TEXT_2, features={"tnum": True})
@@ -836,12 +855,19 @@ def library_table(main: str, selected: int | None = None) -> None:
             text(line, detail, 12, "Regular", TEXT_2)
         t = text(row, added, 13, "Regular", TEXT_2)
         cmd("node.set", {"ids": [R(t)], "props": {"textAutoResize": "height", "width": 104}})
-        icon(row, "more", TEXT_3, 18)
+        acts = hstack(row, "Actions", gap=6, sizingH="fixed", mainAlign="max")
+        cmd("node.set", {"ids": [R(acts)], "props": {"width": ACTIONS_W}})
+        if kind in ("done", "review"):
+            button(acts, "Edit transcript", "secondary", "pencil", small=True)
+        elif kind == "new":
+            button(acts, "Start", "secondary", "play", small=True)
+        icon(acts, "more", TEXT_3, 18)
 
 
 def library(x: float, y: float, name: str = "02 Library", selected: int | None = None) -> str:
     win, main = shell(name, x, y, "library")
-    hdr = page_header(main, "Library", "12 recordings · 2 in progress")
+    hdr = page_header(main, "Library", "14 recordings · 2 not started · 2 in progress")
+    button(hdr, "Start 2 not started", "secondary", "play")
     button(hdr, "Add recordings", "primary", "plus")
     frame(hdr, "gap", 8, 1)
     f11_hint(hdr)
@@ -950,14 +976,19 @@ def add_dialog(x: float, y: float) -> None:
         chip(box, term, TEXT, SURFACE_2, None, removable=True)
     text(box, "Add a name, place or term…", 13, "Regular", TEXT_3)
     para(kt, "Spell names the way they should appear. Used as hints, not guaranteed.", 12, TEXT_3)
-    foot = hstack(
-        dlg, "Footer", gap=10, pad=[14, 22, 14, 22], sizingH="fill", fill=SURFACE_2, **edge("top")
+    foot = vstack(
+        dlg, "Footer", gap=8, pad=[14, 22, 14, 22], sizingH="fill", fill=SURFACE_2, **edge("top")
     )
-    cb = frame(foot, "Checkbox", 16, 16, fill=ACCENT, cornerRadius=4)
+    frow = hstack(foot, "Row", gap=10, sizingH="fill")
+    cb = frame(frow, "Checkbox", 16, 16, fill=ACCENT, cornerRadius=4)
     vec(cb, ICON["check"], 11, 11, stroke=ON_ACCENT, sw=2, absolute=True, x=2.5, y=2.5)
-    text(foot, "Save speakers and key terms as my defaults", 13, "Regular", TEXT_2, sizingH="fill")
-    button(foot, "Cancel", "secondary")
-    button(foot, "Add 3 recordings", "primary")
+    text(frow, "Save speakers and key terms as my defaults", 13, "Regular", TEXT_2, sizingH="fill")
+    button(frow, "Cancel", "ghost")
+    button(frow, "Add to library", "secondary")
+    button(frow, "Add and transcribe", "primary", "play")
+    hint = hstack(foot, "Hint", gap=0, sizingH="fill", mainAlign="max")
+    text(hint, "Add to library keeps them as Not started until you press Start.", 12,
+         "Regular", TEXT_3)  # fmt: skip
 
 
 # --- Transcript editor ------------------------------------------------------
@@ -1191,7 +1222,7 @@ def editor_panel(body: str) -> None:
 def editor(x: float, y: float, compact: bool = False, pop_xy: tuple[float, float] = (0, 0)) -> None:
     name = "07 Transcript editor (960×720 minimum)" if compact else "04 Transcript editor"
     win, main = shell(
-        name, x, y, "library", w=CW if compact else W, h=CH if compact else H, compact=compact
+        name, x, y, "editor", w=CW if compact else W, h=CH if compact else H, compact=compact
     )
     top = hstack(
         main, "Topbar", gap=12, pad=[14, 24, 14, 20], sizingH="fill", **edge("bottom"), fill=BG
@@ -1287,8 +1318,10 @@ def editor(x: float, y: float, compact: bool = False, pop_xy: tuple[float, float
     player(main, track_w=470 if compact else 1230, compact=compact)
 
 
-def details_drawer(x: float, y: float) -> None:
-    win = library(x, y, "05 Job details", selected=0)
+def details_drawer(x: float, y: float, done: bool = False) -> None:
+    """05: a recording being transcribed; 08: a finished one (Edit transcript leads)."""
+    name = "08 Job details, finished" if done else "05 Job details"
+    win = library(x, y, name, selected=4 if done else 2)
     overlay(win)
     dr = vstack(
         win,
@@ -1306,12 +1339,23 @@ def details_drawer(x: float, y: float) -> None:
     cmd("node.set", {"ids": [R(dr)], "props": {"width": 480, "height": H}})
     head = hstack(dr, "Head", gap=8, sizingH="fill")
     col = vstack(head, "Title", gap=3, sizingH="fill")
-    text(col, "apollo13_problem_1970.mp3", 16, "SemiBold", TEXT)
-    text(col, "18:44 · 17 MB · added today 14:02", 12, "Regular", TEXT_3)
+    if done:
+        text(col, "apollo11_landing_1969.mp3", 16, "SemiBold", TEXT)
+        text(col, "12:31 · 11 MB · added today 11:40", 12, "Regular", TEXT_3)
+    else:
+        text(col, "apollo13_problem_1970.mp3", 16, "SemiBold", TEXT)
+        text(col, "18:44 · 17 MB · added today 14:02", 12, "Regular", TEXT_3)
     icon(head, "x", TEXT_3, 18)
     st = hstack(dr, "Status", gap=8, sizingH="fill")
-    pill(st, "Transcribing", ON_ACCENT, ACCENT, ON_ACCENT)
-    text(st, "58% · about 4 min left", 12.5, "Regular", TEXT_2)
+    if done:
+        pill(st, "Ready", OK, OK_SOFT, OK)
+        text(st, "3 speakers · speakers named", 12.5, "Regular", TEXT_2)
+        main_acts = hstack(dr, "Main actions", gap=8, sizingH="fill")
+        button(main_acts, "Edit transcript", "primary", "pencil")
+        button(main_acts, "Open output folder", "secondary", "folder")
+    else:
+        pill(st, "Transcribing", ON_ACCENT, ACCENT, ON_ACCENT)
+        text(st, "58% · about 4 min left", 12.5, "Regular", TEXT_2)
     section_label(dr, "Stages")
     stages = vstack(
         dr,
@@ -1331,6 +1375,15 @@ def details_drawer(x: float, y: float) -> None:
         ("Identify speakers", "", "todo"),
         ("Assemble transcript", "", "todo"),
     ]
+    if done:
+        data = [
+            ("Read audio", "0.4 s", "done"),
+            ("Find speech", "3.1 s", "done"),
+            ("Word timings", "31.0 s", "done"),
+            ("Transcribe text", "1 min 52 s", "done"),
+            ("Identify speakers", "18.2 s", "done"),
+            ("Assemble transcript", "0.6 s", "done"),
+        ]
     for i, (lab, val, s) in enumerate(data):
         r = hstack(
             stages,
@@ -1372,8 +1425,8 @@ def details_drawer(x: float, y: float) -> None:
     grid = vstack(dr, "Facts", gap=8, sizingH="fill")
     for k, v in [
         ("Device", "AMD Radeon 660M · Vulkan"),
-        ("Speakers", "between 2 and 4"),
-        ("Key terms", "Odyssey, Aquarius, Houston"),
+        ("Speakers", "3 found (allowed 2–3)" if done else "between 2 and 4"),
+        ("Key terms", "Eagle, Houston, Tranquility" if done else "Odyssey, Aquarius, Houston"),
         ("Language", "English"),
     ]:
         r = hstack(grid, k, gap=8, sizingH="fill")
@@ -1384,7 +1437,7 @@ def details_drawer(x: float, y: float) -> None:
     log = vstack(
         dr, "Log", gap=3, pad=12, fill="#0B0C0E", cornerRadius=8, sizingH="fill", sizingV="fill"
     )
-    for ln in [
+    lines = [
         "14:02:11  queued",
         "14:04:37  started on Vulkan0 (Radeon 660M)",
         "14:04:38  read audio: 1124.3 s",
@@ -1392,10 +1445,18 @@ def details_drawer(x: float, y: float) -> None:
         "14:05:51  word timings done (68 s)",
         "14:05:53  text model loaded (Qwen3-ASR 1.7B Q8)",
         "14:07:41  chunk 37/64",
-    ]:
+    ]
+    if done:
+        lines = ["11:40:02  queued", "11:40:03  started on Vulkan0 (Radeon 660M)",
+                 "11:40:35  word timings done (31 s)", "11:42:27  text done (112 s)",
+                 "11:42:45  3 speakers", "11:42:46  done"]  # fmt: skip
+    for ln in lines:
         text(log, ln, 11.5, "Regular", "#C9D1D9", fontFamily="Liberation Mono")
     acts = hstack(dr, "Actions", gap=8, sizingH="fill")
-    button(acts, "Stop", "danger", "pause")
+    if done:
+        button(acts, "Delete", "ghost-danger", "trash")
+    else:
+        button(acts, "Stop", "danger", "pause")
     spacer(acts)
     button(acts, "Copy log", "ghost")
     button(acts, "Open log file", "ghost")
@@ -1754,6 +1815,7 @@ def main() -> None:
     details_drawer(0, 2 * (H + gap))
     settings(W + gap, 2 * (H + gap))
     editor(0, 3 * (H + gap), compact=True, pop_xy=POPOVER_XY_COMPACT)
+    details_drawer(W + gap, 3 * (H + gap), done=True)
     design_system()
     out = Path(__file__).with_name("mockups.json")
     out.write_text(json.dumps(steps, indent=1, ensure_ascii=False))

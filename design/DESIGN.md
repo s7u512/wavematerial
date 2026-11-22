@@ -1,6 +1,6 @@
 # WaveMaterial: visual design
 
-The design system for the 1.1.0 UI. Behaviour is specified in
+The design system for the 1.2.0 UI. Behaviour is specified in
 [`docs/SPEC.md`](../docs/SPEC.md); the mock-ups show how it looks.
 
 ## Files
@@ -33,14 +33,19 @@ The mock-ups are generated, so change `tools/build_mockups.py`, not the FigCraft
 |---|---|
 | 00 | Landing: the logo large in the middle, the name, the tagline, Open library, Add recordings, and Quit; the sidebar logo returns to it |
 | 01 | First run: asks before the one-time model download. One dominant, focused **Download models** button with the size under it (2.9 GB on disk, a 2.7 GB download); Saving to with **Change folder**; the model list, quiet (name, role, licence, source, size); the device note small at the bottom. Problems (no room, a folder it can't write to, OneDrive, a missing drive) show under the button; the progress view replaces the button in place |
-| 02 | Library: every recording, with filter chips (All, In progress, Done, Failed) and search |
-| 03 | Add recordings (dialog): files or a folder, speaker range, key terms |
+| 02 | Library: every recording, with filter chips (All, Not started, In progress, Done, Failed) and search. Not started rows come first, with a small secondary **Start**; finished rows have a small secondary **Edit transcript**; both sit before the row's ⋯ menu. **Start N not started** (secondary) sits beside Add recordings while there are any |
+| 03 | Add recordings (dialog): files or a folder, speaker range, key terms. The footer has Cancel (ghost), **Add to library** (secondary), and **Add and transcribe** (primary, ▶), with a small line under them: "Add to library keeps them as Not started until you press Start." |
 | 04 | Transcript editor |
 | 05 | Job details (drawer): stages, device, log, Stop and Retry, **Copy log** (a ready-to-paste report) and Open log file |
 | 06 | Settings, shown with an update available: the models card has **Remove downloaded models** (red, ghost); the Updates card has **Self-update** (primary) and **Manual update** (secondary), each with a help tip, one shown open |
 | 07 | Editor at the 960 × 720 minimum: the sidebar becomes an icon rail and the side panel an overlay |
+| 08 | Job details (drawer) of a finished recording: **Edit transcript** (primary) and Open output folder (secondary) under the status; Delete moves to the footer |
 
-The shell is a 248 px sidebar (logo, Library, Recent, the engine card, and Settings). Below
+The shell is a 248 px sidebar (logo, Library, Editor, Recent, the engine card, and Settings).
+**Editor** (pencil) has a second line, "Last: <name>", in text-3; in the editor it is the
+active item (surface fill, accent icon) and the open transcript is lit the same way in
+Recent; with nothing finished it is dimmed (text-3) with "No transcripts yet". The
+**Not started** pill is surface-2 with text-2 and its dot. Below
 about 1280 px wide it becomes a 60 px icon rail. When a newer version exists, a small notice
 ("Version 1.1.1 is available", surface-2 fill) sits above the engine card and leads to
 Settings; in the rail it is just its icon.
