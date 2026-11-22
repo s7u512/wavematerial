@@ -199,6 +199,14 @@ Paths come from `platformdirs`. Nothing is written inside the install folder.
   The installer requires the Visual C++ Redistributable (x64) at the newest version the
   bundled files were built with; if it is missing, it gives Microsoft's download links and offers
   to start the download.
+- Windows ships its own, older ONNX Runtime as `System32\onnxruntime.dll`. The Windows bundle
+  renames its copy to `wm-onnxrt.dll` (patching the files that load it), so Windows' copy
+  can't be used instead, and its build fails if any bundled DLL is named like one Windows
+  ships. When the worker starts on Windows, it checks which ONNX Runtime sherpa-onnx actually
+  loaded. If it isn't sherpa-onnx's own and can't serve the API version sherpa-onnx needs
+  (that of its own copy), the job fails at once (no CPU retry) with a message that suggests
+  updating Windows (and, from source, the installer) and reporting it. If it can, the job
+  goes on with a warning in its log saying the same.
 - Everything is built locally; there is no CI. Nothing is signed. Each release carries
   SHA256 checksums.
 - Releases are assembled locally by `packaging/release.py` (packages, WaveMaterial's source,

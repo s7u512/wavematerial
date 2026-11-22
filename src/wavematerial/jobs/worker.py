@@ -4,8 +4,10 @@
 Started as `python -m wavematerial.jobs.worker '<json spec>'`. It reports with one JSON
 object per line on its original stdout:
     {"event": "progress", "stage": "text", "fraction": 0.4}
+    {"event": "warning", "message": "..."}  (shown in the job's log; the job goes on)
     {"event": "done", "duration": 300.0, "speakers": 2, "turns": 9}
-    {"event": "error", "kind": "gpu" | "decode" | "source" | "memory" | "other", "message": ...}
+    {"event": "error", "kind": "gpu" | "decode" | "source" | "memory" | "runtime" | "other",
+     "message": ...}
 Native libraries print to stdout too, so the worker first points file descriptor 1 at
 stderr (the job's log) and keeps a private copy of the original for these messages.
 
@@ -76,7 +78,7 @@ def main(argv: list[str]) -> int:
     choice = Choice(**spec["choice"])
     source, job_dir = Path(spec["source"]), Path(spec["job_dir"])
 
-    from wavematerial.engine import fake
+    from wavematerial.engine import fake, onnxruntime_check
     from wavematerial.engine.decode import DecodeError
     from wavematerial.engine.pipeline import JobSettings
     from wavematerial.engine.text import GpuFailure
@@ -88,6 +90,18 @@ def main(argv: list[str]) -> int:
         from wavematerial.models.manifest import load_manifest
 
         models = load_manifest()
+    try:
+        if fake.options() is None:
+            notice = onnxruntime_check.check()
+        else:  # tests: "old" or "new", as if Windows' copy were in use
+            notice = fake.onnxruntime_notice()
+    except onnxruntime_check.OnnxRuntimeMismatch as exc:
+        logging.error("%s", exc.detail)
+        emit(event="error", kind="runtime", message=str(exc))
+        return 1
+    if notice:
+        logging.warning("%s", notice.detail)
+        emit(event="warning", message=notice.text)
     try:
         transcript = run(
             source,

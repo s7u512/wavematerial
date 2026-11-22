@@ -8,6 +8,7 @@ import pytest
 
 from wavematerial.config import Paths, Settings
 from wavematerial.engine.fake import ENV
+from wavematerial.jobs.events import read_events
 from wavematerial.jobs.lock import AlreadyRunning, InstanceLock
 from wavematerial.jobs.scheduler import Scheduler
 from wavematerial.jobs.store import JobStore
@@ -119,6 +120,30 @@ def test_a_changed_source_fails_with_a_clear_message(env):
     sched.start()
     failed = wait_for(store, job.id, "failed")
     assert "has changed" in failed.error
+
+
+def test_an_onnxruntime_too_old_for_sherpa_fails_at_once_without_blaming_the_gpu(env):
+    sched, store, source = env(onnxruntime="old")
+    job = sched.add(source, min_speakers=2, max_speakers=3)
+    sched.start()
+    failed = wait_for(store, job.id, "failed")
+    assert failed.error.startswith("WaveMaterial couldn't start its speech engine")
+    assert "Test GPU" in failed.device  # not rerun on the CPU
+    assert store.unreliable_gpus() == set()
+    assert not (sched.job_dir(job.id) / "fake-stages.log").exists()  # no stage ran
+    log = (sched.job_dir(job.id) / "worker.log").read_text(encoding="utf-8")
+    assert "System32" in log and "1.17.1" in log  # versions and paths go to the log
+
+
+def test_an_onnxruntime_that_can_serve_sherpa_only_warns(env):
+    sched, store, source = env(onnxruntime="new")
+    job = sched.add(source, min_speakers=2, max_speakers=3)
+    sched.start()
+    wait_for(store, job.id, "done")
+    events = read_events(sched.job_dir(job.id))
+    warnings = [e for e in events if "warning: Windows supplied its own copy" in e]
+    assert len(warnings) == 1 and "System32" not in warnings[0]  # plain words in the UI
+    assert "System32" in (sched.job_dir(job.id) / "worker.log").read_text(encoding="utf-8")
 
 
 def test_only_one_instance_holds_the_lock(tmp_path):

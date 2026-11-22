@@ -4,6 +4,8 @@
 The worker uses it when `WAVEMATERIAL_FAKE_ENGINE` is set to a JSON object of options:
 - `"sleep"`: seconds to wait in each stage (default 0);
 - `"gpu_fails_at"`: a stage name; on a "vulkan" device it raises GpuFailure there.
+- `"onnxruntime"`: "old" or "new" makes the worker meet another ONNX Runtime that can't, or
+  can, serve sherpa-onnx (see engine/onnxruntime_check.py) before any stage runs.
 Each stage that actually runs is appended to `fake-stages.log` in the job folder, so tests
 can see which saved stages were skipped on resume.
 """
@@ -33,6 +35,18 @@ _FILES = {
 def options() -> dict | None:
     raw = os.environ.get(ENV)
     return json.loads(raw) if raw else None
+
+
+def onnxruntime_notice():
+    """The ONNX Runtime check's outcome, as if Windows' copy were in use (see options)."""
+    from wavematerial.engine.onnxruntime_check import assess
+
+    kind = (options() or {}).get("onnxruntime")
+    if not kind:
+        return None
+    windows, ours = Path("C:/Windows/System32/onnxruntime.dll"), Path("C:/app/wm-onnxrt.dll")
+    version = "1.17.1" if kind == "old" else "1.30.0"
+    return assess(windows, ours, kind == "new", version, 28, from_source=False)
 
 
 def run(source: Path, job_dir: Path, *, choice: Choice, progress=None, **_) -> Transcript:

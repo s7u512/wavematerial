@@ -83,3 +83,32 @@ def test_cjk_fillers_are_dropped_without_gluing_words_together():
     assert drop_cjk("Roger，嗯，copy that.") == "Roger copy that."
     assert drop_cjk("the Voelcker report嗯.") == "the Voelcker report ."
     assert drop_cjk("Tranquility Base, 1969: café naïve") == "Tranquility Base, 1969: café naïve"
+
+
+def test_onnxruntime_check_fails_only_when_the_other_copy_cant_serve_sherpa(tmp_path):
+    import struct
+    from pathlib import Path
+
+    import pytest
+
+    from wavematerial.engine.onnxruntime_check import OnnxRuntimeMismatch, api_version, assess
+
+    windows, ours = Path("C:/Windows/System32/onnxruntime.dll"), Path("C:/app/wm-onnxrt.dll")
+    assert assess(ours, ours, False, "1.28.2", 28, from_source=False) is None
+
+    with pytest.raises(OnnxRuntimeMismatch) as old:
+        assess(windows, ours, False, "1.17.1", 28, from_source=True)
+    assert str(old.value).endswith("Windows installer, which isn't affected.")
+    assert "System32" in old.value.detail and "System32" not in str(old.value)
+
+    notice = assess(windows, ours, True, "1.30.0", 28, from_source=False)
+    assert (
+        notice.text.startswith("Windows supplied its own copy") and "installer" not in notice.text
+    )
+    assert "System32" in notice.detail and "System32" not in notice.text
+
+    # The API version needed is the minor number of our own DLL's file version (1.28.2.0).
+    dll = tmp_path / "wm-onnxrt.dll"
+    fixed = struct.pack("<IIII", 0xFEEF04BD, 0x00010000, (1 << 16) | 28, (2 << 16) | 0)
+    dll.write_bytes(b"MZ" + bytes(100) + fixed + bytes(50))
+    assert api_version(dll) == 28

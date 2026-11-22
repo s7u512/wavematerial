@@ -250,6 +250,8 @@ class Scheduler:
                     fraction = float(event["fraction"])
                     self.store.update(job.id, stage=event["stage"], stage_fraction=fraction)
                     clock.progress(event["stage"], fraction)
+                elif event.get("event") == "warning":
+                    log_event(job_dir, f"warning: {event.get('message', '')}")
                 else:
                     result = event
             code = self._proc.wait()

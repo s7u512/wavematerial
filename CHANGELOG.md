@@ -6,6 +6,13 @@ Every user-visible change is recorded here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Windows: transcription no longer crashes right after "Read audio" ("stopped unexpectedly
+  (exit code 3221225477)") on PCs where Windows has its own, older copy of a library
+  WaveMaterial needs (ONNX Runtime), as some Windows 11 versions do. WaveMaterial now always
+  uses its own copy. If Windows' copy gets in anyway, the job stops with a plain message
+  when that copy can't work, or goes on with a warning in its log when it can.
+
 ## [1.0.0] - 2026-11-21
 
 ### Added
