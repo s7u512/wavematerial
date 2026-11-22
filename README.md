@@ -14,12 +14,13 @@ download, on Linux and Windows, using a Vulkan GPU when there is one and the CPU
 
 https://github.com/user-attachments/assets/c5d55654-e965-43e5-bcda-fe26cebf3074
 
-> **WaveMaterial 1.1.0** is out: a Windows installer and a Linux `.tar.gz` are on the
+> **WaveMaterial 1.2.0** is out: a Windows installer and a Linux `.tar.gz` are on the
 > [releases page](https://github.com/s7u512/wavematerial/releases), or run it from source
-> (below). New in 1.1.0: it asks before downloading the speech models, can update itself,
-> and fixes a crash on some Windows 11 PCs (see [`CHANGELOG.md`](CHANGELOG.md)). What it
-> does is in [`docs/SPEC.md`](docs/SPEC.md), and the visual design is in
-> [`design/DESIGN.md`](design/DESIGN.md).
+> (below); 1.1.0 and later update themselves. New in 1.2.0: add recordings now and start
+> them later, an **Edit transcript** button on finished recordings and an **Editor** item
+> in the sidebar, and dropping files onto the window works on Linux (see
+> [`CHANGELOG.md`](CHANGELOG.md)). What it does is in [`docs/SPEC.md`](docs/SPEC.md), and
+> the visual design is in [`design/DESIGN.md`](design/DESIGN.md).
 
 See [`USAGE.md`](USAGE.md) for a tour of every screen, with screenshots.
 
@@ -81,9 +82,12 @@ Windows 10 and 11 include.
 
 ## Honest support claims
 
-WaveMaterial is tested on one machine (Ryzen 5 7535HS, Radeon 660M, 14 GB RAM, Arch Linux)
-and with one recording. Windows builds are made and tested only under Wine (Bottles), never
-on real Windows. Everything else is "untested, should work".
+WaveMaterial 1.2.0 is tested on one machine (Ryzen 5 9600X, GeForce RTX 5060 Ti through
+Vulkan, 15 GB RAM, Arch Linux) with a few recordings; there it transcribes in about a tenth
+of the audio's length. Versions up to 1.1.0 were tested on another (Ryzen 5 7535HS, Radeon
+660M integrated graphics through Vulkan, 14 GB RAM, Arch Linux), at about a quarter of the
+audio's length. Windows builds are made and tested only under Wine, never on real Windows.
+Everything else is "untested, should work".
 
 ## Development
 

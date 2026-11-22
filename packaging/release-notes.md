@@ -21,6 +21,6 @@ older versions need this download once.
 
 ## Tested on
 
-One machine (Ryzen 5 7535HS, Radeon 660M, 14 GB RAM, Arch Linux) and one recording. Windows
-builds are made and tested only under Wine, never on real Windows. Everything else is
-"untested, should work".
+One machine (Ryzen 5 9600X, GeForce RTX 5060 Ti through Vulkan, 15 GB RAM, Arch Linux) and a
+few recordings. Windows builds are made and tested only under Wine, never on real Windows.
+Everything else is "untested, should work".

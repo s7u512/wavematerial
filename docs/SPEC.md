@@ -8,7 +8,8 @@ before building it. Visual design: [`design/DESIGN.md`](../design/DESIGN.md).
 - A fully local desktop app that turns audio and video files, one or a batch, into
   speaker-attributed **English** transcripts, with an editor to correct them.
 - Linux and Windows. Vulkan GPU first (integrated GPUs included), CPU as a fallback.
-- Speed budget: processing time ≤ 0.9 × audio length on the reference machine.
+- Speed budget: processing time ≤ 0.9 × audio length on integrated graphics like the
+  Radeon 660M (measured 0.23× there up to 1.1.0; about 0.1× on the 1.2.0 test machine).
 - Offline after first run. The only network calls are the model downloads and the update
   check. No telemetry, no accounts.
 - **Not in 1.0.0:** other languages, CUDA, macOS, a light theme, live transcription,
@@ -272,8 +273,10 @@ update the user starts, which replaces it whole (see Updates).
 
 ## Support claims
 
-- WaveMaterial is tested on one machine (Ryzen 5 7535HS, Radeon 660M, 14 GB RAM, Linux) and
-  one recording. Everything else is "untested, should work", and the README says so.
+- WaveMaterial 1.2.0 is tested on one machine (Ryzen 5 9600X, GeForce RTX 5060 Ti through
+  Vulkan, 15 GB RAM, Linux) with a few recordings; versions up to 1.1.0 were tested on a
+  Ryzen 5 7535HS with a Radeon 660M (integrated, Vulkan), 14 GB RAM, Linux. Everything else
+  is "untested, should work", and the README says so.
 - Windows builds are made and tested only under Wine (Bottles), never on real Windows.
 - Requirements are stated as measured: peak 3.4 GB RAM on the CPU path; about 1.2 GB plus
   2.2 GB of shared GPU memory on Vulkan; 2.9 GB of models on disk.

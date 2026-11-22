@@ -26,8 +26,8 @@ RFC 2119 and RFC 8174. When you depart from a SHOULD, say so and why in your sum
 7. Fix what a linter reports. You SHOULD NOT silence it with `# noqa` or a config edit unless
    the finding is wrong, and then say why in a comment.
 8. You MUST NOT present unsupported, partial, or placeholder behaviour as working, in the UI,
-   the CLI, logs, or your summary. The project is honest about its claims: it is tested on
-   one machine, and the README says so.
+   the CLI, logs, or your summary. The project is honest about its claims: each version is
+   tested on one machine, and the README says which.
 9. You MUST keep secrets and personal details (emails, tokens, local paths, names) out of
    code, logs, fixtures, test data, and commits.
 10. The app MUST stay offline after first run: no telemetry. The only network calls are the
