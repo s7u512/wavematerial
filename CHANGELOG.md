@@ -6,6 +6,8 @@ Every user-visible change is recorded here. The format follows
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-22
+
 ### Added
 - **Self-update** and **Manual update** for the Windows installer and the Linux `.tar.gz`:
   when a newer version exists (Settings, and a small notice in the sidebar), Self-update
