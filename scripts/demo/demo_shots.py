@@ -348,7 +348,8 @@ def video() -> int:
             seg.ready()
             time.sleep(2.6)
             page.evaluate("document.getElementById('demo-caption').remove()")
-            click(page, page.locator(".job-row").filter(has_text="Act I").locator(".row-open"))
+            row = page.locator(".job-row").filter(has_text="Act I")
+            click(page, row.get_by_role("link", name="Edit the transcript", exact=False))
             page.wait_for_selector("#turns .turn")
             time.sleep(1.5)
 
