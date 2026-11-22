@@ -34,6 +34,8 @@
   <footer class="drawer-foot">
     {% if job.state == "running" %}
       <button type="button" class="btn btn-danger-outline" hx-post="/jobs/{{ job.id }}/stop" hx-swap="none">{{ icon("pause", 12) }} Stop</button>
+    {% elif job.state == "new" %}
+      <button type="button" class="btn btn-primary" hx-post="/jobs/{{ job.id }}/start" hx-swap="none">{{ icon("play", 12) }} Start</button>
     {% elif job.state == "cancelled" %}
       <button type="button" class="btn btn-secondary" hx-post="/jobs/{{ job.id }}/resume" hx-swap="none">{{ icon("play", 12) }} Resume</button>
     {% elif job.state == "failed" %}

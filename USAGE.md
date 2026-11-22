@@ -57,6 +57,11 @@ give **key terms**: names and jargon spelled the way you want them. Key terms ar
 the model, not guarantees; give only words that are really said, because the model may
 otherwise put them where they don't belong. **Save as my defaults** remembers the choices.
 
+**Add and transcribe** (or Enter) starts them straight away. **Add to library** only lists
+them, as **Not started**, so you can collect recordings now and start them later: press
+**Start** on a recording, or **Start N not started** at the top of the library for all of
+them. Starting puts a recording at the end of the queue.
+
 ![The Add recordings dialog with two files, a speaker range, and a key term](demo/usage/03-add-recordings.png)
 
 ## While recordings are transcribed

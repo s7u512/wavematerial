@@ -74,6 +74,7 @@ SETTINGS_GROUPS = [
 
 FILTERS = {
     "all": ("All", None),
+    "new": ("Not started", {"new"}),
     "progress": ("In progress", {"queued", "running", "cancelled"}),
     "done": ("Done", {"done"}),
     "failed": ("Failed", {"failed"}),
@@ -90,7 +91,7 @@ def _ctx() -> AppContext:
 @dataclass
 class Row:
     job: Job
-    status: str  # pill class: running, queued, done, failed, cancelled
+    status: str  # pill class: new, running, queued, done, failed, cancelled
     label: str
     note: str
     detail: str
@@ -144,6 +145,7 @@ def _row(ctx: AppContext, job: Job, first_queued: int | None) -> Row:
     else:
         speakers = f"{job.min_speakers}–{job.max_speakers}"
     label, detail = {
+        "new": ("Not started", ""),
         "running": ("Transcribing", ""),
         "queued": ("Queued · next" if job.id == first_queued else "Queued", ""),
         "done": ("Ready", ""),
@@ -191,18 +193,25 @@ def _library(ctx: AppContext, flt: str, q: str) -> dict:
     queued = [j for j in jobs if j.state == "queued"]
     first_queued = queued[0].id if queued else None
     shown = [j for j in jobs if (states is None or j.state in states) and _matches(ctx, j, q)]
-    # Newest first, except that unfinished work stays on top in queue order.
+    # Newest first, except that Not started jobs (waiting for the user) come first, then the
+    # unfinished work in queue order.
+    new = [j for j in shown if j.state == "new"]
     active = [j for j in shown if j.state in ("running", "queued")]
     active.sort(key=lambda j: (j.state != "running", j.position))
-    rest = sorted((j for j in shown if j not in active), key=lambda j: j.created_at, reverse=True)
+    rest = sorted(
+        (j for j in shown if j.state not in ("new", "running", "queued")),
+        key=lambda j: j.created_at,
+        reverse=True,
+    )
     return {
-        "rows": [_row(ctx, j, first_queued) for j in active + rest],
+        "rows": [_row(ctx, j, first_queued) for j in new + active + rest],
         "counts": counts,
         "flt": flt if flt in FILTERS else "all",
         "q": q,
         "filters": FILTERS,
         "total": len(jobs),
         "in_progress": sum(1 for j in jobs if j.state in ("running", "queued")),
+        "not_started": counts["new"],
     }
 
 
@@ -478,6 +487,16 @@ def register(app: Flask) -> None:
         else:
             abort(404)
         return render_template("_engine.html", engine=_engine(ctx))
+
+    @app.post("/jobs/start-all")
+    def start_all():
+        """Start every Not started job, in the order the library lists them."""
+        ctx = _ctx()
+        new = sorted((j for j in ctx.store.all() if j.state == "new"), key=lambda j: j.position)
+        ctx.scheduler.start_all([j.id for j in new])
+        resp = make_response("")
+        resp.headers["HX-Trigger"] = "refresh"
+        return resp
 
     # job details
     def _drawer_data(ctx: AppContext, job_id: int) -> dict:
@@ -909,7 +928,9 @@ def register(app: Flask) -> None:
     def job_action(job_id: int, action: str):
         ctx = _ctx()
         sched = ctx.scheduler
-        if action == "stop":
+        if action == "start":
+            sched.start_job(job_id)
+        elif action == "stop":
             sched.stop(job_id)
         elif action in ("resume", "retry"):
             sched.resume(job_id)
@@ -994,8 +1015,9 @@ def register(app: Flask) -> None:
         hi = int(request.form.get("max_speakers", 3))
         lo, hi = min(lo, hi), max(lo, hi)
         terms = [t.strip() for t in request.form.getlist("key_terms") if t.strip()]
+        start = request.form.get("start", "1") != "0"  # "Add to library" sends 0
         for p in paths:
-            ctx.scheduler.add(p, min_speakers=lo, max_speakers=hi, key_terms=terms)
+            ctx.scheduler.add(p, min_speakers=lo, max_speakers=hi, key_terms=terms, start=start)
         if request.form.get("save_defaults"):
             ctx.save_settings(
                 replace(ctx.settings(), min_speakers=lo, max_speakers=hi, key_terms=terms)

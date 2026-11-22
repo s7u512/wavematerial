@@ -37,12 +37,15 @@
         </div>
       </div>
     </div>
-    <footer class="modal-foot">
+    <footer class="modal-foot add-foot">
       <label class="check"><input type="checkbox" name="save_defaults" value="1"> Save speakers and key terms as my defaults</label>
       <div class="foot-right">
-        <button type="button" class="btn btn-secondary" data-close-modal>Cancel</button>
-        <button type="submit" class="btn btn-primary" id="add-submit" disabled>Add recordings</button>
+        <button type="button" class="btn btn-ghost" data-close-modal>Cancel</button>
+        {# Enter submits the form, which starts: Add to library is a separate request. #}
+        <button type="button" class="btn btn-secondary" id="add-later" hx-post="/add" hx-include="#add-form" hx-vals='{"start": "0"}' hx-swap="none" disabled>Add to library</button>
+        <button type="submit" class="btn btn-primary" id="add-submit" disabled>{{ icon("play", 12) }} Add and transcribe</button>
       </div>
+      <p class="add-hint muted small">Add to library keeps them as Not started until you press Start.</p>
     </footer>
   </form>
 </dialog>

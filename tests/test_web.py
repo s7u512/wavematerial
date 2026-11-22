@@ -159,11 +159,36 @@ def test_library_poll_keeps_the_counts_current(web):
 
     # The poll swaps only the table; the counts outside it ride along out of band.
     table = _get(client, "/library/table?filter=all").get_data(as_text=True)
-    assert table.count('hx-swap-oob="true"') == 6  # summary, 4 chip counts, sidebar count
+    # summary, Start all, 5 chip counts, sidebar count
+    assert table.count('hx-swap-oob="true"') == 8
     assert '<a class="chip' not in table  # the chip links themselves are never replaced
     assert "2 recordings · 1 in progress" in table
     assert 'id="chip-count-done" class="chip-count" hx-swap-oob="true">1<' in table
     assert 'id="nav-library-count" class="nav-count" hx-swap-oob="true">2<' in table
+
+
+def test_add_to_library_waits_for_start_and_start_all_keeps_the_order(web):
+    ctx, client, tmp = web
+    client.set_cookie(COOKIE, "secret-token", domain="127.0.0.1")
+    names = ("apollo11.wav", "gemini4.wav", "apollo8.wav")
+    for name in names:
+        (tmp / name).write_bytes(b"\0")
+    running = ctx.store.add(tmp / "apollo11.wav", min_speakers=1, max_speakers=2)
+
+    # "Add to library" sends start=0; the form's own submit ("Add and transcribe") doesn't.
+    for name in names[1:]:
+        _post(client, "/add", data={"paths": [str(tmp / name)], "start": "0"})
+    new = [j for j in ctx.store.all() if j.state == "new"]
+    assert [j.name for j in new] == ["gemini4.wav", "apollo8.wav"]
+    page = _get(client, "/library/table").get_data(as_text=True)  # with the header's parts
+    assert "Start 2 not started" in page and "2 not started" in page
+    assert page.index("gemini4.wav") < page.index("apollo11.wav")  # waiting for you: first
+
+    _post(client, f"/jobs/{new[1].id}/start")  # one row's Start: to the end of the queue
+    _post(client, "/jobs/start-all")
+    queued = sorted((j for j in ctx.store.all() if j.state == "queued"), key=lambda j: j.position)
+    assert [j.id for j in queued] == [running.id, new[1].id, new[0].id]
+    assert "not started" not in _get(client, "/library/table").get_data(as_text=True)
 
 
 def test_editor_audio_is_made_once_for_older_jobs_and_seekable(web):

@@ -93,11 +93,14 @@ def bwrap(home: Path, models: bool, env: dict[str, str] | None = None) -> list[s
     """The sandbox: the system read-only, /home/you private, the GPU and this repo visible."""
     python = Path(os.path.realpath(REPO / ".venv" / "bin" / "python"))
     uv_python = python.parents[1]  # the uv-managed Python the venv points at
+    # Newer uv links the venv through a minor-version alias (cpython-3.12-…); mount it too.
+    alias = Path(os.readlink(REPO / ".venv" / "bin" / "python")).parents[1]
     cmd = [
         "bwrap", "--ro-bind", "/", "/", "--dev-bind", "/dev", "/dev", "--ro-bind", "/sys",
         "/sys", "--proc", "/proc", "--tmpfs", "/tmp", "--tmpfs", "/home",
         "--bind", str(home), str(SANDBOX_HOME), "--ro-bind", str(REPO), str(REPO),
-        "--ro-bind", str(uv_python), str(uv_python), "--chdir", str(SANDBOX_HOME),
+        "--ro-bind", str(uv_python), str(uv_python), "--ro-bind", str(uv_python), str(alias),
+        "--chdir", str(SANDBOX_HOME),
         "--setenv", "HOME", str(SANDBOX_HOME), "--setenv", "USER", "you",
         "--setenv", "PYTHONDONTWRITEBYTECODE", "1", "--die-with-parent",
     ]  # fmt: skip

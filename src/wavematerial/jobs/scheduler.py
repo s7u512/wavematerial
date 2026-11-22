@@ -75,17 +75,33 @@ class Scheduler:
 
     # ---- controls ----------------------------------------------------------------------
 
-    def add(self, source: Path, *, min_speakers: int, max_speakers: int, key_terms=()) -> Job:
+    def add(
+        self, source: Path, *, min_speakers: int, max_speakers: int, key_terms=(), start=True
+    ) -> Job:
+        """Add a recording: queued at once, or (start=False) kept as Not started."""
         job = self.store.add(
             source,
             min_speakers=min_speakers,
             max_speakers=max_speakers,
             key_terms=key_terms,
             duration=_probe_duration(source),
+            start=start,
         )
-        log_event(self.job_dir(job.id), "queued")
-        self._notify()
+        log_event(self.job_dir(job.id), "queued" if start else "added, not started")
+        if start:
+            self._notify()
         return job
+
+    def start_job(self, job_id: int) -> None:
+        """Queue a Not started job at the end of the queue."""
+        if self.store.start(job_id):
+            log_event(self.job_dir(job_id), "queued")
+            self._notify()
+
+    def start_all(self, job_ids: list[int]) -> None:
+        """Queue several Not started jobs, in the order given."""
+        for job_id in job_ids:
+            self.start_job(job_id)
 
     def pause(self) -> None:
         """Stop the queue after the current job."""

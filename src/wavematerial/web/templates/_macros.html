@@ -21,8 +21,14 @@
 {%- endmacro %}
 
 {# Library counts. The table fragment re-sends these out of band so they stay current. #}
-{% macro library_summary(total, in_progress, oob=False) -%}
-<p id="library-summary" class="muted"{% if oob %} hx-swap-oob="true"{% endif %}>{{ total }} recording{{ "" if total == 1 else "s" }}{% if in_progress %} · {{ in_progress }} in progress{% endif %}</p>
+{% macro library_summary(total, in_progress, not_started=0, oob=False) -%}
+<p id="library-summary" class="muted"{% if oob %} hx-swap-oob="true"{% endif %}>{{ total }} recording{{ "" if total == 1 else "s" }}{% if not_started %} · {{ not_started }} not started{% endif %}{% if in_progress %} · {{ in_progress }} in progress{% endif %}</p>
+{%- endmacro %}
+
+{# "Start N not started" in the library header; an empty placeholder keeps its id for the poll. #}
+{% macro start_all(n, oob=False) -%}
+{% if n %}<button type="button" id="start-all" class="btn btn-secondary" hx-post="/jobs/start-all" hx-swap="none"{% if oob %} hx-swap-oob="true"{% endif %}>{{ icon("play", 12) }} Start {{ n }} not started</button>
+{%- else %}<span id="start-all" hidden{% if oob %} hx-swap-oob="true"{% endif %}></span>{% endif %}
 {%- endmacro %}
 
 {% macro library_chips(filters, flt, q, counts, oob=False) -%}

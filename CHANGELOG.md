@@ -6,6 +6,18 @@ Every user-visible change is recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Add to library** in the Add recordings dialog: the recordings are listed as **Not
+  started** and wait until you press **Start** on one, or **Start N not started** at the top
+  of the library. A **Not started** filter lists them.
+
+### Changed
+- The Add recordings dialog's main button is now **Add and transcribe**, which says what it
+  does (it starts them, as before).
+- The library's database gains a version number and is brought up to date when WaveMaterial
+  starts. After running 1.2.0, an older version can't open your library; update rather than
+  going back.
+
 ### Fixed
 - Dropping files onto the app window now works on Linux; the app no longer logs an
   `'EventContainer' object has no attribute 'drop'` error on every page load.

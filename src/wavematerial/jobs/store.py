@@ -12,7 +12,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-STATES = ("queued", "running", "done", "failed", "cancelled")
+# "new": added to the library but not started; it joins the queue when the user starts it.
+STATES = ("new", "queued", "running", "done", "failed", "cancelled")
 
 # Rough share of a job's time per stage, for an overall progress figure and ETA.
 STAGE_WEIGHTS = {
@@ -25,8 +26,11 @@ STAGE_WEIGHTS = {
     "render": 0.02,
 }
 
-_SCHEMA = """
-CREATE TABLE IF NOT EXISTS jobs (
+# Bumped with every schema change; _migrate() brings an older database up to date.
+SCHEMA_VERSION = 1
+
+_JOBS_TABLE = """
+CREATE TABLE {name} (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
     source TEXT NOT NULL,
@@ -34,7 +38,8 @@ CREATE TABLE IF NOT EXISTS jobs (
     min_speakers INTEGER NOT NULL,
     max_speakers INTEGER NOT NULL,
     key_terms TEXT NOT NULL DEFAULT '[]',
-    state TEXT NOT NULL CHECK (state IN ('queued','running','done','failed','cancelled')),
+    state TEXT NOT NULL
+        CHECK (state IN ('new','queued','running','done','failed','cancelled')),
     stage TEXT,
     stage_fraction REAL NOT NULL DEFAULT 0,
     error TEXT,
@@ -44,8 +49,18 @@ CREATE TABLE IF NOT EXISTS jobs (
     speakers INTEGER,
     created_at TEXT NOT NULL,
     started_at TEXT,
-    finished_at TEXT
-);
+    finished_at TEXT,
+    opened_at TEXT
+)"""
+
+# The columns 1.1.0 (schema version 0) had, copied across by the migration.
+_V0_COLUMNS = (
+    "id, name, source, fingerprint, min_speakers, max_speakers, key_terms, state, stage,"
+    " stage_fraction, error, device, position, duration, speakers, created_at, started_at,"
+    " finished_at"
+)
+
+_OTHER_TABLES = """
 CREATE TABLE IF NOT EXISTS unreliable_gpus (
     device_id TEXT PRIMARY KEY,
     reason TEXT NOT NULL,
@@ -90,6 +105,7 @@ class Job:
     created_at: str
     started_at: str | None
     finished_at: str | None
+    opened_at: str | None  # when the editor last opened this transcript
 
     @property
     def progress(self) -> float:
@@ -119,7 +135,41 @@ class JobStore:
         db_path.parent.mkdir(parents=True, exist_ok=True)
         with self._db() as db:
             db.execute("PRAGMA journal_mode=WAL")
-            db.executescript(_SCHEMA)
+        self._migrate()
+
+    def _migrate(self) -> None:
+        """Create the tables, or bring a database from an older version up to date.
+
+        Version 0 (1.1.0) had no "new" state and no `opened_at`. SQLite can't change a CHECK
+        constraint, so the jobs table is rebuilt and its rows copied, in one transaction.
+        """
+        db = sqlite3.connect(self.db_path, timeout=10, isolation_level=None)
+        try:
+            version = db.execute("PRAGMA user_version").fetchone()[0]
+            if version >= SCHEMA_VERSION:
+                return
+            db.execute("BEGIN IMMEDIATE")
+            has_jobs = db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'jobs'"
+            ).fetchone()
+            if has_jobs:
+                db.execute(_JOBS_TABLE.format(name="jobs_v1"))
+                db.execute(f"INSERT INTO jobs_v1 ({_V0_COLUMNS}) SELECT {_V0_COLUMNS} FROM jobs")
+                db.execute("DROP TABLE jobs")
+                db.execute("ALTER TABLE jobs_v1 RENAME TO jobs")
+            else:
+                db.execute(_JOBS_TABLE.format(name="jobs"))
+            for stmt in _OTHER_TABLES.split(";"):
+                if stmt.strip():
+                    db.execute(stmt)
+            db.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+            db.execute("COMMIT")
+        except BaseException:
+            if db.in_transaction:
+                db.execute("ROLLBACK")
+            raise
+        finally:
+            db.close()
 
     @contextmanager
     def _db(self) -> Iterator[sqlite3.Connection]:
@@ -140,13 +190,15 @@ class JobStore:
         max_speakers: int,
         key_terms=(),
         duration: float | None = None,
+        start: bool = True,
     ) -> Job:
+        """Add a job: queued at the end, or (start=False) "new" until start() is called."""
         with self._db() as db:
             position = db.execute("SELECT COALESCE(MAX(position), 0) + 1 FROM jobs").fetchone()[0]
             cur = db.execute(
                 "INSERT INTO jobs (name, source, fingerprint, min_speakers, max_speakers,"
                 " key_terms, state, position, duration, created_at)"
-                " VALUES (?,?,?,?,?,?,'queued',?,?,?)",
+                " VALUES (?,?,?,?,?,?,?,?,?,?)",
                 (
                     source.name,
                     str(source),
@@ -154,6 +206,7 @@ class JobStore:
                     min_speakers,
                     max_speakers,
                     json.dumps(list(key_terms)),
+                    "queued" if start else "new",
                     position,
                     duration,
                     _now(),
@@ -180,6 +233,16 @@ class JobStore:
                 "SELECT * FROM jobs WHERE state = 'queued' ORDER BY position LIMIT 1"
             ).fetchone()
         return _job(row) if row else None
+
+    def start(self, job_id: int) -> bool:
+        """Queue a "new" job at the end of the queue. False if it wasn't new."""
+        with self._db() as db:
+            pos = db.execute("SELECT COALESCE(MAX(position), 0) + 1 FROM jobs").fetchone()[0]
+            cur = db.execute(
+                "UPDATE jobs SET state = 'queued', position = ? WHERE id = ? AND state = 'new'",
+                (pos, job_id),
+            )
+        return cur.rowcount == 1
 
     def update(self, job_id: int, **fields) -> None:
         if "state" in fields and fields["state"] not in STATES:

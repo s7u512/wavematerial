@@ -1,14 +1,15 @@
 {# SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0 #}
 {% extends "base.html" %}
-{% from "_macros.html" import icon, library_summary, library_chips %}
+{% from "_macros.html" import icon, library_summary, library_chips, start_all %}
 {% block title %}Library · WaveMaterial{% endblock %}
 {% block main %}
 <header class="page-head">
   <div>
     <h1>Library</h1>
-    {{ library_summary(total, in_progress) }}
+    {{ library_summary(total, in_progress, not_started) }}
   </div>
   <div class="page-actions">
+    {{ start_all(not_started) }}
     <button type="button" class="btn btn-primary" hx-get="/add" hx-target="#modal">{{ icon("plus", 14) }} Add recordings</button>
     {% include "_f11.html" %}
   </div>

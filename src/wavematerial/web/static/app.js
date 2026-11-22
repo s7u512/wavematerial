@@ -263,11 +263,12 @@
   function updateAddCount() {
     const list = $("#add-files");
     const submit = $("#add-submit");
+    const later = $("#add-later");
     if (!list || !submit) return;
     const n = list.querySelectorAll(".file-row").length;
     list.dataset.count = String(n);
     submit.disabled = n === 0;
-    submit.textContent = n === 0 ? "Add recordings" : n === 1 ? "Add 1 recording" : `Add ${n} recordings`;
+    if (later) later.disabled = n === 0;
   }
   document.addEventListener("click", (evt) => {
     const rm = evt.target.closest("[data-remove-file]");

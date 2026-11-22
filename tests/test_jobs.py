@@ -183,3 +183,55 @@ def test_the_remove_command_asks_and_refuses_while_the_app_runs(tmp_path, monkey
 
     assert cli.main(["models", "--remove", "--yes"]) == 0
     assert not paths.default_models_dir.exists()
+
+
+def test_a_not_started_job_waits_until_started_then_runs(env):
+    sched, store, source = env()
+    sched.start()
+    later = sched.add(source, min_speakers=1, max_speakers=2, start=False)
+    time.sleep(1.5)  # the loop wakes at least once a second
+    assert store.get(later.id).state == "new"
+    assert not sched.job_dir(later.id).joinpath("fake-stages.log").exists()
+
+    sched.start_job(later.id)
+    wait_for(store, later.id, "done")
+
+
+# 1.1.0's jobs table (schema version 0): no "new" state, no opened_at.
+V0_JOBS = """
+CREATE TABLE jobs (
+    id INTEGER PRIMARY KEY, name TEXT NOT NULL, source TEXT NOT NULL,
+    fingerprint TEXT NOT NULL, min_speakers INTEGER NOT NULL, max_speakers INTEGER NOT NULL,
+    key_terms TEXT NOT NULL DEFAULT '[]',
+    state TEXT NOT NULL CHECK (state IN ('queued','running','done','failed','cancelled')),
+    stage TEXT, stage_fraction REAL NOT NULL DEFAULT 0, error TEXT, device TEXT,
+    position REAL NOT NULL, duration REAL, speakers INTEGER, created_at TEXT NOT NULL,
+    started_at TEXT, finished_at TEXT
+);
+CREATE TABLE unreliable_gpus (device_id TEXT PRIMARY KEY, reason TEXT NOT NULL, at TEXT NOT NULL);
+INSERT INTO jobs VALUES (7, 'apollo11.wav', '/rec/apollo11.wav', 'abc', 2, 3, '["Eagle"]',
+    'done', 'render', 1, NULL, 'Test GPU (vulkan)', 1, 751.0, 3, '2026-11-22T10:00:00+00:00',
+    '2026-11-22T10:01:00+00:00', '2026-11-22T10:04:00+00:00');
+INSERT INTO unreliable_gpus VALUES ('0000:05:00.0', 'out of memory', '2026-11-22T10:00:00+00:00');
+"""
+
+
+def test_a_1_1_0_library_is_brought_up_to_date_and_keeps_everything(tmp_path):
+    import sqlite3
+
+    db_path = tmp_path / "jobs.sqlite3"
+    with sqlite3.connect(db_path) as db:
+        db.executescript(V0_JOBS)
+
+    store = JobStore(db_path)
+    job = store.get(7)
+    assert (job.name, job.state, job.key_terms, job.speakers) == (
+        "apollo11.wav", "done", ("Eagle",), 3
+    )  # fmt: skip
+    assert job.opened_at is None and store.unreliable_gpus() == {"0000:05:00.0"}
+
+    source = tmp_path / "gemini4.wav"
+    source.write_bytes(b"\0")
+    assert store.add(source, min_speakers=1, max_speakers=2, start=False).state == "new"
+    JobStore(db_path)  # opening it again changes nothing
+    assert [j.id for j in store.all()][0] == 7

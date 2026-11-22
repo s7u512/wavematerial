@@ -47,13 +47,20 @@ before building it. Visual design: [`design/DESIGN.md`](../design/DESIGN.md).
 
 ## Jobs
 
-- One job per media file, and jobs run one at a time. States: `queued → running → done |
+- One job per media file, and jobs run one at a time. States: `new → queued → running → done |
   failed | cancelled`. Naming speakers and editing are actions on a done job.
+- The Add dialog has **Add and transcribe** (primary; Enter) and **Add to library**. Add to
+  library keeps the jobs as `new`, shown as **Not started**, until the user presses **Start**
+  on one (it joins the end of the queue) or **Start N not started** in the library header
+  (all of them, in library order). Not started jobs are listed first and have their own
+  filter; they can be deleted but not moved. Transcribe again always queues at once.
 - Each stage saves its result to the job's folder: `chunks.json`, `timings.json`,
   `text.jsonl` (one line per chunk), `diarization.json`, then `artifact.json`. After a
   crash, a job that was `running` goes back to `queued` and resumes from its last saved
   stage.
-- Jobs are stored in SQLite (WAL mode). Heavy work runs in one worker subprocess per job,
+- Jobs are stored in SQLite (WAL mode), with a schema version (`PRAGMA user_version`); an
+  older database is brought up to date when the app opens it. Older app versions can't open
+  a newer database. Heavy work runs in one worker subprocess per job,
   never in the web server. Progress comes back as JSON lines over a pipe.
 - Controls: Pause (finish the current job, then stop the queue), Stop (cancel and keep the
   saved stages), Resume, Retry (from the last good stage), reorder, and Delete.
