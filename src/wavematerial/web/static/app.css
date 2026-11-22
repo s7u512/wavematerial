@@ -183,12 +183,16 @@ progress.bar-ok::-moz-progress-bar { background: var(--ok); }
 .nav-item.is-active .i { color: var(--accent-text); }
 .nav-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nav-count { color: var(--text-3); font-size: var(--fs-small); }
+.nav-sub { display: block; overflow: hidden; text-overflow: ellipsis; font-size: var(--fs-small); font-weight: 400; color: var(--text-3); }
+.nav-item.is-disabled, .nav-item.is-disabled:hover { cursor: default; background: none; color: var(--text-3); }
+.drawer-main { display: flex; gap: 8px; }
 .nav-recent { padding: 6px 10px; font-size: 13px; }
 .nav-search { position: relative; margin: 10px 0 2px; }
 .nav-search .i { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-2); pointer-events: none; }
 .nav-search input { margin: 0 !important; height: 32px; padding-left: 30px !important; font-size: 13px; background: var(--surface); }
 .nav-more { color: var(--accent-text); }
 .nav-recent.is-active { background: var(--surface); color: var(--text); }
+.nav-recent.is-active .i { color: var(--accent-text); }
 .nav-section { font-size: var(--fs-caps); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); padding: 14px 10px 6px; }
 .sidebar-spacer { flex: 1; }
 .engine { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 8px; display: grid; gap: 8px; }
@@ -248,8 +252,8 @@ progress.bar-ok::-moz-progress-bar { background: var(--ok); }
 .menu ul { position: absolute; right: 0; top: 100%; z-index: 20; min-width: 180px; margin: 4px 0 0; padding: 4px; list-style: none; background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: 8px; box-shadow: var(--shadow-lg); }
 .menu.menu-up ul { top: auto; bottom: 100%; margin: 0 0 4px; }
 .menu li { list-style: none; margin: 0; padding: 0; }
-.menu li button { display: block; width: 100%; margin: 0; padding: 7px 10px; background: none; border: 0; border-radius: 4px; text-align: left; color: var(--text); font-size: var(--fs-body); cursor: pointer; }
-.menu li button:hover { background: var(--border); }
+.menu li button, .menu li a { display: block; width: 100%; margin: 0; padding: 7px 10px; background: none; border: 0; border-radius: 4px; text-align: left; color: var(--text); font-size: var(--fs-body); cursor: pointer; }
+.menu li button:hover, .menu li a:hover { background: var(--border); text-decoration: none; }
 .empty { text-align: center; padding: 80px 20px; border: 1px dashed var(--border-strong); border-radius: var(--r-card); }
 .empty h2 { margin-bottom: 6px; }
 .empty .btn { margin-top: 10px; }

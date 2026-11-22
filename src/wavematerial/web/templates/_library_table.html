@@ -1,5 +1,5 @@
 {# SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0 #}
-{% from "_macros.html" import icon, pill, library_summary, library_chips, nav_library_count, start_all %}
+{% from "_macros.html" import icon, pill, library_summary, library_chips, nav_library_count, nav_editor, start_all %}
 {% if not rows %}
 <div class="empty">
   {% if total == 0 %}
@@ -41,10 +41,12 @@
       <td class="actions">
         <div class="row-actions">
         {% if r.status == "new" %}<button type="button" class="btn btn-secondary btn-sm" hx-post="/jobs/{{ r.job.id }}/start" hx-swap="none" aria-label="Start {{ r.job.name }}">{{ icon("play", 12) }} Start</button>{% endif %}
+        {% if r.status == "done" %}<a class="btn btn-secondary btn-sm" href="/jobs/{{ r.job.id }}/edit" aria-label="Edit the transcript of {{ r.job.name }}">{{ icon("pencil", 12) }} Edit transcript</a>{% endif %}
         <details class="menu">
           <summary aria-label="More for {{ r.job.name }}">{{ icon("more") }}</summary>
           <ul>
             {% if r.status == "new" %}<li><button type="button" hx-post="/jobs/{{ r.job.id }}/start" hx-swap="none">Start</button></li>{% endif %}
+            {% if r.status == "done" %}<li><a href="/jobs/{{ r.job.id }}/edit">Edit transcript</a></li>{% endif %}
             <li><button type="button" hx-get="/jobs/{{ r.job.id }}" hx-target="#drawer">Details</button></li>
             {% if r.status == "done" %}<li><button type="button" hx-post="/jobs/{{ r.job.id }}/open-folder" hx-swap="none">Open output folder</button></li>{% endif %}
             {% if r.status in ("done", "failed", "cancelled") %}<li><button type="button" hx-get="/jobs/{{ r.job.id }}/again" hx-target="#modal">Transcribe again…</button></li>{% endif %}
@@ -70,4 +72,5 @@
 {{ start_all(not_started, oob=True) }}
 {{ library_chips(filters, flt, q, counts, oob=True) }}
 {{ nav_library_count(total, oob=True) }}
+{{ nav_editor(editor_job, active, oob=True) }}
 {% endif %}

@@ -201,6 +201,12 @@ update the user starts, which replaces it whole (see Updates).
 - The app opens on a landing screen: the logo, the name, the tagline "Offline, Vulkan-first
   transcription with speaker diarisation and transcript editing", Open library, Add
   recordings (straight from there), and Quit. The sidebar's logo returns to it.
+- The sidebar has **Library**, then **Editor**: it reopens the transcript last opened in the
+  editor (else the newest finished one) and shows its name as "Last: …"; in the editor it is
+  the active item and the open transcript is lit up in Recent; with no finished recording it
+  is dimmed with "No transcripts yet". Recent lists the four newest finished recordings.
+- A finished recording has **Edit transcript** as a button on its library row, as the first
+  item in the row's menu, and as the primary button of its details drawer.
 - The sidebar has **Quit WaveMaterial** and a search over titles and transcript text. If no
   window can open, the app opens in the browser and exits 5 minutes after its last page
   closes.

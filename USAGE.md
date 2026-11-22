@@ -85,7 +85,8 @@ folder shown as ~) for the [issues page](https://github.com/s7u512/wavematerial/
 ## The library
 
 Every recording, with its length, the number of speakers found, and its status. The tabs
-filter by status. Click a row to open its transcript.
+filter by status. **Edit transcript** on a finished recording (or its name) opens it in the
+editor; its details drawer has the same button.
 
 ![The library with two finished recordings](demo/usage/06-library.png)
 
@@ -93,8 +94,8 @@ filter by status. Click a row to open its transcript.
 
 ![The library filtered to recordings that mention "trees"](demo/usage/07-library-search.png)
 
-Each row's **⋯** menu has the details, the folder with the output files, **Transcribe
-again…**, and **Delete** (which never touches the original file).
+Each row's **⋯** menu has **Edit transcript**, the details, the folder with the output
+files, **Transcribe again…**, and **Delete** (which never touches the original file).
 
 ![A library row's menu](demo/usage/08-library-row-menu.png)
 
@@ -109,6 +110,8 @@ The sidebar's search box finds recordings by title or text from any screen.
 
 ## The editor
 
+**Editor** in the sidebar takes you back to the transcript you last had open (its name is
+shown under it); until a recording has been transcribed it says "No transcripts yet".
 Opening a finished recording shows its transcript: one block per turn, each with its time
 and speaker, and the player along the bottom with a coloured strip of who speaks when. The
 side panel lists the speakers, the key terms used, and the keyboard shortcuts. Edits save

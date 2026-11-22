@@ -44,6 +44,19 @@
 {% endif %}
 {%- endmacro %}
 
+{# The sidebar's Editor item: opens the transcript last opened; dimmed until one is done. #}
+{% macro nav_editor(editor_job, active, oob=False) -%}
+{% if editor_job %}
+<a id="nav-editor" class="nav-item{% if active == 'editor' %} is-active{% endif %}" href="/editor" title="Editor: {{ fmt.title(editor_job.name, editor_job.source) }}"{% if active == 'editor' %} aria-current="page"{% endif %}{% if oob %} hx-swap-oob="true"{% endif %}>
+  {{ icon("pencil") }}<span class="nav-label">Editor{% if active != 'editor' %}<span class="nav-sub">Last: {{ fmt.title(editor_job.name, editor_job.source) }}</span>{% endif %}</span>
+</a>
+{%- else %}
+<span id="nav-editor" class="nav-item is-disabled" aria-disabled="true" title="No transcripts yet: the editor opens once a recording is transcribed"{% if oob %} hx-swap-oob="true"{% endif %}>
+  {{ icon("pencil") }}<span class="nav-label">Editor<span class="nav-sub">No transcripts yet</span></span>
+</span>
+{%- endif %}
+{%- endmacro %}
+
 {% macro nav_library_count(n, oob=False) -%}
 <span id="nav-library-count" class="nav-count"{% if oob %} hx-swap-oob="true"{% endif %}>{{ n }}</span>
 {%- endmacro %}

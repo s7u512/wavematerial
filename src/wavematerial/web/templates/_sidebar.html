@@ -1,5 +1,5 @@
 {# SPDX-License-Identifier: GPL-2.0-only WITH Universal-FOSS-exception-1.0 #}
-{% from "_macros.html" import icon, nav_library_count %}
+{% from "_macros.html" import icon, nav_library_count, nav_editor %}
 <nav class="sidebar" aria-label="Main">
   <a class="brand" href="/" title="WaveMaterial home">
     <img src="/static/img/app-icon.svg" alt="" width="30" height="30">
@@ -8,6 +8,7 @@
   <a class="nav-item{% if active == 'library' %} is-active{% endif %}" href="/library" title="Library">
     {{ icon("library") }}<span class="nav-label">Library</span>{{ nav_library_count(library_count) }}
   </a>
+  {{ nav_editor(editor_job, active) }}
   <form class="nav-search" action="/library" method="get">
     {{ icon("search", 14) }}
     <input type="search" name="q" placeholder="Search recordings" aria-label="Search recordings by title or text" autocomplete="off"

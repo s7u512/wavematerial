@@ -246,10 +246,23 @@ def _recent(ctx: AppContext) -> list[Job]:
     return sorted(done, key=lambda j: j.finished_at or "", reverse=True)[:4]
 
 
+def _editor_job(ctx: AppContext) -> Job | None:
+    """What the sidebar's Editor item opens: the transcript last opened in the editor, else
+    the newest finished one; None when nothing is finished."""
+    done = [j for j in ctx.store.all() if j.state == "done"]
+    if not done:
+        return None
+    opened = [j for j in done if j.opened_at]
+    if opened:
+        return max(opened, key=lambda j: j.opened_at or "")
+    return max(done, key=lambda j: j.finished_at or "")
+
+
 def _shell(ctx: AppContext, active: str) -> dict:
     return {
         "active": active,
         "recent": _recent(ctx),
+        "editor_job": _editor_job(ctx),
         "engine": _engine(ctx),
         "library_count": len(ctx.store.all()),
         "update_version": ctx.updates.status.latest if ctx.updates.update_available() else None,
@@ -471,7 +484,16 @@ def register(app: Flask) -> None:
     def library_table():
         ctx = _ctx()
         data = _library(ctx, request.args.get("filter", "all"), request.args.get("q", ""))
-        return render_template("_library_table.html", **data, oob=True)
+        # The sidebar's Editor item rides along, so it wakes up when the first job finishes.
+        return render_template(
+            "_library_table.html", **data, oob=True, editor_job=_editor_job(ctx), active="library"
+        )
+
+    @app.get("/editor")
+    def editor_entry():
+        """The sidebar's Editor item: the transcript last opened, or the library if none."""
+        job = _editor_job(_ctx())
+        return redirect(f"/jobs/{job.id}/edit" if job else "/library")
 
     @app.get("/engine")
     def engine():
@@ -756,6 +778,7 @@ def register(app: Flask) -> None:
             abort(404)
         if job.state != "done":
             return redirect("/library")
+        ctx.store.mark_opened(job.id)
         job_dir = ctx.scheduler.job_dir(job.id)
         try:
             t = read_current(job_dir)
@@ -764,7 +787,7 @@ def register(app: Flask) -> None:
             log.warning("Can't open the transcript of job %s: %s", job.id, exc)
             return render_template(
                 "editor_error.html",
-                **_shell(ctx, "library"),
+                **_shell(ctx, "editor"),
                 job=job,
                 title=format.title(job.name, job.source),
             )
@@ -786,7 +809,7 @@ def register(app: Flask) -> None:
         models = [t.engine[k] for k in ("text", "timings", "diarization") if k in t.engine]
         return render_template(
             "editor.html",
-            **_shell(ctx, "library"),
+            **_shell(ctx, "editor"),
             job=job,
             title=format.title(job.name, job.source),
             length=format.length(t.duration),

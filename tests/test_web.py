@@ -159,8 +159,8 @@ def test_library_poll_keeps_the_counts_current(web):
 
     # The poll swaps only the table; the counts outside it ride along out of band.
     table = _get(client, "/library/table?filter=all").get_data(as_text=True)
-    # summary, Start all, 5 chip counts, sidebar count
-    assert table.count('hx-swap-oob="true"') == 8
+    # summary, Start all, 5 chip counts, the sidebar's count and Editor item
+    assert table.count('hx-swap-oob="true"') == 9
     assert '<a class="chip' not in table  # the chip links themselves are never replaced
     assert "2 recordings · 1 in progress" in table
     assert 'id="chip-count-done" class="chip-count" hx-swap-oob="true">1<' in table
@@ -189,6 +189,33 @@ def test_add_to_library_waits_for_start_and_start_all_keeps_the_order(web):
     queued = sorted((j for j in ctx.store.all() if j.state == "queued"), key=lambda j: j.position)
     assert [j.id for j in queued] == [running.id, new[1].id, new[0].id]
     assert "not started" not in _get(client, "/library/table").get_data(as_text=True)
+
+
+def test_the_sidebar_editor_reopens_the_last_opened_transcript(web, apollo):
+    ctx, client, tmp = web
+    client.set_cookie(COOKIE, "secret-token", domain="127.0.0.1")
+    assert _get(client, "/editor").headers["Location"] == "/library"  # nothing done yet
+    assert "No transcripts yet" in _get(client, "/library/table").get_data(as_text=True)
+
+    jobs = []
+    for name in ("apollo11.wav", "gemini4.wav"):
+        (tmp / name).write_bytes(b"\0")
+        job = ctx.store.add(tmp / name, min_speakers=1, max_speakers=2)
+        write_artifact(ctx.scheduler.job_dir(job.id), apollo)
+        ctx.store.set_state(job.id, "done")
+        jobs.append(job)
+    first, second = jobs
+    ctx.store.update(second.id, finished_at="2099-01-01T00:00:00+00:00")
+    # Never opened: the newest finished one.
+    assert _get(client, "/editor").headers["Location"] == f"/jobs/{second.id}/edit"
+
+    page = _get(client, f"/jobs/{first.id}/edit").get_data(as_text=True)
+    assert 'id="nav-editor" class="nav-item is-active"' in page  # lit in the editor
+    assert _get(client, "/editor").headers["Location"] == f"/jobs/{first.id}/edit"
+    assert "Last: apollo11" in _get(client, "/library/table").get_data(as_text=True)
+
+    _post(client, f"/jobs/{first.id}/delete")  # gone: back to the newest finished one
+    assert _get(client, "/editor").headers["Location"] == f"/jobs/{second.id}/edit"
 
 
 def test_editor_audio_is_made_once_for_older_jobs_and_seekable(web):

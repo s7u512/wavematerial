@@ -244,6 +244,10 @@ class JobStore:
             )
         return cur.rowcount == 1
 
+    def mark_opened(self, job_id: int) -> None:
+        """Remember when the editor opened this job's transcript (the sidebar's Editor item)."""
+        self.update(job_id, opened_at=_now())
+
     def update(self, job_id: int, **fields) -> None:
         if "state" in fields and fields["state"] not in STATES:
             raise ValueError(fields["state"])

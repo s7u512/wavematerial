@@ -6,6 +6,12 @@
     {{ pill(row.status, row.label) }}
     {% if job.state == "running" %}<span class="muted">{{ row.percent }}%{% if row.detail %} · {{ row.detail.split(" · ")[-1] if "left" in row.detail else "" }}{% endif %}</span>{% endif %}
   </div>
+  {% if job.state == "done" %}
+  <div class="drawer-main">
+    <a class="btn btn-primary" href="/jobs/{{ job.id }}/edit">{{ icon("pencil", 14) }} Edit transcript</a>
+    <button type="button" class="btn btn-secondary" hx-post="/jobs/{{ job.id }}/open-folder" hx-swap="none">{{ icon("folder", 14) }} Open output folder</button>
+  </div>
+  {% endif %}
   {% if job.error %}<div class="banner banner-danger">{{ icon("alert", 14) }}<div>{{ job.error }}</div></div>{% endif %}
 
   <h3 class="caps">Stages</h3>
@@ -40,8 +46,6 @@
       <button type="button" class="btn btn-secondary" hx-post="/jobs/{{ job.id }}/resume" hx-swap="none">{{ icon("play", 12) }} Resume</button>
     {% elif job.state == "failed" %}
       <button type="button" class="btn btn-secondary" hx-post="/jobs/{{ job.id }}/retry" hx-swap="none">{{ icon("refresh", 14) }} Retry</button>
-    {% elif job.state == "done" %}
-      <button type="button" class="btn btn-secondary" hx-post="/jobs/{{ job.id }}/open-folder" hx-swap="none">{{ icon("folder", 14) }} Open output folder</button>
     {% else %}<span></span>{% endif %}
     <div class="foot-right">
       {% if job.state != "running" %}<button type="button" class="btn btn-ghost danger" hx-post="/jobs/{{ job.id }}/delete" hx-swap="none" hx-confirm="Delete {{ job.name }} and its transcript? The original file is not touched.">{{ icon("trash", 14) }} Delete</button>{% endif %}

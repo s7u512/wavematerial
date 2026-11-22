@@ -10,6 +10,10 @@ Every user-visible change is recorded here. The format follows
 - **Add to library** in the Add recordings dialog: the recordings are listed as **Not
   started** and wait until you press **Start** on one, or **Start N not started** at the top
   of the library. A **Not started** filter lists them.
+- **Edit transcript** on every finished recording: a button on its library row, the first
+  item in its ⋯ menu, and the main button of its details.
+- **Editor** in the sidebar, under Library: it reopens the transcript you last had open
+  (shown as "Last: …"), and lights up with that transcript in Recent while you edit.
 
 ### Changed
 - The Add recordings dialog's main button is now **Add and transcribe**, which says what it
