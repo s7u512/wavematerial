@@ -149,9 +149,9 @@ def main() -> int:
 
     # Test install into the bottle's per-user programs folder, then uninstall.
     users = wine.prefix / "drive_c" / "users"
-    (user,) = [d for d in users.iterdir() if d.name not in ("Public", "steamuser")] or [
-        users / "steamuser"
-    ]
+    # Newer Wine also makes a "Default" profile; steamuser is a link to the real user.
+    skip = ("Public", "Default", "steamuser")
+    (user,) = [d for d in users.iterdir() if d.name not in skip] or [users / "steamuser"]
     app = user / "AppData" / "Local" / "Programs" / "WaveMaterial"
     if app.exists():
         shutil.rmtree(app)
